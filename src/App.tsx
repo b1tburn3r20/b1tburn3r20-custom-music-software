@@ -14,7 +14,7 @@ export default function App() {
       backgroundPosition: 'center',
     }
     : {};
-
+  // dummy comment to trigger credentials manager
   return (
     <div
       className="flex flex-col h-screen w-screen overflow-hidden relative bg-background transition-all duration-[3000ms] ease-in-out"
