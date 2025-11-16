@@ -22,7 +22,7 @@ function createWindow() {
       webSecurity: false,
     },
   });
-
+  // woah
   win.webContents.setZoomFactor(1.0);
 
   if (isDev) {
