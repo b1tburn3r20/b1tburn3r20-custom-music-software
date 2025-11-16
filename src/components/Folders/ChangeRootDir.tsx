@@ -25,7 +25,7 @@ const ChangeRootDir = () => {
       setPath(lastRootDir)
     }
   }
-
+  // dummy comment for cred man
   const loadFolderContents = async (path: string) => {
     setLoading(true);
     try {
