@@ -1,14 +1,14 @@
-"use client";
-import { usePlayerStore } from "@/stores/usePlayerStore";
-import MusicControls from "./MusicControls";
-import MusicVolume from "./MusicVolume";
-import MusicTrack from "./MusicTrack";
-import { Music } from "lucide-react";
-import LoopingControls from "./Controls/LoopingControls";
-import MusicRefsAndTitle from "./MusicRefsAndTitle";
-import ToggleExpandPlayer from "./components/ToggleExpandPlayer";
-import MusicPlayerTimeRunning from "./components/MusicPlayerTimeRunning";
 
+"use client";
+import MusicPlayerTimeRunning from "@/components/MusicPlayer/components/MusicPlayerTimeRunning";
+import ToggleExpandPlayer from "@/components/MusicPlayer/components/ToggleExpandPlayer";
+import LoopingControls from "@/components/MusicPlayer/Controls/LoopingControls";
+import MusicControls from "@/components/MusicPlayer/MusicControls";
+import MusicRefsAndTitle from "@/components/MusicPlayer/MusicRefsAndTitle";
+import MusicTrack from "@/components/MusicPlayer/MusicTrack";
+import MusicVolume from "@/components/MusicPlayer/MusicVolume";
+import { usePlayerStore } from "@/stores/usePlayerStore";
+import { Music } from "lucide-react";
 const MusicPlayer = () => {
   const currentlyPlaying = usePlayerStore((f) => f.currentlyPlaying);
 

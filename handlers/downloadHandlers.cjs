@@ -1,9 +1,12 @@
 const { ipcMain } = require("electron");
-const { exec } = require("child_process");
+const { spawn } = require('child_process')
 const path = require("path");
-const { decode } = require('html-entities')
 const mm = require('music-metadata');
 const fs = require("fs").promises;
+const { decode } = require('html-entities');
+
+const { addSongToCache } = require('./fileSystemHandlers.cjs');
+
 /**
  * @typedef {Object} MP3Metadata
  * @property {number} duration - Duration in seconds
@@ -22,157 +25,190 @@ const fs = require("fs").promises;
 
 /**
  * @typedef {Object} DownloadedMP3
- * @property {boolean} success - Whether download was successful
- * @property {string} path - Full path to the downloaded file
- * @property {string} fileName - Name of the downloaded file
- * @property {MP3Metadata} metadata - Extracted metadata from the video
+ * @property {boolean} success
+ * @property {string} path 
+ * @property {string} fileName 
+ * @property {MP3Metadata} metadata 
  */
 
-/**
- * Register all download related IPC handlers
- */
 function registerDownloadHandlers() {
-  // YouTube download handler
   ipcMain.handle('download-youtube', downloadYouTube);
 }
 
-/**
- * Download YouTube video as MP3 using yt-dlp
- * @param {Event} event - IPC event
- * @param {Object} params - Parameters object
- * @param {string} params.videoId - YouTube video ID
- * @param {string} params.title - Video title for filename
- * @param {string} params.savePath - Path to save the downloaded file
- * @returns {Promise<DownloadedMP3>}
- */
-
-
-async function downloadYouTube(event, { videoId, title, savePath }) {
-  return new Promise(async (resolve, reject) => {
-    const url = `https://www.youtube.com/watch?v=${videoId}`;
-    const decodedTitle = decode(title);
-    const sanitizedTitle = decodedTitle.replace(/[<>:"/\\|?*]/g, '').trim();
-    const outputTemplate = path.join(savePath, `${sanitizedTitle}.%(ext)s`);
-
-    const metadata = {};
-    let actualFilePath = null;
-
-    const ytdlp = exec(
-      `yt-dlp -x --audio-format mp3 --audio-quality 0 --embed-thumbnail --write-thumbnail --newline ` +
-      `--print-json ` +
-      `--print after_move:filepath ` +
-      `-o "${outputTemplate}" "${url}"`
-    );
-
-    let jsonBuffer = '';
-
-    ytdlp.stdout.on('data', (data) => {
-      const output = data.toString();
-
-      const lines = output.split('\n');
-      for (const line of lines) {
-        if (line.trim().endsWith('.mp3')) {
-          actualFilePath = line.trim();
-        }
-      }
-
-      if (output.trim().startsWith('{')) {
-        jsonBuffer += output;
-        try {
-          const parsed = JSON.parse(jsonBuffer);
-
-          metadata.duration = parsed.duration || 0;
-          metadata.durationFormatted = formatDuration(parsed.duration || 0);
-          metadata.thumbnail = parsed.thumbnail || '';
-          metadata.uploader = parsed.uploader || parsed.channel || 'Unknown';
-          metadata.uploadDate = parsed.upload_date || '';
-          metadata.uploadDateFormatted = formatUploadDate(parsed.upload_date);
-          metadata.viewCount = parsed.view_count || 0;
-          metadata.title = parsed.title || title;
-          metadata.description = parsed.description || '';
-          metadata.channel = parsed.channel || parsed.uploader || 'Unknown';
-          metadata.channelId = parsed.channel_id || '';
-          metadata.likeCount = parsed.like_count || 0;
-          jsonBuffer = ''
-        } catch (e) {
-          // JSON parsing failed, continue
-        }
-      }
-
-      const progressMatch = output.match(/(\d+\.?\d*)%/);
-      if (progressMatch) {
-        const percent = parseFloat(progressMatch[1]);
-        event.sender.send('download-progress', {
-          videoId,
-          percent: percent.toFixed(2),
-          downloaded: 0,
-          total: 0
-        });
-      }
-    });
-
-    ytdlp.stderr.on('data', (data) => {
-      console.error('yt-dlp stderr:', data.toString());
-    });
-
-    ytdlp.on('close', async (code) => {
-      if (code === 0) {
-        const finalPath = actualFilePath || outputTemplate.replace('%(ext)s', 'mp3');
-        const fileName = path.basename(finalPath);
-
-        // Generate updated folder data
-        try {
-          const updatedFolder = await generateLightFolderData(savePath);
-
-          event.sender.send('download-complete', {
-            folderPath: savePath,
-            updatedFolder: updatedFolder
-          });
-        } catch (error) {
-          console.error('Error generating folder data:', error);
-          // Fallback to old behavior if folder data generation fails
-          event.sender.send('download-complete', {
-            folderPath: savePath,
-            updatedFolder: null
-          });
-        }
-
-        resolve({
-          success: true,
-          path: finalPath,
-          fileName: fileName,
-          metadata: metadata
-        });
-      } else {
-        reject({
-          success: false,
-          error: `yt-dlp exited with code ${code}`
-        });
-      }
-    });
-
-    ytdlp.on('error', (error) => {
-      reject({
-        success: false,
-        error: error.message
-      });
-    });
-  });
-}
-
-// Helper function to generate light folder data (matching readFolderTree output)
 async function generateLightFolderData(folderPath) {
   const mp3Files = await getMp3Files(folderPath);
   const songCount = mp3Files.length;
   const thumbnails = songCount > 0 ? await getSampleThumbnails(mp3Files, folderPath) : [];
 
+  const songs = []
+  for (const fileName of mp3Files) {
+    const filePath = path.join(folderPath, fileName)
+    const thumbnail = await extractThumbnailOnly(filePath)
+    songs.push({
+      name: fileName,
+      path: filePath,
+      thumbnail,
+    })
+  }
+
   return {
     name: path.basename(folderPath),
     path: folderPath,
-    songCount: songCount,
-    thumbnails: thumbnails
+    songCount,
+    thumbnails,
+    songs,
   };
 }
+
+
+/**
+ * @param {Event} event 
+ * @param {Object} params 
+ * @param {string} params.videoId 
+ * @param {string} params.title -
+ * @param {string} params.savePath 
+ * @returns {Promise<DownloadedMP3>}
+ */
+
+async function downloadYouTube(event, { videoId, title, savePath }) {
+  return new Promise((resolve, reject) => {
+    const url = `https://www.youtube.com/watch?v=${videoId}`;
+    const decodedTitle = decode(title);
+    const sanitizedTitle = decodedTitle.replace(/[<>:"/\\|?*]/g, '').trim();
+
+    const metadataProcess = spawn('yt-dlp', [
+      '-j',
+      '--skip-download',
+      '--no-warnings',
+      url
+    ]);
+
+    let jsonBuffer = '';
+    let stderrBuffer = '';
+
+    metadataProcess.stdout.on('data', (data) => {
+      jsonBuffer += data.toString();
+    });
+
+    metadataProcess.stderr.on('data', (data) => {
+      stderrBuffer += data.toString();
+    });
+
+    metadataProcess.on('close', (code) => {
+      if (code !== 0) {
+        console.error('yt-dlp metadata error:', stderrBuffer);
+        reject({ success: false, error: 'Failed to fetch metadata' });
+        return;
+      }
+
+      try {
+        const parsed = JSON.parse(jsonBuffer);
+
+        const metadata = {
+          duration: parsed.duration || 0,
+          durationFormatted: formatDuration(parsed.duration || 0),
+          thumbnail: parsed.thumbnail || '',
+          uploader: parsed.uploader || parsed.channel || 'Unknown',
+          uploadDate: parsed.upload_date || '',
+          uploadDateFormatted: formatUploadDate(parsed.upload_date),
+          viewCount: parsed.view_count || 0,
+          title: parsed.title || title,
+          description: parsed.description || '',
+          channel: parsed.channel || parsed.uploader || 'Unknown',
+          channelId: parsed.channel_id || '',
+          likeCount: parsed.like_count || 0
+        };
+        console.log("Heres the metadata", metadata)
+        const outputTemplate = path.join(savePath, `${sanitizedTitle}.%(ext)s`);
+
+        const downloadProcess = spawn('yt-dlp', [
+          '-x',
+          '--audio-format', 'mp3',
+          '--audio-quality', '0',
+          '--embed-thumbnail',
+          '--add-metadata',
+          '--parse-metadata', 'uploader:%(artist)s',
+          '--parse-metadata', 'channel:%(artist)s',
+          '--parse-metadata', 'upload_date:%(date)s',
+          '--newline',
+          '--no-warnings',
+          '-o', outputTemplate,
+          url
+        ]);
+
+        let actualFilePath = null;
+
+        downloadProcess.stdout.on('data', (data) => {
+          const output = data.toString();
+          const lines = output.split('\n');
+
+          for (const line of lines) {
+            if (line.trim().endsWith('.mp3')) {
+              actualFilePath = line.trim();
+            }
+          }
+
+          const progressMatch = output.match(/(\d+\.?\d*)%/);
+          if (progressMatch) {
+            event.sender.send('download-progress', {
+              videoId,
+              percent: parseFloat(progressMatch[1]).toFixed(2),
+              downloaded: 0,
+              total: 0
+            });
+          }
+        });
+
+        downloadProcess.stderr.on('data', (data) => {
+          console.error('yt-dlp stderr:', data.toString());
+        });
+
+        downloadProcess.on('close', async (downloadCode) => {
+          if (downloadCode === 0) {
+            const finalPath = actualFilePath || outputTemplate.replace('%(ext)s', 'mp3');
+
+            try {
+              // Add the downloaded song to cache
+              console.log('Adding downloaded song to cache:', finalPath);
+              await addSongToCache(finalPath, savePath);
+
+              // Generate updated folder data
+              const updatedFolder = await generateLightFolderData(savePath);
+              event.sender.send('download-complete', {
+                folderPath: savePath,
+                updatedFolder: updatedFolder
+              });
+            } catch (error) {
+              console.error('Error updating cache or generating folder data:', error);
+              event.sender.send('download-complete', {
+                folderPath: savePath,
+                updatedFolder: null
+              });
+            }
+
+            resolve({
+              success: true,
+              path: finalPath,
+              fileName: path.basename(finalPath),
+              metadata: metadata
+            });
+          } else {
+            reject({ success: false, error: `Download failed with code ${downloadCode}` });
+          }
+        });
+
+      } catch (err) {
+        console.error('Failed to parse metadata JSON:', err);
+        reject({ success: false, error: 'Failed to parse metadata: ' + err.message });
+      }
+    });
+
+    metadataProcess.on('error', (err) => {
+      reject({ success: false, error: err.message });
+    });
+  });
+}
+
 async function getMp3Files(dirPath) {
   try {
     const items = await fs.readdir(dirPath, { withFileTypes: true });
@@ -234,9 +270,8 @@ async function getSampleThumbnails(mp3Files, folderPath) {
 }
 
 /**
- * Format duration from seconds to HH:MM:SS or MM:SS
- * @param {number} seconds - Duration in seconds
- * @returns {string} Formatted duration
+ * @param {number} seconds 
+ * @returns {string}
  */
 function formatDuration(seconds) {
   if (!seconds || seconds === 0) return '0:00';
@@ -252,9 +287,8 @@ function formatDuration(seconds) {
 }
 
 /**
- * Format upload date from YYYYMMDD to YYYY-MM-DD
- * @param {string} dateString - Date in YYYYMMDD format
- * @returns {string} Formatted date in YYYY-MM-DD format
+ * @param {string} dateString -
+ * @returns {string} 
  */
 function formatUploadDate(dateString) {
   if (!dateString || dateString.length !== 8) return '';

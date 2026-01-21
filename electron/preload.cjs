@@ -10,12 +10,28 @@ contextBridge.exposeInMainWorld('electron', {
   deleteSong: (path) => ipcRenderer.invoke('delete-file', path),
   deleteFolder: (path) => ipcRenderer.invoke('delete-folder', path),
   deleteFile: (path) => ipcRenderer.invoke('delete-file', path),
+
+  // ADD THESE NEW HANDLERS
+  searchSongs: (params) => ipcRenderer.invoke('search-songs', params),
+  rebuildCache: (params) => ipcRenderer.invoke('rebuild-cache', params),
+  getCacheStats: () => ipcRenderer.invoke('get-cache-stats'),
+  getSongAudio: (filePath) => ipcRenderer.invoke('get-song-audio', filePath),
+
   onDownloadProgress: (callback) => {
-    ipcRenderer.on('download-progress', (event, data) => callback(data));
-    return () => ipcRenderer.removeAllListeners('download-progress');
+    const handler = (event, data) => callback(data)
+    ipcRenderer.on('download-progress', handler)
+    return () => ipcRenderer.removeListener('download-progress', handler)
   },
   onDownloadComplete: (callback) => {
-    ipcRenderer.on('download-complete', (event, data) => callback(data));
-    return () => ipcRenderer.removeAllListeners('download-complete');
+    const handler = (event, data) => callback(data)
+    ipcRenderer.on('download-complete', handler)
+    return () => ipcRenderer.removeListener('download-complete', handler)
+  },
+  syncToPhone: (data) => ipcRenderer.invoke('sync-to-phone', data),
+  checkAdbConnection: () => ipcRenderer.invoke('check-adb-connection'),
+  onSyncProgress: (callback) => {
+    const handler = (event, data) => callback(data)
+    ipcRenderer.on('sync-progress', handler)
+    return () => ipcRenderer.removeListener('sync-progress', handler)
   }
 });

@@ -13,12 +13,11 @@ const YoutubeVideoResult = ({
 }) => {
   const [downloading, setDownloading] = useState(false);
   const [downloaded, setDownloaded] = useState(false);
-  const [progress, setProgress] = useState(0);
+  // const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [showEmbed, setShowEmbed] = useState(false);
 
   const setCurrentDir = useDirectoryStore((f) => f.setCurrentDir);
-
   const handleDownload = async () => {
     if (!currentDir) {
       setError('Please select a folder first');
@@ -26,23 +25,24 @@ const YoutubeVideoResult = ({
     }
     setDownloading(true);
     setError(null);
-    setProgress(0);
+
+    let cleanup = null;
+
     try {
-      const cleanup = window.electron.onDownloadProgress((data) => {
+      cleanup = window.electron.onDownloadProgress((data) => {
         if (data.videoId === result.id) {
-          setProgress(parseFloat(data.percent));
+          // setProgress(parseFloat(data.percent));
         }
       });
+
       const response = await window.electron.downloadYoutube({
         videoId: result.id,
         title: result.title,
         savePath: currentDir.path
       });
-      cleanup();
+
       if (response.success) {
         setDownloaded(true);
-        // const updatedDir = await window.electron.readFolderDetails(currentDir.path);
-        // setCurrentDir(updatedDir);
         setTimeout(() => setDownloaded(false), 3000);
       } else {
         setError(response.error);
@@ -50,8 +50,8 @@ const YoutubeVideoResult = ({
     } catch (err) {
       setError(err.toString() || 'Failed to download video');
     } finally {
+      if (cleanup) cleanup();
       setDownloading(false);
-      setProgress(0);
     }
   };
 
@@ -60,9 +60,9 @@ const YoutubeVideoResult = ({
   }
 
   return (
-    <div className="bg-secondary/50 flex flex-col py-2 justify-center items-center rounded-3xl w-[260px]">
-      <div className="p-3 max-w-full">
-        <span className="block text-lg font-semibold truncate">
+    <div className="bg-secondary/50 flex flex-col p-2 justify-center items-center rounded-3xl w-[260px]">
+      <div title={result.title} className="p-3 max-w-full">
+        <span className="block text-xs font-semibold ">
           {result.title}
         </span>
       </div>
@@ -106,17 +106,17 @@ const YoutubeVideoResult = ({
             disabled={downloading || downloaded}
           >
             {downloading ? (
-              <div className='text-center w-full justify-center flex gap-1 items-center'>
+              <div className='text-center w-full justify-center flex gap-1 items-center text-xs'>
                 <span className='animate-pulse'>Saving...</span>
                 <Loader2 className="w-4 h-4 animate-spin" />
               </div>
             ) : downloaded ? (
-              <div className='text-center w-full justify-center flex gap-1 items-center'>
+              <div className='text-center w-full justify-center flex gap-1 items-center text-xs'>
                 <Check className="w-4 h-4" />
                 <span className="text-sm">Saved!</span>
               </div>
             ) : (
-              <div className='text-center w-full justify-center flex gap-1 items-center'>
+              <div className='text-center w-full justify-center flex gap-1 items-center text-xs'>
                 <Plus className="w-4 h-4" />
                 <span className="text-sm"> {currentDir?.playlistName}</span>
               </div>

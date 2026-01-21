@@ -26,7 +26,7 @@ const FastForwardButton = ({ currentIndex, children }: FastForwardButtonProps) =
   return (
     <button
       onClick={() => handleNextSong()}
-      className=" rounded-full flex justify-center items-center p-4 cursor-pointer hover:bg-secondary/50 hover:text-primary"
+      className="rounded-full flex justify-center items-center p-4 cursor-pointer hover:bg-secondary/50 hover:text-primary"
     >
       <FastForward />
     </button>

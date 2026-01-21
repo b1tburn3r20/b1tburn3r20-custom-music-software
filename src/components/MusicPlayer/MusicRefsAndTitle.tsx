@@ -87,7 +87,6 @@ const MusicRefsAndTitle = () => {
     if (!audioEl) return;
 
     const handleEnded = () => {
-      console.log("Playing Playlists", playingPlaylist, "currently playing", currentlyPlaying)
       if (playingPlaylist?.songs && currentlyPlaying) {
         const currentIndex = playingPlaylist.songs.indexOf(currentlyPlaying);
         const nextSong = playingPlaylist.songs[currentIndex + 1];
@@ -144,13 +143,8 @@ const MusicRefsAndTitle = () => {
 
 
   return (
-    <div>
-
-
-      <div className="select-none flex justify-center items-center truncate">
-        {cleanedFileName}
-      </div>
-
+    <div className="select-none flex justify-start truncate">
+      {cleanedFileName}
     </div>
   )
 }

@@ -1,16 +1,18 @@
 "use client"
 
 import { useDirectoryStore } from "@/stores/useDirectoryStore"
-import { usePlayerStore } from "@/stores/usePlayerStore"
+import { usePlayerStore, type MP3Metadata } from "@/stores/usePlayerStore"
 import { type Song } from "@/types/DirectoryTypes"
 import { Button } from "@/components/ui/button"
 import { ContextMenu, ContextMenuTrigger, ContextMenuItem, ContextMenuContent } from "@/components/ui/context-menu"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Music, Pause, Play, Search, Trash2 } from "lucide-react"
-import { Input } from "../ui/input"
+import { Dot, Edit, Music, Pause, Play, Search, Shuffle, Slash, Trash2 } from "lucide-react"
 import { useEffect, useState } from "react"
+import { Input } from "@/components/ui/input"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { fancyTimeFormat } from "@/components/helpers/stringfuncs"
+import { Separator } from "@/components/ui/separator"
 
-const ActivePlaylist = () => {
+const NewActivePlaylist = () => {
   const activeDir = useDirectoryStore((f) => f.currentDir)
   const setCurrentDir = useDirectoryStore((f) => f.setCurrentDir)
   const setPlaying = usePlayerStore((f) => f.setCurrentlyPlaying)
@@ -49,21 +51,20 @@ const ActivePlaylist = () => {
 
 
   const NoDirSelected = () => {
-    return <div className=" bg-black/50 w-full h-full flex flex-col justify-center items-center font-semibold text-muted-foreground">
+    return <div className="bg-black/50 w-full min-h-[calc(100vh-8rem)] flex flex-col justify-center items-center font-semibold text-muted-foreground">
       <div className="font-bold text-2xl">No playlist selected</div>
       <p>Select a folder to get started</p>
     </div>
   }
 
   const NoSongs = () => {
-    return <div className="bg-black/50 w-full h-full flex flex-col justify-center items-center font-semibold text-muted-foreground">
+    return <div className="bg-black/50 w-full min-h-[calc(100vh-8rem)] flex flex-col justify-center items-center font-semibold text-muted-foreground">
       <div className="text-center mb-2 font-bold text-2xl">"{activeDir?.playlistName}" playlist empty</div>
       <p>Add songs to get started!</p>
     </div>
   }
   const handleMusicClick = () => {
     if (paused) {
-      //stop
       setPaused(false)
     } else {
       setPaused(true)
@@ -179,14 +180,15 @@ const ActivePlaylist = () => {
     }
 
     if (thumbnailCount === 1) {
-      return <img src={thumbnails[0] as string} alt="Playlist" className="w-full h-full object-cover overflow-hidden" />;
+      return <img src={thumbnails[0] as string} alt="Playlist" className="w-full h-full object-cover overflow-hidden select-none" />;
     }
 
     if (thumbnailCount === 2) {
+      const displayThumbs = [thumbnails[0], thumbnails[1], thumbnails[0], thumbnails[1]];
       return (
-        <div className="grid grid-cols-2 gap-0.5 w-full h-full overflow-hidden">
-          {thumbnails.slice(0, 2).map((thumb, i) => (
-            <img key={i} src={thumb as string} alt="" className="w-full h-full object-cover" />
+        <div className="grid grid-cols-2 grid-rows-2 gap-0.5 w-full h-full overflow-hidden">
+          {displayThumbs.map((thumb, i) => (
+            <img key={i} src={thumb as string} alt="" className="w-full h-full object-cover select-none" />
           ))}
         </div>
       );
@@ -199,11 +201,66 @@ const ActivePlaylist = () => {
     return (
       <div className="grid grid-cols-2 grid-rows-2 gap-0.5 w-full h-full overflow-hidden">
         {displayThumbs.map((thumb, i) => (
-          <img key={i} src={thumb as string} alt="" className="w-full h-full object-cover" />
+          <img key={i} src={thumb as string} alt="" className="w-full h-full object-cover select-none" />
         ))}
       </div>
     );
   };
+
+  const AlbumInformation = () => {
+    if (!activeDir?.songs.length) {
+      return null
+    }
+    const totalLength = activeDir.songs.reduce(
+      (acc: number, song: any) => acc + song.metadata.duration,
+      0
+    );
+    return (
+      <div className=" inset-0 flex items-center justify-start">
+        <div className="relative z-10 text-center px-8 py-6 w-full ">
+          <div className="flex gap-4 justify-start w-full">
+            <h1 className="text-6xl font-bold text-white drop-shadow-lg mb-2">
+              {activeDir.playlistName}
+            </h1>
+            <div className="flex flex-col items-start justify-center">
+
+              <p className="text-lg text-muted-foreground">Playlist</p>
+              <div className="flex text-muted-foreground text-sm gap-2">
+                <span>{activeDir.songs.length} songs</span>
+                <Dot />
+                <span>
+
+                  {fancyTimeFormat(totalLength)}
+                </span>
+
+
+              </div>
+            </div>
+
+          </div>
+          <p className="text-white/80 text-base font-medium">
+          </p>
+          <div className="flex justify-start items-center mt-2 gap-4">
+            <Button variant={"secondary"}>
+              <Edit />
+            </Button>
+            <Button>
+              <Play />
+            </Button>
+            <Button>
+              <Shuffle />
+            </Button>
+
+
+
+          </div>
+
+        </div>
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/60 pointer-events-none" />
+      </div>)
+  }
+
+
 
   if (!activeDir?.playlistName) {
     return <NoDirSelected />
@@ -214,39 +271,44 @@ const ActivePlaylist = () => {
     return <NoSongs />
   }
   return (
-    <div className="w-full flex justify-center items-center bg-black/50">
-      <div className="max-w-2xl w-full h-full flex flex-col p-6">
-        <div className="flex justify-center mb-6">
-          <div className="flex flex-col justify-center rounded-xl overflow-hidden items-center h-[300px] w-[300px] border-2 shrink-0">
-            {renderThumbnails()}
+
+
+    <div className="w-full bg-black/50">
+      <div className="container mx-auto">
+        <div className="flex gap-6 py-4">
+          <div className="relative w-fit shrink-0">
+            <div
+              className="select-none relative flex flex-col justify-center bg-background/20 overflow-hidden items-center h-full w-[800px] aspect-square shrink-0"
+              style={{
+                WebkitMaskImage:
+                  'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.3) 10%, rgba(0,0,0,0.7) 20%, black 30%, black 70%, rgba(0,0,0,0.7) 80%, rgba(0,0,0,0.3) 90%, transparent 100%)',
+                maskImage:
+                  'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.3) 10%, rgba(0,0,0,0.7) 20%, black 30%, black 70%, rgba(0,0,0,0.7) 80%, rgba(0,0,0,0.3) 90%, transparent 100%)',
+              }}
+            >
+              {renderThumbnails()}
+              <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/60 pointer-events-none" />
+            </div>
+
+            <div className="absolute top-0 bg-black/50 w-full" />
+          </div>
+
+          <div className="w-full h-[80vh] flex flex-col">
+            <div className="shrink-0">
+              <AlbumInformation />
+            </div>
+            <ScrollArea className="flex-1 overflow-y-auto">
+              <div>
+                {playlistSongs?.map((song, index) => (
+                  <PlaylistSong key={index} song={song} />
+                ))}
+              </div>
+            </ScrollArea>
           </div>
         </div>
-        <div className="flex items-center justify-between mb-4 ">
-          <h1 className="sm:text-sm md:text-md lg:text-2xl font-bold">
-            <span className="text-primary">{activeDir.playlistName}</span> Playlist
-          </h1>
-        </div>
-        <div className="mb-4">
-          <div className="relative w-full">
-            <Search className="absolute text-muted-foreground left-2 top-1.5" />
-            <Input
-              className="pl-10 w-full"
-              placeholder={`Search ${activeDir.playlistName}...`}
-              onChange={(e) => setFilter(e.target.value)}
-              value={filter}
-            />
-          </div>
-        </div>
-        <ScrollArea className="flex-1 min-h-0 ">
-          <div className="flex flex-col gap-1">
-            {playlistSongs?.map((song, index) => (
-              <PlaylistSong key={index} song={song} />
-            ))}
-          </div>
-        </ScrollArea>
       </div>
     </div>
-  );
+  )
 }
 
-export default ActivePlaylist
+export default NewActivePlaylist

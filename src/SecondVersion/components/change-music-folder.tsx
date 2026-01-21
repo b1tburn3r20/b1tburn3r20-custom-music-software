@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { useDirectoryStore } from "@/stores/useDirectoryStore";
 import { findFolderByPath } from "@/utils/folderutils";
@@ -5,7 +6,7 @@ import { Folder, Smartphone, Loader2, CheckCircle2, XCircle, AlertCircle, Refres
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-const ChangeRootDir = () => {
+const ChangeMusicFolder = () => {
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'checking' | 'syncing' | 'success' | 'error'>('idle');
@@ -176,15 +177,11 @@ const ChangeRootDir = () => {
   useEffect(() => {
     console.log('[ChangeRootDir] Setting up download-complete listener');
     const cleanup = window.electron.onDownloadComplete((data) => {
-      console.log('[ChangeRootDir] Download complete received:', data);
-      console.log('  - folderPath:', data.folderPath);
-      console.log('  - updatedFolder:', data.updatedFolder);
       if (!data.updatedFolder) {
         console.warn('[ChangeRootDir] No updatedFolder data received!');
         return;
       }
       updateFolderInDirData(data.folderPath, data.updatedFolder);
-      console.log('[ChangeRootDir] Called updateFolderInDirData');
     });
     return cleanup;
   }, [updateFolderInDirData]);
@@ -207,15 +204,11 @@ const ChangeRootDir = () => {
 
   return (
     <div className="flex gap-2">
-      <Button
-        className='text-muted-foreground md:text-xs cursor-pointer text-md'
-        onClick={handleSelectFolder}
-        variant="ghost"
-        disabled={loading}
-      >
-        <Folder /> {loading ? 'Loading...' : 'Change Folder'}
-      </Button>
-
+      <div className="h-12 w-12 shrink-0  p-1 rounded-sm cursor-pointer">
+        <div className="h-full w-full bg-background p-2 items-center flex-col justify-center rounded-sm">
+          <Folder />
+        </div>
+      </div>
       <Button
         className='text-muted-foreground md:text-xs cursor-pointer text-md'
         onClick={handleSync}
@@ -229,4 +222,4 @@ const ChangeRootDir = () => {
   );
 };
 
-export default ChangeRootDir;
+export default ChangeMusicFolder;

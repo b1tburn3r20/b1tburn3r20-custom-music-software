@@ -3,22 +3,24 @@ import { useDirectoryStore } from "@/stores/useDirectoryStore";
 import { Music, Play, Shuffle, Trash2 } from "lucide-react";
 import { Button } from "../ui/button";
 import type { LightDirectory } from "@/types/DirectoryTypes";
-import { memo, useCallback, useMemo } from "react";
+import { useCallback } from "react";
 
 interface MusicFolderProps {
   folder: LightDirectory;
   isActive: boolean;
 }
 
-const Playlist = memo(({ folder, isActive }: MusicFolderProps) => {
-  console.log(`[Playlist] Rendering: ${folder.name}, songCount: ${folder.songCount}, thumbnails: ${folder.thumbnails.length}`);
+const Playlist = ({ folder, isActive }: MusicFolderProps) => {
+  const setPlaylistForDelete = useDirectoryStore((f) => f.setPlaylistToDelete);
+  const setPlaylistForDeleteModalOpen = useDirectoryStore((f) => f.setPlaylistToDeleteModalOpen);
 
   const isMany = folder?.songCount > 1 || folder?.songCount < 1;
   const setCurrentDir = useDirectoryStore((f) => f.setCurrentDir);
 
   const handleTriggerDeleteConfirm = useCallback(() => {
-    // Handle delete
-  }, []);
+    setPlaylistForDelete(folder);
+    setPlaylistForDeleteModalOpen(true);
+  }, [folder, setPlaylistForDelete, setPlaylistForDeleteModalOpen]);
 
   const fetchPlaylistContents = useCallback(async (path: string) => {
     try {
@@ -42,7 +44,7 @@ const Playlist = memo(({ folder, isActive }: MusicFolderProps) => {
   const thumbnails = folder.thumbnails;
   const thumbnailCount = thumbnails.length;
 
-  const renderThumbnails = useMemo(() => {
+  const renderThumbnails = () => {
     if (thumbnailCount === 0) {
       return <Music className={`${isActive ? "text-primary" : "text-primary/50"} h-full w-full p-3`} />;
     }
@@ -72,7 +74,7 @@ const Playlist = memo(({ folder, isActive }: MusicFolderProps) => {
         ))}
       </div>
     );
-  }, [thumbnails, thumbnailCount, isActive]);
+  };
 
   return (
     <ContextMenu>
@@ -90,7 +92,7 @@ const Playlist = memo(({ folder, isActive }: MusicFolderProps) => {
                 maskImage: 'linear-gradient(to right, black 0%, transparent 70%)'
               }}
             >
-              {renderThumbnails}
+              {renderThumbnails()}
             </div>
             <div className="ml-2">
               <p className={`text-md md:text-lg lg:text-xl font-semibold ${isActive ? "text-primary" : ""}`}>
@@ -117,47 +119,7 @@ const Playlist = memo(({ folder, isActive }: MusicFolderProps) => {
       </ContextMenuContent>
     </ContextMenu>
   );
-}, (prevProps, nextProps) => {
-  console.log(`[Playlist Memo] Comparing ${prevProps.folder.name}:`);
-  console.log('  - path:', prevProps.folder.path === nextProps.folder.path);
-  console.log('  - name:', prevProps.folder.name === nextProps.folder.name);
-  console.log('  - songCount:', prevProps.folder.songCount === nextProps.folder.songCount);
-  console.log('  - isActive:', prevProps.isActive === nextProps.isActive);
-  console.log('  - thumbnails length:', prevProps.folder.thumbnails.length === nextProps.folder.thumbnails.length);
-
-  // Only re-render if the data actually changed
-  if (prevProps.folder.path !== nextProps.folder.path) {
-    console.log(`  -> RE-RENDER: path changed`);
-    return false;
-  }
-  if (prevProps.folder.name !== nextProps.folder.name) {
-    console.log(`  -> RE-RENDER: name changed`);
-    return false;
-  }
-  if (prevProps.folder.songCount !== nextProps.folder.songCount) {
-    console.log(`  -> RE-RENDER: songCount changed from ${prevProps.folder.songCount} to ${nextProps.folder.songCount}`);
-    return false;
-  }
-  if (prevProps.isActive !== nextProps.isActive) {
-    console.log(`  -> RE-RENDER: isActive changed`);
-    return false;
-  }
-
-  // Deep compare thumbnails array
-  if (prevProps.folder.thumbnails.length !== nextProps.folder.thumbnails.length) {
-    console.log(`  -> RE-RENDER: thumbnails length changed from ${prevProps.folder.thumbnails.length} to ${nextProps.folder.thumbnails.length}`);
-    return false;
-  }
-  for (let i = 0; i < prevProps.folder.thumbnails.length; i++) {
-    if (prevProps.folder.thumbnails[i] !== nextProps.folder.thumbnails[i]) {
-      console.log(`  -> RE-RENDER: thumbnail[${i}] changed`);
-      return false;
-    }
-  }
-
-  console.log(`  -> SKIP RE-RENDER: props are equal`);
-  return true; // Props are equal, skip re-render
-});
+};
 
 Playlist.displayName = 'Playlist';
 

@@ -7,6 +7,7 @@ import { useDirectoryStore } from "@/stores/useDirectoryStore"
 import { Plus } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert"
+import { useAppStore } from "@/stores/useAppStore"
 const NewPlaylist = () => {
   const [playlistName, setPlaylistName] = useState("")
   const rootDir = useDirectoryStore((f) => f.rootDir)
@@ -15,7 +16,7 @@ const NewPlaylist = () => {
   const setDirData = useDirectoryStore((f) => f.setDirData)
   const setCurrentPlaylist = useDirectoryStore((f) => f.setCurrentDir)
   const [nameTaken, setNameTaken] = useState(false)
-
+  const setView = useAppStore((f) => f.setView)
 
   const createPlaylist = async () => {
     const body = {
@@ -45,8 +46,6 @@ const NewPlaylist = () => {
   const fetchPlaylistContents = async (path: string) => {
     try {
       const playlistContents = await window.electron.readFolderDetails(path);
-      console.log('Received data:', JSON.stringify(playlistContents, null, 2));
-      console.log('Thumbnails:', playlistContents?.thumbnails);
       setCurrentPlaylist(playlistContents);
     } catch (err) {
       console.error('Error reading folder:', err);

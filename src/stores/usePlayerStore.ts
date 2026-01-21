@@ -50,7 +50,7 @@ const initialState = {
   musicVolume: 50,
   musicProgress: 0,
   paused: false,
-  looping: "off",
+  looping: "loopPlaylist",
   audioRef: null as HTMLAudioElement | null,
   playingPlaylist: null
 }

@@ -1,25 +1,21 @@
 "use client"
 
-import { useDirectoryStore } from "@/stores/useDirectoryStore"
 import { usePlayerStore } from "@/stores/usePlayerStore"
 import { type Song } from "@/types/DirectoryTypes"
 import { Button } from "@/components/ui/button"
 import { ContextMenu, ContextMenuTrigger, ContextMenuItem, ContextMenuContent } from "@/components/ui/context-menu"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Music, Pause, Play, Search, Trash2 } from "lucide-react"
-import { Input } from "../ui/input"
 import { useEffect, useState } from "react"
 
-const ActivePlaylist = () => {
-  const activeDir = useDirectoryStore((f) => f.currentDir)
-  const setCurrentDir = useDirectoryStore((f) => f.setCurrentDir)
+const LaxPlayerPlaylist = () => {
+  const activeDir = usePlayerStore((f) => f.playingPlaylist)
   const setPlaying = usePlayerStore((f) => f.setCurrentlyPlaying)
   const setPlayingPlaylist = usePlayerStore((f) => f.setPlayingPlaylist)
   const playing = usePlayerStore((f) => f.currentlyPlaying)
+
   const paused = usePlayerStore((f) => f.paused)
   const setPaused = usePlayerStore((f) => f.setPaused)
-  const setSongToDelete = useDirectoryStore((f) => f.setSongToDelete)
-  const setSongToDeleteModalOpen = useDirectoryStore((f) => f.setSongToDeleteModalOpen)
   const [playlistSongs, setPlaylistSongs] = useState(activeDir?.songs)
   const [filter, setFilter] = useState("")
 
@@ -36,20 +32,8 @@ const ActivePlaylist = () => {
     filterSongs()
   }, [filter, activeDir])
 
-  useEffect(() => {
-    const cleanup = window.electron.onDownloadComplete(async (data) => {
-      console.log("this the data", data)
-      if (activeDir?.path === data.folderPath) {
-        const updatedDir = await window.electron.readFolderDetails(data.folderPath);
-        setCurrentDir(updatedDir);
-      }
-    });
-    return cleanup;
-  }, [activeDir?.path]);
-
-
   const NoDirSelected = () => {
-    return <div className=" bg-black/50 w-full h-full flex flex-col justify-center items-center font-semibold text-muted-foreground">
+    return <div className="bg-black/50 w-full h-full flex flex-col justify-center items-center font-semibold text-muted-foreground">
       <div className="font-bold text-2xl">No playlist selected</div>
       <p>Select a folder to get started</p>
     </div>
@@ -61,107 +45,91 @@ const ActivePlaylist = () => {
       <p>Add songs to get started!</p>
     </div>
   }
+
   const handleMusicClick = () => {
     if (paused) {
-      //stop
       setPaused(false)
     } else {
       setPaused(true)
     }
   }
+
   const PlaylistSong = ({ song }: { song: Song }) => {
     const isPlaying = playing?.name === song.name
     const playSong = () => {
-      setPlayingPlaylist(activeDir)
       if (isPlaying && !paused) {
         setPaused(true)
       } else {
         setPlaying(song)
         setPaused(false)
-
       }
     }
 
     const handleTriggerDeleteConfirm = () => {
-      setSongToDelete(song)
-      setSongToDeleteModalOpen(true)
+      // setSongToDelete(song)
+      // setSongToDeleteModalOpen(true)
     }
-
 
     const PlayButton = () => {
       return (
         <>
-          {
-            isPlaying ? (
-              <div>
-                <Button onClick={() => handleMusicClick()}>
-                  {paused ? <Play /> : <Pause />}
-                </Button>
-              </div >
-            ) : (
-              <div>
-                <Button onClick={() => setPlaying(song)}><Play /> </Button>
-              </div>
-            )}
-
+          {isPlaying ? (
+            <div>
+              <Button onClick={() => handleMusicClick()}>
+                {paused ? <Play /> : <Pause />}
+              </Button>
+            </div>
+          ) : (
+            <div>
+              <Button onClick={() => setPlaying(song)}><Play /></Button>
+            </div>
+          )}
         </>
       )
     }
 
-    return <ContextMenu>
-      <ContextMenuTrigger asChild>
-
-        <div onClick={() => playSong()} className="rounded-3xl mt-2 bg-secondary/40 p-1">
-
-
-          <div className="flex gap-4 min-w-md items-center p-2">
-            <div className="shrink-0">
-
-              {song?.metadata?.thumbnail ? (
-                <div className="shrink-0 aspect-square bg-white/10 p-1  rounded-lg">
-
-                  <img className="shrink-0 w-10 h-10 object-cover rounded-lg" src={song.metadata.thumbnail} />
-
-                </div>
-              ) : (
-                <div className="p-1 bg-white/10 rounded-lg flex flex-col justify-center items-center">
-
-                  <Music className="text-primary h-10 w-10 bg-secondary rounded-lg p-1" />
-
-                </div>
-              )}
-
-            </div>
-            <div className="flex gap-1 justify-between w-full items-center">
-              <p className={`line-clamp-2 ${isPlaying && "text-primary"}`}>
-                {song?.metadata?.title}
-              </p>
-              <div className="flex gap-2 items-center">
-
-                <p className="text-muted-foreground">
-                  {song.metadata?.durationFormatted}
-                </p>
-
-                <PlayButton />
+    return (
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <div onClick={() => playSong()} className="rounded-3xl mt-2 bg-secondary/40 p-1 cursor-pointer">
+            <div className="flex gap-4 min-w-md items-center p-2">
+              <div className="shrink-0">
+                {song?.metadata?.thumbnail ? (
+                  <div className="shrink-0 aspect-square bg-white/10 p-1 rounded-lg">
+                    <img className="shrink-0 w-10 h-10 object-cover rounded-lg" src={song.metadata.thumbnail} alt={song.metadata.title} />
+                  </div>
+                ) : (
+                  <div className="p-1 bg-white/10 rounded-lg flex flex-col justify-center items-center">
+                    <Music className="text-prmary h-10 w-10 bg-secondary rounded-lg p-1" />
+                  </div>
+                )}
               </div>
-
+              <div className="flex gap-1 justify-between w-full items-center">
+                <p className={`line-clamp-2 ${isPlaying && "text-primary"}`}>
+                  {song?.metadata?.title}
+                </p>
+                <div className="flex gap-2 items-center">
+                  <p className="text-muted-foreground">
+                    {song.metadata?.durationFormatted}
+                  </p>
+                  <PlayButton />
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-
-      </ContextMenuTrigger>
-      <ContextMenuContent>
-        <ContextMenuItem className="flex items-center gap-2 h-10" onClick={() => handleTriggerDeleteConfirm()}>
-          <Trash2 className="text-red-400" />
-          <span> Remove{" "}<span className="font-bold text-primary">{song?.metadata?.title} from playlist {activeDir?.playlistName}</span>
-          </span>
-        </ContextMenuItem>
-
-
-      </ContextMenuContent>
-    </ContextMenu >
-
+        </ContextMenuTrigger>
+        <ContextMenuContent>
+          <ContextMenuItem className="flex items-center gap-2 h-10" onClick={() => handleTriggerDeleteConfirm()}>
+            <Trash2 className="text-red-400" />
+            <span>
+              Remove <span className="font-bold text-primary">{song?.metadata?.title} from playlist {activeDir?.playlistName}</span>
+            </span>
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+    )
   }
+
   const isActive = true
   const renderThumbnails = () => {
     if (!activeDir) {
@@ -169,7 +137,6 @@ const ActivePlaylist = () => {
     }
     const thumbnails = activeDir.thumbnails;
     const thumbnailCount = thumbnails.length;
-
 
     if (!activeDir?.thumbnails) {
       return
@@ -205,6 +172,7 @@ const ActivePlaylist = () => {
     );
   };
 
+
   if (!activeDir?.playlistName) {
     return <NoDirSelected />
   }
@@ -213,31 +181,24 @@ const ActivePlaylist = () => {
   if (activeDir?.playlistName && !shouldRender) {
     return <NoSongs />
   }
+
   return (
-    <div className="w-full flex justify-center items-center bg-black/50">
+    <div className="w-fit h-screen flex justify-center items-center bg-black/90 overflow-hidden rounded-br-4xl">
       <div className="max-w-2xl w-full h-full flex flex-col p-6">
-        <div className="flex justify-center mb-6">
-          <div className="flex flex-col justify-center rounded-xl overflow-hidden items-center h-[300px] w-[300px] border-2 shrink-0">
-            {renderThumbnails()}
-          </div>
+        <div className="flex justify-center mb-6 shrink-0">
         </div>
-        <div className="flex items-center justify-between mb-4 ">
-          <h1 className="sm:text-sm md:text-md lg:text-2xl font-bold">
-            <span className="text-primary">{activeDir.playlistName}</span> Playlist
-          </h1>
-        </div>
-        <div className="mb-4">
+        <div className="mb-4 shrink-0">
           <div className="relative w-full">
-            <Search className="absolute text-muted-foreground left-2 top-1.5" />
-            <Input
-              className="pl-10 w-full"
+            <Search className="absolute text-primary/50 left-2 top-2.5" />
+            <input
+              className="pl-10 w-full border-gray-500/20 rounded-lg p-2 border-2 bg-black/40 focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none"
               placeholder={`Search ${activeDir.playlistName}...`}
               onChange={(e) => setFilter(e.target.value)}
               value={filter}
             />
           </div>
         </div>
-        <ScrollArea className="flex-1 min-h-0 ">
+        <ScrollArea className="flex-1 min-h-0 max-w-3xl pr-4">
           <div className="flex flex-col gap-1">
             {playlistSongs?.map((song, index) => (
               <PlaylistSong key={index} song={song} />
@@ -249,4 +210,4 @@ const ActivePlaylist = () => {
   );
 }
 
-export default ActivePlaylist
+export default LaxPlayerPlaylist

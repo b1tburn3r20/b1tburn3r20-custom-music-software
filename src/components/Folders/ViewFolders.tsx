@@ -12,24 +12,19 @@ const ViewFolders = () => {
   const currentDir = useDirectoryStore((f) => f.currentDir);
   const [filter, setFilter] = useState("");
 
-  console.log('[ViewFolders] Rendering, dirData length:', dirData?.length);
-  console.log('[ViewFolders] currentDir:', currentDir?.path);
 
   const sortedDirData = useMemo(() => {
     const sorted = dirData?.sort((a, b) => a.name.localeCompare(b.name)) || [];
-    console.log('[ViewFolders] sortedDirData computed:', sorted.length, 'items');
     return sorted;
   }, [dirData]);
 
   const filteredPlaylists = useMemo(() => {
     if (!filter) {
-      console.log('[ViewFolders] No filter, returning all sorted data');
       return sortedDirData;
     }
     const filtered = sortedDirData.filter((playlist) =>
       playlist.name.toLowerCase().includes(filter.toLowerCase())
     );
-    console.log('[ViewFolders] Filtered to', filtered.length, 'items');
     return filtered;
   }, [filter, sortedDirData]);
 

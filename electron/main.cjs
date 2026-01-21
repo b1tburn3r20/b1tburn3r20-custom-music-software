@@ -1,8 +1,8 @@
 const { app, BrowserWindow } = require("electron");
 const path = require("path");
-// Import handlers
 const { registerFileSystemHandlers } = require('../handlers/fileSystemHandlers.cjs');
 const { registerDownloadHandlers } = require('../handlers/downloadHandlers.cjs');
+const { registerSyncHandlers } = require("../handlers/sysHandlers.cjs");
 
 const isDev = !app.isPackaged;
 
@@ -34,9 +34,9 @@ function createWindow() {
 
 app.whenReady().then(() => {
   createWindow();
-  // Register all IPC handlers
   registerFileSystemHandlers();
   registerDownloadHandlers();
+  registerSyncHandlers()
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

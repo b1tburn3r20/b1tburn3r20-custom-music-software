@@ -51,7 +51,7 @@ const DeleteSong = () => {
     if (songToDelete?.path === currentlyPlaying?.path) {
       setCurrentlyPlaying(null)
     }
-    toast.success(<div className="cursor-pointer" onClick={() => toast.dismiss()}>Removed <span className="text-primary">{songToDelete?.metadata?.title}</span> from {currentDir?.name}</div>, {
+    toast.success(<div className="cursor-pointer" onClick={() => toast.dismiss()}>Removed <span className="text-primary">{songToDelete?.metadata?.title}</span> from {currentDir?.playlistName}</div>, {
       position: "top-center",
       dismissible: true,
     })
@@ -62,7 +62,7 @@ const DeleteSong = () => {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            Removed <span className="text-primary font-semibold">{songToDelete?.metadata?.title} </span> from {currentDir?.name}?
+            Removed <span className="text-primary font-semibold">{songToDelete?.metadata?.title} </span> from {currentDir?.playlistName}?
           </DialogTitle>
           <DialogDescription>
             This just removes the song from the playlist, you can add it back by downloading it again
