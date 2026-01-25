@@ -1,17 +1,16 @@
-import { type FileItem } from "@/stores/useDirectoryStore"
+import { useMusicStore } from "@/stores/useMusicStore"
 import { usePlayerStore } from "@/stores/usePlayerStore"
 import { Rewind } from "lucide-react"
 
 
 interface RewindButtonProps {
   currentIndex: number
-  children: FileItem[]
 }
 
-const RewindButton = ({ currentIndex, children }: RewindButtonProps) => {
+const RewindButton = ({ currentIndex }: RewindButtonProps) => {
   const audioRef = usePlayerStore((f) => f.audioRef)
   const setCurrentlyPlaying = usePlayerStore((f) => f.setCurrentlyPlaying)
-
+  const queue = useMusicStore((f) => f.queue)
   const handleRewind = () => {
     if (audioRef) {
       const currentTime = audioRef?.currentTime
@@ -19,7 +18,7 @@ const RewindButton = ({ currentIndex, children }: RewindButtonProps) => {
         // this resstarts the song
         audioRef.currentTime = 0
       } else {
-        const previousSong = children[currentIndex - 1]
+        const previousSong = queue[currentIndex - 1]
         if (previousSong) {
           setCurrentlyPlaying(previousSong)
         } else {

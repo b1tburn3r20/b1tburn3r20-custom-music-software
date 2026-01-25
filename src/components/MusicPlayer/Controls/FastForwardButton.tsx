@@ -1,18 +1,17 @@
+import { useMusicStore } from "@/stores/useMusicStore"
 import { usePlayerStore } from "@/stores/usePlayerStore"
-import type { Song } from "@/types/DirectoryTypes"
 import { FastForward } from "lucide-react"
 interface FastForwardButtonProps {
   currentIndex: number
-  children: Song[]
 }
 
-const FastForwardButton = ({ currentIndex, children }: FastForwardButtonProps) => {
+const FastForwardButton = ({ currentIndex }: FastForwardButtonProps) => {
 
   const setCurrentSong = usePlayerStore((f) => f.setCurrentlyPlaying)
+  const queue = useMusicStore((f) => f.queue)
 
 
-
-  const isThereNextSong = children[currentIndex + 1]
+  const isThereNextSong = queue[currentIndex + 1]
 
   const handleNextSong = () => {
     const audioRef = usePlayerStore.getState().audioRef

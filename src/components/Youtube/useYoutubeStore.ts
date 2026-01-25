@@ -13,6 +13,8 @@ export type YoutubeStore = {
   setPlaylists: (data: boolean) => void
   youtubePlaylistResults: YoutubePlaylistResultType[]
   setYoutubePlaylistResults: (data: YoutubePlaylistResultType[]) => void
+  triggerSearchKey: number
+  incrementTriggerSearchKey: () => void
 }
 
 const initialState = {
@@ -21,6 +23,7 @@ const initialState = {
   searchingYoutube: false,
   playlists: false,
   youtubePlaylistResults: [],
+  triggerSearchKey: 0,
 }
 
 export const useYoutubeStore = create<YoutubeStore>((set) => ({
@@ -30,4 +33,5 @@ export const useYoutubeStore = create<YoutubeStore>((set) => ({
   setSearchingYoutube: (data: boolean) => set({ searchingYoutube: data }),
   setPlaylists: (data: boolean) => set({ playlists: data }),
   setYoutubePlaylistResults: (data: YoutubePlaylistResultType[]) => set({ youtubePlaylistResults: data }),
+  incrementTriggerSearchKey: () => set((state) => ({ triggerSearchKey: state.triggerSearchKey + 1 }))
 })) 

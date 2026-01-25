@@ -15,11 +15,17 @@ const YouTubeSearchButton = () => {
     } else {
 
       setView("youtube")
+      setTimeout(() => {
+        const btn = document.getElementById("youtube-search")
+        if (btn) {
+          btn.focus()
+        }
+      }, 150)
     }
   }
   return (
     <div>
-      <Button onClick={() => handleClick()} variant={"ghost"} className="text-red-500 bg-muted">
+      <Button onClick={() => handleClick()} variant={"muted_red"}>
         {onPage ? (<Home />) : (<Youtube />)}
       </Button>
 

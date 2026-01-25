@@ -1,16 +1,14 @@
 "use client"
 
 import { useDirectoryStore } from "@/stores/useDirectoryStore"
-import { usePlayerStore, type MP3Metadata } from "@/stores/usePlayerStore"
+import { usePlayerStore } from "@/stores/usePlayerStore"
 import { type Song } from "@/types/DirectoryTypes"
 import { Button } from "@/components/ui/button"
 import { ContextMenu, ContextMenuTrigger, ContextMenuItem, ContextMenuContent } from "@/components/ui/context-menu"
-import { Dot, Edit, Music, Pause, Play, Search, Shuffle, Slash, Trash2 } from "lucide-react"
+import { Dot, Edit, Music, Pause, Play, Shuffle, Trash2 } from "lucide-react"
 import { useEffect, useState } from "react"
-import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { fancyTimeFormat } from "@/components/helpers/stringfuncs"
-import { Separator } from "@/components/ui/separator"
 
 const NewActivePlaylist = () => {
   const activeDir = useDirectoryStore((f) => f.currentDir)
@@ -23,26 +21,11 @@ const NewActivePlaylist = () => {
   const setSongToDelete = useDirectoryStore((f) => f.setSongToDelete)
   const setSongToDeleteModalOpen = useDirectoryStore((f) => f.setSongToDeleteModalOpen)
   const [playlistSongs, setPlaylistSongs] = useState(activeDir?.songs)
-  const [filter, setFilter] = useState("")
-
-  const filterSongs = () => {
-    if (!filter) {
-      setPlaylistSongs(activeDir?.songs)
-    } else {
-      const filtered = activeDir?.songs?.filter((playlist) => playlist.name.toLowerCase().includes(filter.toLowerCase()))
-      setPlaylistSongs(filtered)
-    }
-  }
 
   useEffect(() => {
-    filterSongs()
-  }, [filter, activeDir])
-
-  useEffect(() => {
-    const cleanup = window.electron.onDownloadComplete(async (data) => {
-      console.log("this the data", data)
+    const cleanup = (window as any).electron.onDownloadComplete(async (data: any) => {
       if (activeDir?.path === data.folderPath) {
-        const updatedDir = await window.electron.readFolderDetails(data.folderPath);
+        const updatedDir = await (window as any).electron.readFolderDetails(data.folderPath);
         setCurrentDir(updatedDir);
       }
     });
@@ -161,6 +144,7 @@ const NewActivePlaylist = () => {
 
       </ContextMenuContent>
     </ContextMenu >
+
 
   }
   const isActive = true

@@ -3,7 +3,7 @@ const path = require("path");
 const { registerFileSystemHandlers } = require('../handlers/fileSystemHandlers.cjs');
 const { registerDownloadHandlers } = require('../handlers/downloadHandlers.cjs');
 const { registerSyncHandlers } = require("../handlers/sysHandlers.cjs");
-
+const { registerPlaylistHandlers } = require("../handlers/playlistHandlers.cjs")
 const isDev = !app.isPackaged;
 
 app.commandLine.appendSwitch('high-dpi-support', 'true');
@@ -22,7 +22,6 @@ function createWindow() {
       webSecurity: false,
     },
   });
-  // woah
   win.webContents.setZoomFactor(1.0);
 
   if (isDev) {
@@ -37,7 +36,7 @@ app.whenReady().then(() => {
   registerFileSystemHandlers();
   registerDownloadHandlers();
   registerSyncHandlers()
-
+  registerPlaylistHandlers()
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });

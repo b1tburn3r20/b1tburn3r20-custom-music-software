@@ -4,6 +4,8 @@ import { Settings2 } from "lucide-react"
 import NewChangeMusicFolder from "./NewMusicChangeFolder"
 import { usePlayerStore } from "@/stores/usePlayerStore"
 import { useEffect } from "react"
+import RebuildCache from "../settings/RebuildCache"
+import MusicStats from "./MusicStats"
 
 const Settings = () => {
   const setPaused = usePlayerStore((f) => f.setPaused)
@@ -20,7 +22,6 @@ const Settings = () => {
 
     window.addEventListener("keypress", handleKeyPress)
 
-    // Cleanup: remove listener when component unmounts or paused changes
     return () => window.removeEventListener("keypress", handleKeyPress)
   }, [paused, setPaused])
 
@@ -42,6 +43,8 @@ const Settings = () => {
             </DialogDescription>
           </DialogHeader>
           <NewChangeMusicFolder />
+          <RebuildCache />
+          <MusicStats />
         </DialogContent>
       </Dialog>
     </div>

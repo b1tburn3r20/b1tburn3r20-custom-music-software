@@ -1,7 +1,7 @@
 import { Input } from "@/components/ui/input"
-import { useRef } from "react"
+import { useEffect, useRef } from "react"
 import { useYoutubeStore } from "./Youtube/useYoutubeStore"
-import { Loader2, Search } from "lucide-react"
+import { Loader, Loader2, Search } from "lucide-react"
 const YoutubeInstall = () => {
   const searchTerm = useYoutubeStore((f) => f.searchTerm)
   const setSearchTerm = useYoutubeStore((f) => f.setSearchTerm)
@@ -11,6 +11,7 @@ const YoutubeInstall = () => {
   const setLoading = useYoutubeStore((f) => f.setSearchingYoutube)
   const playlist = useYoutubeStore((f) => f.playlists)
   const setYoutubePlaylistResults = useYoutubeStore((f) => f.setYoutubePlaylistResults)
+  const searchTrigger = useYoutubeStore((f) => f.triggerSearchKey)
   //
   const API_KEY = import.meta.env.VITE_YOUTUBE_API_KEY
   //
@@ -34,14 +35,14 @@ const YoutubeInstall = () => {
       console.error("something went wrong", error)
     }
   }
-  const processYoutubePlaylistResponse = async (results) => {
+  const processYoutubePlaylistResponse = async (results: any) => {
     const playlistIds = results.map(p => p.id.playlistId).join(',');
     const playlistRes = await fetch(
       `https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&id=${playlistIds}&key=${API_KEY}`
     );
     const { items: playlistDetails } = await playlistRes.json();
     const playlistsWithVideos = await Promise.all(
-      playlistDetails.map(async (playlist) => {
+      playlistDetails.map(async (playlist: any) => {
         const playlistId = playlist.id;
         const allVideos = [];
         let nextPageToken = null;
@@ -53,7 +54,7 @@ const YoutubeInstall = () => {
           const playlistItemsData = await playlistItemsRes.json();
           const videoIds = playlistItemsData.items
             .map(item => item.contentDetails.videoId)
-            .filter(Boolean); // Filter out any undefined/null
+            .filter(Boolean);
 
           if (videoIds.length > 0) {
             const videoRes = await fetch(
@@ -115,7 +116,6 @@ const YoutubeInstall = () => {
     setLoading(false)
   }
 
-  // helper to turn "PT4M12S" into seconds
   function parseISODuration(duration: string) {
     if (!duration) {
       return null
@@ -152,30 +152,40 @@ const YoutubeInstall = () => {
       searchYoutube(val)
     }
   }
-  return (
-    <div className="w-full border-none  relative bg-muted/30 rounded-xl">
-      <div onClick={() => handleButtonSearch()} className="bg-accent/50 p-2 rounded-full absolute text-muted-foreground left-2 top-2">
-        {loading ? (
-          <Loader2 className="text-primary animate-spin" />
-        ) : (
+  useEffect(() => {
+    if (searchTrigger) {
+      handleButtonSearch()
+    }
+  }, [searchTrigger])
 
-          <Search className="text-primary" />
+  return (
+    <div className="max-w-[300px] border-none  relative bg-muted/30 rounded-xl">
+      <div onClick={() => handleButtonSearch()} className="bg-red-500/20 p-1 rounded-full absolute text-muted-foreground left-1 top-1">
+        {loading ? (
+          <Loader className="text-red-500 h-4 animate-spin" />
+        ) : (
+          <button
+            disabled={!searchTerm}
+            onClick={() => searchYoutube(searchTerm)}
+            id="youtube-search-button"
+            className="p-0 m-0 h-auto flex items-center justify-center">
+            <Search className="text-red-500 h-4 " />
+          </button>
 
         )}
       </div>
       <Input
-        onClick={() => focusUp()}
         ref={inputRef}
         disabled={loading}
-        className="w-full rounded-xl bg-transparent border-none pl-14 h-14"
+        className="w-full rounded-xl bg-transparent border-none pl-10 h-8 focus-visible:ring-red-500/50"
         value={searchTerm}
         id="youtube-search"
         onChange={(e) => setSearchTerm(e.target.value)}
+        spellCheck="false"
         onKeyDown={handleKeydown}
-        placeholder="Search youtube..."
+        placeholder="Search YouTube.."
       />
-
-    </div>
+    </div >
   )
 }
 export default YoutubeInstall

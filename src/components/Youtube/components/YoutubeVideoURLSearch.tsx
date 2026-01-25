@@ -121,22 +121,22 @@ const YoutubeVideoURLSearch = () => {
 
   return (
     <div className="w-full space-y-4 m-2 pr-4">
-      <div className="w-full border-none relative bg-muted/30 rounded-xl">
+      <div className="max-w-[300px] border-none  relative bg-muted/30 rounded-xl">
         <div
           onClick={handleSearch}
-          className="bg-accent/50 p-2 rounded-full absolute text-muted-foreground left-2 top-2 cursor-pointer hover:bg-accent transition-colors"
+          className="bg-red-500/20 p-1 rounded-full absolute text-muted-foreground left-1 top-1"
         >
           {loading ? (
             <Loader2 className="text-primary animate-spin" />
           ) : (
-            <Link2 className="text-primary" />
+            <Link2 className="text-red-500 h-4 " />
           )}
         </div>
         <Input
           ref={inputRef}
           onClick={focusInput}
           disabled={loading}
-          className="w-full rounded-xl bg-transparent border-none pl-14 h-14"
+          className="w-full rounded-xl bg-transparent border-none pl-10 h-8"
           value={urlInput}
           onChange={(e) => setUrlInput(e.target.value)}
           onKeyDown={handleKeyDown}

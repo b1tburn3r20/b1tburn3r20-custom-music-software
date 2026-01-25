@@ -4,7 +4,6 @@ const YoutubeView = () => {
   return (
     <div>
       <YoutubeSearchContainer />
-      Youtube
     </div>
   )
 }

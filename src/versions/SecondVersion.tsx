@@ -3,8 +3,6 @@ import Modals from "@/components/Modals";
 import LaxPlayerNextUp from "@/components/Music/LaxPlayerNextUp";
 import MusicPlayer from "@/components/MusicPlayer/MusicPlayer";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import MusicArea from "@/SecondVersion/components/music-area";
-import RecentlyPlayed from "@/SecondVersion/components/RecentlyPlayed";
 import TopBar from "@/SecondVersion/components/top-bar";
 import Playlists from "@/SecondVersion/Playlists";
 import RenderActiveView from "@/SecondVersion/RenderActiveView";

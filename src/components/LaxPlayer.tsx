@@ -1,6 +1,7 @@
 import { useSettingsStore } from "@/stores/useSettingsStore"
 import { usePlayerStore } from "@/stores/usePlayerStore"
-import { Music } from "lucide-react"
+import { Dot, Music } from "lucide-react"
+import MusicQueue from "@/SecondVersion/components/MusicQueue"
 
 const LaxPlayer = () => {
   const expanded = useSettingsStore((f) => f.playerExpanded)
@@ -41,14 +42,16 @@ const LaxPlayer = () => {
             </div>
           )}
           <p className="font-extrabold text-2xl">{activeSong?.metadata.title} </p>
-          <p className="font-normal text-muted-foreground text-lg">{activeSong?.metadata.artist} </p>
+          <div className="p-2 rounded-3xl bg-muted/10 backdrop-blur-md">
+            <p className="font-normal text-white/40 text-lg">{activeSong?.metadata.artist} {`(${activeSong?.metadata?.year})` || ""} </p>
+          </div>
 
 
 
         </div>
         <div className="z-[13]">
 
-          {/* <LaxPlayerPlaylist /> */}
+          <MusicQueue />
         </div>
       </div>
     </div>

@@ -3,14 +3,16 @@ import { usePlayerStore } from "@/stores/usePlayerStore"
 import SongComponent from "./song-component"
 import type { Song } from "@/types/DirectoryTypes"
 import { useDirectoryStore } from "@/stores/useDirectoryStore"
-import { useCallback, useState, useEffect } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Loader2 } from "lucide-react"
+import { startNewQueue } from "@/utils/musicutils"
+
+
+
 
 const MusicArea = () => {
   const currentlyPlaying = usePlayerStore((f) => f.currentlyPlaying)
-  const setCurrentDir = useDirectoryStore((f) => f.setCurrentDir)
-  const currentDir = useDirectoryStore((f) => f.currentDir)
   const setPlaying = usePlayerStore((f) => f.setCurrentlyPlaying)
   const recentlyPlayed = useMusicStore((f) => f.recentlyPlayed)
   const setRecentlyPlayed = useMusicStore((f) => f.setRecentlyPlayed)
@@ -20,16 +22,29 @@ const MusicArea = () => {
   const setMusicResults = useMusicStore((f) => f.setRandomMusic)
   const results = useMusicStore((f) => f.randomMusic)
   const rootMusicDir = useDirectoryStore((f) => f.rootDir)
-
-
   const [displayCount, setDisplayCount] = useState(8)
   const [isLargeScreen, setIsLargeScreen] = useState(false)
+  const setRootDir = useDirectoryStore((f) => f.setRootDir)
+  const setSongCache = useMusicStore((f) => f.setSongCache)
 
   const LS_KEY = "recentlyPlayed"
 
+  const setPath = (path: any) => {
+    setRootDir(path);
+    localStorage.setItem("lastRootDir", path);
+  };
+
+  const loadDataFromLocalStorage = () => {
+    const lastRootDir = localStorage.getItem("lastRootDir");
+    if (lastRootDir) {
+      setPath(lastRootDir);
+    }
+  }
   const handlePlay = (song: Song) => {
     setPaused(false)
-    fetchPlaylistContents(song)
+    setPlaying(song)
+    addRecentlyPlayed(song)
+    startNewQueue(rootMusicDir, song.path)
   }
 
   const handlePause = () => {
@@ -39,18 +54,35 @@ const MusicArea = () => {
   const handleResume = () => {
     setPaused(false)
   }
-  const searchMusic = async (query?: string) => {
-    if (!rootMusicDir) return
+  const searchMusic = async () => {
+    if (!rootMusicDir || results?.length) return
     setIsLoading(true)
     try {
       const result = await (window as any).electron.searchSongs({
         rootDir: rootMusicDir,
-        query: query,
+        query: null,
         forceRefresh: false
       })
-      if (result.success) {
+
+      if (result?.songs?.length) {
         setMusicResults(result.songs)
-        console.log(`Loaded ${result.songs.length} songs from cache`)
+      }
+    } catch (error) {
+      console.error('Error loading songs:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+  const getSongCache = async () => {
+    if (!rootMusicDir) return
+    setIsLoading(true)
+    try {
+      const result = await (window as any).electron.getSongCache({
+        rootDir: rootMusicDir,
+        forceRefresh: false
+      })
+      if (result?.songs.length) {
+        setSongCache(result.songs)
       }
     } catch (error) {
       console.error('Error loading songs:', error)
@@ -59,34 +91,12 @@ const MusicArea = () => {
     }
   }
 
-
   const addRecentlyPlayed = (song: Song) => {
     const filtered = recentlyPlayed.filter((s) => s.name !== song.name || s.folderPath !== song.folderPath)
     const newRecPlayed = [song, ...filtered]
     setRecentlyPlayed(newRecPlayed)
     localStorage.setItem(LS_KEY, JSON.stringify(newRecPlayed))
   }
-
-  const fetchPlaylistContents = useCallback(
-    async (song: Song) => {
-      try {
-        let playlistContents = currentDir
-        if (currentDir?.path !== song.folderPath) {
-          playlistContents = await (window as any).electron.readFolderDetails(song.folderPath)
-          setCurrentDir(playlistContents)
-        }
-        const foundSong = playlistContents?.songs.find((s) => s.name === song.name)
-        if (foundSong) {
-          setPlaying(foundSong)
-          addRecentlyPlayed(song)
-          console.log("adding this song", song)
-        }
-      } catch (err) {
-        console.error("Error reading folder:", err)
-      }
-    },
-    [currentDir, setCurrentDir, setPlaying, recentlyPlayed]
-  )
 
   const displayedResults = results.slice(0, displayCount)
   const hasMore = results.length > displayCount
@@ -109,11 +119,14 @@ const MusicArea = () => {
     setDisplayCount(isLargeScreen ? 16 : 8)
   }, [isLargeScreen])
 
-
+  useEffect(() => {
+    loadDataFromLocalStorage()
+  }, [])
 
   useEffect(() => {
     searchMusic()
-  }, [rootMusicDir, setMusicResults])
+    getSongCache()
+  }, [rootMusicDir])
 
 
   return (
@@ -124,34 +137,46 @@ const MusicArea = () => {
 
       ) : (
         <>
-          <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4 p-3 md:p-4">
-            {displayedResults.map((res) => (
-              <SongComponent
-                key={res.metadata.title}
-                song={res}
-                onPlay={handlePlay}
-                onPause={handlePause}
-                onResume={handleResume}
-                isPlaying={currentlyPlaying?.metadata.title === res.metadata.title}
-                isPaused={paused}
-              />
-            ))}
-          </div>
 
-          {hasMore && (
-            <div className="flex justify-center pb-6">
-              <Button
-                onClick={loadMore}
-                variant={"ghost"}
-                className="bg-muted/10 w-full text-muted-foreground"
-              >
-                Load More
-              </Button>
-            </div>
+          {displayedResults.length > 0 ? (
+            <>
+              <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4 p-3 md:p-4">
+                {displayedResults.map((res) => (
+                  <SongComponent
+                    key={res.metadata.title}
+                    song={res}
+                    onPlay={handlePlay}
+                    onPause={handlePause}
+                    onResume={handleResume}
+                    isPlaying={currentlyPlaying?.metadata.title === res.metadata.title}
+                    isPaused={paused}
+                  />
+                ))}
+              </div>
+
+              {hasMore && (
+                <div className="flex justify-center pb-6">
+                  <Button
+                    onClick={loadMore}
+                    variant={"ghost"}
+                    className="bg-muted/10 w-full text-muted-foreground"
+                  >
+                    Load More
+                  </Button>
+                </div>
+              )}
+
+            </>
+
+
+          ) : (
+            <>
+              <div>No songs saved...</div>
+            </>
+
+
           )}
-
         </>
-
       )}
     </div>
   )

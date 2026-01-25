@@ -1,29 +1,32 @@
-import ChangeRootDir from "@/components/Folders/ChangeRootDir"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useAppStore } from "@/stores/useAppStore"
 import { useDirectoryStore } from "@/stores/useDirectoryStore"
 import type { LightDirectory } from "@/types/DirectoryTypes"
-import { Home, Library, ListPlus, Music } from "lucide-react"
-import { useCallback } from "react"
+import { Home, Library, Music } from "lucide-react"
+import { useCallback, useEffect } from "react"
+import NewPlaylist from "./playlists/NewPlaylistButton"
+import { useMusicStore } from "@/stores/useMusicStore"
+import UserPlaylist from "./playlists/UserPlaylist"
 
 const Playlists = () => {
   const playlistData = useDirectoryStore((f) => f.dirData)
-  const setCurrentDir = useDirectoryStore((f) => f.setCurrentDir)
   const setView = useAppStore((f) => f.setView)
+  const playlists = useMusicStore((f) => f.playlists)
+  const setPlaylists = useMusicStore((f) => f.setPlaylists)
+  const setCurrentPlaylist = useAppStore((f) => f.setCurrentPlaylist)
+  useEffect(() => {
+    const loadPlaylists = async () => {
 
-  const fetchPlaylistContents = useCallback(async (path: string) => {
-    try {
-      const playlistContents = await (window as any).electron.readFolderDetails(path);
-      setCurrentDir(playlistContents);
-    } catch (err) {
-      console.error('Error reading folder:', err);
+      const result = await (window as any).electron.getPlaylists({})
+      if (result.success) {
+        setPlaylists(result.playlists)
+      }
     }
-  }, [setCurrentDir]);
-
-  const Playlist = ({ playlist }: { playlist: LightDirectory }) => {
+    loadPlaylists()
+  }, [])
+  const FolderPlaylist = ({ playlist }: { playlist: LightDirectory }) => {
     const handleClick = useCallback(() => {
-      fetchPlaylistContents(playlist.path);
       setView("playlist")
     }, [playlist.path]);
 
@@ -51,7 +54,6 @@ const Playlists = () => {
         <TooltipContent side="right">
           <div className="flex flex-col gap-1">
             <span>
-
               {playlist?.name}
             </span>
             <span className="text-muted-foreground">
@@ -62,19 +64,10 @@ const Playlists = () => {
       </Tooltip>
     )
   }
-  const NewPlaylist = () => {
-    return (
-      <div className="h-12 w-12 shrink-0  p-1 rounded-sm cursor-pointer">
-        <div className="h-full w-full bg-background p-2 items-center flex-col justify-center rounded-sm">
-          <ListPlus />
-        </div>
-      </div>
-    )
-  }
 
   const SidePanelViewModeToggle = () => {
     return (
-      <div className="h-12 w-12 shrink-0  p-1 rounded-sm cursor-pointer">
+      <div className="h-12 w-12 shrink-0 p-1 rounded-sm cursor-pointer">
         <div className="h-full w-full bg-background p-2 items-center flex-col justify-center rounded-sm">
           <Library />
         </div>
@@ -87,7 +80,7 @@ const Playlists = () => {
       setView("home")
     }
     return (
-      <div onClick={() => handleClick()} className="h-12 w-12 shrink-0  p-1 rounded-sm cursor-pointer">
+      <div onClick={() => handleClick()} className="h-12 w-12 shrink-0 p-1 rounded-sm cursor-pointer">
         <div className="h-full w-full bg-background p-2 items-center flex-col justify-center rounded-sm">
           <Home />
         </div>
@@ -96,23 +89,20 @@ const Playlists = () => {
   }
 
 
-  if (!playlistData?.length) {
-    return <ChangeRootDir />
-  }
-
   return (
     <div className="bg-muted/70 flex flex-col py-2 w-fit">
       <div className="flex flex-col px-4 pb-2">
         <HomeViewModeToggle />
-        <NewPlaylist />
         <SidePanelViewModeToggle />
-
+        <NewPlaylist />
       </div>
       <ScrollArea className="flex-1 min-h-0">
         <div className="flex flex-col gap-2 px-4">
-          {playlistData?.map((playlist) => <Playlist playlist={playlist} key={playlist.path} />)}
+          {playlists?.map((playlist) => <UserPlaylist playlist={playlist} key={playlist.id} />)}
+          {playlistData?.map((playlist) => <FolderPlaylist playlist={playlist} key={playlist.path} />)}
         </div>
-      </ScrollArea>    </div>
+      </ScrollArea>
+    </div>
   )
 }
 

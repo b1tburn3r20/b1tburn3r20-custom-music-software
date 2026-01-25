@@ -1,14 +1,54 @@
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem } from "@/components/ui/context-menu"
+import { useMusicStore } from "@/stores/useMusicStore"
 import type { Song } from "@/types/DirectoryTypes"
-import { Play, Trash2 } from "lucide-react"
+import { Pause, Play, Trash2 } from "lucide-react"
+import { useState } from "react"
 
 interface SongComponentProps {
   song: Song
   isPlaying: boolean
   onPlay: (data: Song) => void
+  onPause: () => void
+  onResume: () => void
+  isPaused: boolean
 }
 
-const RecentlyPlayedSongComponent = ({ song, isPlaying, onPlay }: SongComponentProps) => {
+
+const RecentlyPlayedSongComponent = ({ song, isPlaying, onPlay, onPause, onResume, isPaused }: SongComponentProps) => {
+  const removeSong = useMusicStore((f) => f.removeSong)
+
+  const [deleting, setDeleting] = useState(false)
+  const handleClick = () => {
+    if (deleting) {
+      return
+    }
+    if (isPlaying) {
+      if (isPaused) {
+        onResume()
+      } else {
+        onPause()
+      }
+    } else {
+      onPlay(song)
+    }
+  }
+
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      console.log("Heres the thin", song)
+      await (window as any).electron.deleteSong(song.path);
+      removeSong(song)
+    } catch (err) {
+    } finally {
+      setDeleting(false);
+
+    }
+  };
+
+
+  const showPauseIcon = isPlaying && !isPaused
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
@@ -23,9 +63,11 @@ const RecentlyPlayedSongComponent = ({ song, isPlaying, onPlay }: SongComponentP
               className="w-full h-full object-cover"
             />
             <div className={`absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center ${isPlaying ? 'opacity-100' : ''}`}>
-              <div className={`rounded-full bg-primary p-3 transform transition-transform group-hover:scale-110 ${isPlaying ? 'animate-pulse' : ''}`}>
-                <Play className="h-6 w-6 text-primary-foreground fill-current" />
-              </div>
+              {showPauseIcon ? (
+                <Pause className={`h-4 w-4 md:h-15 md:w-15 ${isPlaying ? 'fill-current' : ''}`} />
+              ) : (
+                <Play className={`h-4 w-4 md:h-15 md:w-15 ${isPlaying ? 'fill-current' : ''}`} />
+              )}
             </div>
           </div>
 
@@ -41,10 +83,10 @@ const RecentlyPlayedSongComponent = ({ song, isPlaying, onPlay }: SongComponentP
       </ContextMenuTrigger>
 
       <ContextMenuContent className="w-56">
-        <ContextMenuItem className="flex items-center gap-3 py-3 cursor-pointer">
-          <Trash2 className="h-4 w-4" />
+        <ContextMenuItem className="flex items-center gap-3 py-3 cursor-pointer" onClick={handleDelete}>
+          <Trash2 className="h-4 w-4 text-red-500" />
           <span className="text-sm">
-            Remove from history
+            Delete Song
           </span>
         </ContextMenuItem>
       </ContextMenuContent>

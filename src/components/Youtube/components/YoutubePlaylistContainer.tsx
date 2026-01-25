@@ -1,19 +1,20 @@
 import { useYoutubeStore } from "../useYoutubeStore"
 import { useDirectoryStore } from "@/stores/useDirectoryStore"
-import { Loader2, Search } from "lucide-react"
+import { Loader2, Search, Youtube } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import YoutubePlaylists from "./YoutubePlaylist"
 
 const YoutubePlaylistContainer = () => {
   const results = useYoutubeStore((f) => f.youtubePlaylistResults)
-  const currentDir = useDirectoryStore((f) => f.currentDir)
+  const currentDir = useDirectoryStore((f) => f.rootDir)
   const searching = useYoutubeStore((f) => f.searchingYoutube)
 
   if (searching) {
     return (
-      <div className="p-4 bg-muted/50 rounded-lg h-full flex flex-col justify-center items-center">
-        <Loader2 className="text-primary animate-spin" size={120} />
+      <div className="h-[76vh] rounded-3xl text-muted-foreground gap-4 flex flex-col items-center justify-center text-center bg-muted">
+        <Loader2 className="text-red-500 animate-pulse animate-spin" size={120} />
       </div>
+
     )
   }
 
@@ -24,11 +25,11 @@ const YoutubePlaylistContainer = () => {
           <YoutubePlaylists playlists={results} currentDir={currentDir} />
         </div>
       ) : (
-        <div className="h-full text-muted-foreground gap-4 flex flex-col items-center justify-center text-center bg-accent/50">
-          <p className="text-3xl">No Playlist Search</p>
-          <p className="text-xl">Search something to get started</p>
-          <Search className="animate-pulse" size={120} />
+        <div className="h-[76vh] text-muted-foreground gap-4 flex flex-col items-center justify-center text-center bg-muted">
+          <p className="text-xl">Search playlists to get started</p>
+          <Youtube className="text-red-500 animate-pulse" size={120} />
         </div>
+
       )}
     </ScrollArea>
   )

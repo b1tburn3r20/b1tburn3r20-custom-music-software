@@ -1,3 +1,4 @@
+import { useMusicStore } from "@/stores/useMusicStore";
 import { usePlayerStore } from "@/stores/usePlayerStore"
 import { useSettingsStore } from "@/stores/useSettingsStore";
 import type { Song } from "@/types/DirectoryTypes";
@@ -9,7 +10,7 @@ const LaxPlayerNextUp = () => {
   const currentlyPlaying = usePlayerStore((f) => f.currentlyPlaying);
   const [shouldShow, setShouldShow] = useState(false)
   const [timeLeft, setTimeLeft] = useState<number | null>(null)
-  const playingPlaylist = usePlayerStore((f) => f.playingPlaylist)
+  const queue = useMusicStore((f) => f.queue)
   const setCurrentlyPlaying = usePlayerStore((f) => f.setCurrentlyPlaying)
   const setPaused = usePlayerStore((f) => f.setPaused)
   const looping = usePlayerStore((f) => f.looping)
@@ -37,27 +38,37 @@ const LaxPlayerNextUp = () => {
   }, [currentlyPlaying, audioRef]);
 
   useEffect(() => {
-    if (timeLeft !== null && timeLeft < 7 && timeLeft > 0) {
+    if (timeLeft === 0) {
+      setShouldShow(false)
+    }
+    else if (timeLeft !== null && timeLeft < 7 && timeLeft > 0) {
       setShouldShow(true)
     } else if (timeLeft !== null && timeLeft >= 7) {
       setShouldShow(false)
     }
+    checkIfShouldShow()
   }, [timeLeft])
 
-
-  useEffect(() => {
+  const checkIfShouldShow = () => {
     if (!isExpanded) {
       setShouldShow(false)
     } else if (isExpanded && timeLeft !== null && timeLeft < 7 && timeLeft > 0) {
       setShouldShow(true)
     }
+
+  }
+
+
+  useEffect(() => {
+    checkIfShouldShow()
   }, [isExpanded])
 
   useEffect(() => {
-    if (playingPlaylist?.songs && currentlyPlaying) {
-      const currentIndex = playingPlaylist.songs.indexOf(currentlyPlaying);
-      const next = playingPlaylist.songs[currentIndex + 1];
-      const first = playingPlaylist.songs[0];
+
+    if (queue && currentlyPlaying) {
+      const currentIndex = queue.indexOf(currentlyPlaying);
+      const next = queue[currentIndex + 1];
+      const first = queue[0];
 
       if (looping === "loopSong") {
         setNextSong(currentlyPlaying);
@@ -65,7 +76,7 @@ const LaxPlayerNextUp = () => {
       } else if (next) {
         setNextSong(next);
         setWillLoop(false);
-      } else if (looping === "loopPlaylist" && currentIndex === playingPlaylist?.songs.length - 1) {
+      } else if (looping === "loopPlaylist" && currentIndex === queue.length - 1) {
         setNextSong(first);
         setWillLoop(true);
       } else {
@@ -73,13 +84,13 @@ const LaxPlayerNextUp = () => {
         setWillLoop(false);
       }
     }
-  }, [playingPlaylist, currentlyPlaying, looping]);
+  }, [queue, currentlyPlaying, looping]);
 
   const handleSkipNow = () => {
-    if (playingPlaylist?.songs && currentlyPlaying) {
-      const currentIndex = playingPlaylist.songs.indexOf(currentlyPlaying);
-      const next = playingPlaylist.songs[currentIndex + 1];
-      const first = playingPlaylist.songs[0];
+    if (queue && currentlyPlaying) {
+      const currentIndex = queue.indexOf(currentlyPlaying);
+      const next = queue[currentIndex + 1];
+      const first = queue[0];
 
       if (next && looping !== "loopSong") {
         setCurrentlyPlaying(next);
