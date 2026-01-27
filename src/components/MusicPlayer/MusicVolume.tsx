@@ -3,12 +3,12 @@
 import { usePlayerStore } from "@/stores/usePlayerStore"
 import { Slider } from "@/components/ui/slider"
 import { Volume, Volume1, Volume2, VolumeX } from "lucide-react"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 
 const MusicVolume = () => {
   const volume = usePlayerStore((f) => f.musicVolume)
   const setMusicVolume = usePlayerStore((f) => f.setMusicVolume)
-
+  const [hovered, setHovered] = useState(false)
 
   const loadVolumeFromLocalStorage = () => {
     const localStorageVolume = localStorage.getItem("musicVolume")
@@ -39,14 +39,14 @@ const MusicVolume = () => {
   }
 
   return (
-    <div className="flex items-center gap-3 w-full">
+    <div className="flex items-center gap-3 w-full" onMouseOver={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
       <RenderVolumeButton />
       <Slider
         value={[volume]}
         onValueChange={(value) => handleMusicChange(value[0])}
         max={100}
         step={1}
-
+        expand={hovered}
         className="w-full"
       />
     </div>

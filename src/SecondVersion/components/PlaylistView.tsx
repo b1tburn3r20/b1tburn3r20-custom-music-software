@@ -4,7 +4,6 @@ const PlaylistView = () => {
   return (
     <div className="h-full w-full">
       <NewActivePlaylist />
-
     </div>
   )
 }

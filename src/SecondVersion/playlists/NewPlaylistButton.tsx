@@ -4,27 +4,29 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { ListPlus } from "lucide-react"
 import { useState, useCallback } from "react"
-import { toast } from "sonner"
+import { useMusicStore } from "@/stores/useMusicStore"
 
 const NewPlaylist = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [playlistName, setPlaylistName] = useState("")
   const [playlistDescription, setPlaylistDescription] = useState("")
+  const addPlaylist = useMusicStore((f) => f.addPlaylist)
+
+  const playlistNameSuggestions = ["Rock", "Rap", "Pop", "Indie Pop", "Japanese", "Hip-Hop", "Old School", "Breakcore", "Japanese Pop", "Korean"]
+
+  const randomNumber = Math.floor(Math.random() * (playlistNameSuggestions.length - 0 + 1)) - 1
+  const sugg = playlistNameSuggestions[randomNumber]
 
   const handleCreatePlaylist = useCallback(async () => {
-    toast.info("RAH")
     if (!playlistName.trim()) return
 
     const result = await (window as any).electron.createPlaylist(playlistName.trim(), playlistDescription.trim())
-    toast.info("HERE")
-    console.log("Create playlist response:", result)
-
+    console.log("Heres the res", result)
     if (result.success) {
       setIsDialogOpen(false)
       setPlaylistName("")
       setPlaylistDescription("")
-
-      window.location.reload()
+      addPlaylist(result?.playlist)
     }
   }, [playlistName, playlistDescription])
 
@@ -51,7 +53,7 @@ const NewPlaylist = () => {
               id="name"
               value={playlistName}
               onChange={(e) => setPlaylistName(e.target.value)}
-              placeholder="My Awesome Playlist"
+              placeholder={`${sugg}..?`}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   const btn = document.getElementById("create-new-playlist-button")

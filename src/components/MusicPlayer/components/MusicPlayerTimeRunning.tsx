@@ -3,8 +3,10 @@ import { fancyTimeFormat } from "@/components/helpers/stringfuncs";
 import { usePlayerStore } from "@/stores/usePlayerStore"
 import { formatDuration } from "@/utils/textUtils";
 import { useEffect, useState } from "react";
-
-const MusicPlayerTimeRunning = () => {
+interface MusicPlayerTimeRunningProps {
+  className?: string
+}
+const MusicPlayerTimeRunning = ({ className }: MusicPlayerTimeRunningProps) => {
   const audioRef = usePlayerStore((f) => f.audioRef)
   const currentlyPlaying = usePlayerStore((f) => f.currentlyPlaying);
   const [timeLeft, setTimeLeft] = useState<number | null>(null)
@@ -34,8 +36,8 @@ const MusicPlayerTimeRunning = () => {
 
 
   return (
-    <div className="flex items-center gap-1 text-muted-foreground">
-      <span> {fancyTimeFormat((audioRef?.duration || 0) - (timeLeft || 0))} </span> / <span>{formatDuration(audioRef?.duration || 0)} </span>
+    <div className={`flex items-center gap-1 text-muted-foreground ${className}`}>
+      <span> {fancyTimeFormat((audioRef?.duration || 0) - (timeLeft || 0))} </span> <span className="text-muted-foreground">/</span> <span className="text-muted-foreground">{formatDuration(audioRef?.duration || 0)} </span>
     </div>
   )
 }

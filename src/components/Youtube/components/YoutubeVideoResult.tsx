@@ -42,7 +42,7 @@ const YoutubeVideoResult = ({
     setRecentlyDownloaded(newRecPlayed)
     localStorage.setItem(LS_KEY, JSON.stringify(newRecPlayed))
   }
-  const isPlaying = songSame?.title === playing?.metadata?.title && songSame?.artist === playing?.metadata?.artist
+  const isPlaying = songSame?.title?.toLowerCase() === playing?.metadata?.title?.toLowerCase() && songSame?.artist?.toLowerCase() === playing?.metadata?.artist?.toLowerCase()
 
   const handleAddToCache = (song: Song) => {
     const body: CacheSongType = {
@@ -66,7 +66,6 @@ const YoutubeVideoResult = ({
     try {
       cleanup = (window as any).electron.onDownloadProgress((data) => {
         if (data.videoId === result.id) {
-          console.log("Heres the download progress", data)
           setProgress(parseFloat(data.percent));
         }
       });
@@ -77,11 +76,8 @@ const YoutubeVideoResult = ({
         savePath: currentDir
       });
       if (!response.error) {
-        setDownloaded(true);
         addRecentlyDownloaded(response)
         handleAddToCache(response)
-        startNewQueue(currentDir, response.path)
-        setTimeout(() => setDownloaded(false), 3000);
       } else {
         setError(response.error);
       }
@@ -148,7 +144,7 @@ const YoutubeVideoResult = ({
     }
     const response: any = await (window as any).electron.getSongByPath(body)
     if (response.song) {
-      setPlaying(response.song)
+      startNewQueue(currentDir, response.song.path)
       setPaused(false)
     }
   }
@@ -159,7 +155,7 @@ const YoutubeVideoResult = ({
       return (
         <div className='text-center w-full justify-center flex gap-1 items-center text-xs'>
           <Play className="w-4 h-4 text-primary" />
-          <span className="text-sm">Play</span>
+          <span className="">Play</span>
         </div>
 
 
@@ -168,14 +164,14 @@ const YoutubeVideoResult = ({
       return (
         <div className='text-center animate-pulse w-full justify-center flex gap-1 items-center text-xs'>
           <Pause className="w-4 h-4 text-primary" />
-          <span className="text-sm">Playing</span>
+          <span className="">Playing</span>
         </div>
       )
     } else {
       return (
         <div className='text-center w-full animate-pulse justify-center flex gap-1 items-center text-xs'>
           <Play className="w-4 h-4 text-primary" />
-          <span className="text-sm ">Paused...</span>
+          <span className=" ">Paused...</span>
         </div>
 
       )
@@ -189,7 +185,7 @@ const YoutubeVideoResult = ({
     return (
       <button
         onClick={() => handlePlay(songSame)}
-        className='w-full bg-muted hover:bg-muted/50 rounded-b-3xl cursor-pointer justify-center items-center flex gap-2 p-2 text-center'
+        className='w-full bg-muted text-xs hover:bg-muted/50 rounded-b-3xl cursor-pointer justify-center items-center flex gap-2 p-2 text-center'
         disabled={downloading || downloaded}
       >
         {downloading ? (
@@ -201,12 +197,12 @@ const YoutubeVideoResult = ({
             {/*   step={1} */}
             {/*   className="w-full rounded-none h-12" */}
             {/* /> */}
-            <span className='text-xs text-muted-foreground'>{progress}% downloaded...</span>
+            <span className=' text-muted-foreground'>{progress}% downloaded...</span>
           </div>
         ) : downloaded ? (
-          <div className='text-center w-full justify-center flex gap-1 items-center text-xs'>
+          <div className='text-center w-full justify-center flex gap-1 items-center '>
             <Check className="w-4 h-4" />
-            <span className="text-sm">Saved!</span>
+            <span className="">Saved!</span>
           </div>
         ) : (
           <>
@@ -223,7 +219,7 @@ const YoutubeVideoResult = ({
     return (
       <button
         onClick={handleDownload}
-        className='w-full  cursor-pointer justify-center bg-muted hover:bg-muted/50 rounded-b-3xl items-center flex gap-2 p-2 text-center'
+        className='w-full text-xs cursor-pointer justify-center bg-muted hover:bg-muted/50 rounded-b-3xl items-center flex gap-2 p-2 text-center'
         disabled={downloading || downloaded}
       >
         {downloading ? (
@@ -235,17 +231,17 @@ const YoutubeVideoResult = ({
             {/*   step={1} */}
             {/*   className="w-full rounded-none h-12" */}
             {/* /> */}
-            <span className='text-xs text-muted-foreground'>{progress}% downloaded...</span>
+            <span className='text-muted-foreground'>{progress}% downloaded...</span>
           </div>
         ) : downloaded ? (
-          <div className='text-center w-full justify-center flex gap-1 items-center text-xs'>
+          <div className='text-center w-full justify-center flex gap-1 items-center '>
             <Check className="w-4 h-4" />
-            <span className="text-sm">Saved!</span>
+            <span className="">Saved!</span>
           </div>
         ) : (
-          <div className='text-center w-full justify-center flex gap-1 items-center text-xs'>
+          <div className='text-center w-full justify-center flex gap-1 items-center '>
             <Youtube className="w-4 text-red-500 h-4" />
-            <span className="text-sm">Get</span>
+            <span className="">Get</span>
           </div>
 
         )}

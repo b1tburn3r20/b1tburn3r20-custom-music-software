@@ -1,11 +1,12 @@
 import { useMusicStore } from "@/stores/useMusicStore"
+import { usePlayerStore } from "@/stores/usePlayerStore"
 
 
 export const startNewQueue = async (rootDir, path) => {
-  console.log("Yep being called")
   const setQueue = useMusicStore.getState().setQueue
+  const setPlayingPlaylist = usePlayerStore.getState().setPlayingPlaylist
+  const startPlaying = usePlayerStore.getState().setCurrentlyPlaying
   if (!path) {
-    console.log("returning")
     return
   }
   try {
@@ -13,8 +14,9 @@ export const startNewQueue = async (rootDir, path) => {
     if (response?.error) {
       throw new Error(response.error)
     }
-    console.log("setting", response)
+    setPlayingPlaylist(null)
     setQueue(response.songs)
+    startPlaying(response?.songs[0])
   } catch (error) {
     console.error("This went wrong", error)
   }
@@ -32,7 +34,6 @@ export const extendQueue = async (rootDir, path, songsToOmit) => {
     }
     const newQueue = [...queue, ...response.songs]
     setQueue(newQueue)
-    console.log("Heres the new queu", newQueue)
   } catch (error) {
     console.error("This went wrong", error)
   }

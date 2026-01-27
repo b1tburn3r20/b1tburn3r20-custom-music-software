@@ -12,9 +12,8 @@ import { useDirectoryStore } from "@/stores/useDirectoryStore"
 
 const SearchResults = () => {
   const currentlyPlaying = usePlayerStore((f) => f.currentlyPlaying)
-  const setPlaying = usePlayerStore((f) => f.setCurrentlyPlaying)
-  const recentlyPlayed = useMusicStore((f) => f.musicResults)
-  const setRecentlyPlayed = useMusicStore((f) => f.setMusicResults)
+  const searchResults = useMusicStore((f) => f.musicResults)
+  const setSearchResults = useMusicStore((f) => f.setMusicResults)
   const query = useAppStore((f) => f.query)
   const setQuery = useAppStore((f) => f.setQuery)
   const paused = usePlayerStore((f) => f.paused)
@@ -34,7 +33,7 @@ const SearchResults = () => {
     const seen = new Set<string>()
     const unique: Song[] = []
 
-    for (const song of recentlyPlayed) {
+    for (const song of searchResults) {
       const key = `${song.path}|||${song.name}`
 
       if (!seen.has(key) && unique.length < 8) {
@@ -44,21 +43,20 @@ const SearchResults = () => {
     }
 
     return unique
-  }, [recentlyPlayed])
+  }, [searchResults])
 
   const handlePlay = (song: Song) => {
     addRecentlyPlayed(song)
-    setPlaying(song)
     setPaused(false)
     startNewQueue(rootMusicDir, song.path)
   }
 
   const addRecentlyPlayed = (song: Song) => {
-    const filtered = recentlyPlayed.filter((s) => {
+    const filtered = searchResults.filter((s) => {
       return !(s.name === song.name && s.folderPath === song.folderPath)
     })
     const newRecPlayed = [song, ...filtered].slice(0, 20)
-    setRecentlyPlayed(newRecPlayed)
+    setSearchResults(newRecPlayed)
     localStorage.setItem(LS_KEY, JSON.stringify(newRecPlayed))
   }
 
@@ -71,7 +69,7 @@ const SearchResults = () => {
         <p className="font-bold text-3xl">{uniqueRecentSongs.length} results for: "{query}"</p>
         <Button className="scale-125" variant={"muted_primary"} onClick={() => {
           setQuery(null)
-          setRecentlyPlayed([])
+          setSearchResults([])
         }}>
           <X />
         </Button>

@@ -139,57 +139,59 @@ const SearchMusic = () => {
     setSearchQuery(val);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (!open) return;
+
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
-        setFocusedIndex(prev =>
-          prev < totalItems - 1 ? prev + 1 : -1
-        );
+        setFocusedIndex(prev => prev < totalItems - 1 ? prev + 1 : -1);
         break;
-
       case 'ArrowUp':
         e.preventDefault();
-        setFocusedIndex(prev =>
-          prev > -1 ? prev - 1 : totalItems - 1
-        );
+        setFocusedIndex(prev => prev > -1 ? prev - 1 : totalItems - 1);
         break;
-
       case 'Enter':
         if (focusedIndex === -1) {
-          return
+          searchMusic(searchQuery)
+          setSearchQuery("");
+          setOpen(false);
+          return;
         } else if (focusedIndex < suggestions.length) {
-          handleCachePlay(suggestions[focusedIndex])
-          setSearchQuery("")
-          setOpen(false)
+          handleCachePlay(suggestions[focusedIndex]);
+          setSearchQuery("");
+          setOpen(false);
+          setFocusedIndex(-1)
         } else {
-          setView("youtube")
+          setView("youtube");
           const buttonIndex = focusedIndex - suggestions.length;
           if (buttonIndex === 0) {
-            setSearchTerm(searchQuery)
-            setYTSearchResults([])
-            setPlaylists(false)
+            setSearchTerm(searchQuery);
+            setYTSearchResults([]);
+            setSearchQuery("");
+            setFocusedIndex(-1)
+            setPlaylists(false);
           } else if (buttonIndex === 1) {
-            setPlaylistResults([])
-            setSearchTerm(searchQuery)
-            setPlaylists(true)
+            setPlaylistResults([]);
+            setSearchQuery("");
+            setSearchTerm(searchQuery);
+            setPlaylists(true);
+            setFocusedIndex(-1)
           }
-          incrementSearchTrigger()
-          setOpen(false)
+          incrementSearchTrigger();
+          setOpen(false);
         }
         break;
-
       case 'Escape':
+        e.preventDefault();
         setOpen(false);
         setFocusedIndex(-1);
+        inputRef.current?.blur();
         break;
       default:
-        toast.info("A KEY")
-        setOpen(true)
+        setOpen(true);
     }
-  };
-  const handleInlineSearch = () => {
+  }; const handleInlineSearch = () => {
     if (!searchQuery) {
       const randomSongs = shuffleArray(songCache).slice(0, 5)
       setSuggestions(randomSongs)
@@ -293,7 +295,7 @@ const SearchMusic = () => {
                 <>
                   <div className="flex flex-col gap-2">
                     <div
-                      className={`w-full rounded-sm  p-1 pl-2 flex gap-3 ${focusedIndex === suggestions.length ? 'bg-accent ring-2' : 'bg-muted/50'
+                      className={`w-full rounded-sm  p-1 pl-2 flex gap-3 ${focusedIndex === suggestions.length ? 'bg-accent/10 ring-1 ring-primary/50 pointer-events-none' : 'bg-muted/50'
                         }`}
                     >
                       <Youtube className="text-red-500 shrink-0" />
@@ -301,7 +303,7 @@ const SearchMusic = () => {
                     </div>
 
                     <div
-                      className={`w-full rounded-sm p-1 pl-2 flex gap-3 ${focusedIndex === suggestions.length + 1 ? 'bg-accent ring-2' : 'bg-muted/50'
+                      className={`w-full rounded-sm p-1 pl-2 flex gap-3 ${focusedIndex === suggestions.length + 1 ? 'bg-accent/10 ring-1 ring-primary/50 pointer-events-none' : 'bg-muted/50'
                         }`}
                     >
                       <ListMusic className="text-red-500 shrink-0" />

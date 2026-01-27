@@ -1,6 +1,6 @@
 import { create } from "zustand"
 import { type Song } from "../types/DirectoryTypes"
-import type { FolderDetails } from "@/types/DirectoryTypes";
+import type { PlaylistType } from "@/types/AppTypes";
 
 export interface MP3Metadata {
   title: string;
@@ -32,10 +32,9 @@ type PlayerStore = {
   setMusicVolume: (data: number) => void
   musicProgress: number
   setMusicProgress: (data: number) => void
-  playingPlaylist: FolderDetails | null
-  setPlayingPlaylist: (data: FolderDetails | null) => void
+  playingPlaylist: PlaylistType | null
+  setPlayingPlaylist: (data: PlaylistType | null) => void
   audioRef: HTMLAudioElement | null
-
 
 
 
@@ -63,7 +62,7 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   setCurrentlyPlaying: (data: Song | null) => set({ currentlyPlaying: data }),
   setMusicIsPlaying: (data: boolean) => set({ musicIsPlaying: data }),
   setMusicProgress: (data: number) => set({ musicProgress: data }),
-  setPlayingPlaylist: (playingPlaylist: FolderDetails | null) => set({ playingPlaylist }),
+  setPlayingPlaylist: (playingPlaylist: PlaylistType | null) => set({ playingPlaylist }),
   setAudioRef: (ref: HTMLAudioElement | null) => set({ audioRef: ref }),
   seek: (progressPercent: number) => {
     const { audioRef, currentlyPlaying } = get();

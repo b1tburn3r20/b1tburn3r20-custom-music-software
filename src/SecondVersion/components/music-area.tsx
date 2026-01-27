@@ -13,13 +13,12 @@ import { startNewQueue } from "@/utils/musicutils"
 
 const MusicArea = () => {
   const currentlyPlaying = usePlayerStore((f) => f.currentlyPlaying)
-  const setPlaying = usePlayerStore((f) => f.setCurrentlyPlaying)
   const recentlyPlayed = useMusicStore((f) => f.recentlyPlayed)
   const setRecentlyPlayed = useMusicStore((f) => f.setRecentlyPlayed)
   const setPaused = usePlayerStore((f) => f.setPaused)
   const paused = usePlayerStore((f) => f.paused)
   const [isLoading, setIsLoading] = useState(false)
-  const setMusicResults = useMusicStore((f) => f.setRandomMusic)
+  const setRandomMusic = useMusicStore((f) => f.setRandomMusic)
   const results = useMusicStore((f) => f.randomMusic)
   const rootMusicDir = useDirectoryStore((f) => f.rootDir)
   const [displayCount, setDisplayCount] = useState(8)
@@ -42,7 +41,6 @@ const MusicArea = () => {
   }
   const handlePlay = (song: Song) => {
     setPaused(false)
-    setPlaying(song)
     addRecentlyPlayed(song)
     startNewQueue(rootMusicDir, song.path)
   }
@@ -65,7 +63,7 @@ const MusicArea = () => {
       })
 
       if (result?.songs?.length) {
-        setMusicResults(result.songs)
+        setRandomMusic(result.songs)
       }
     } catch (error) {
       console.error('Error loading songs:', error)

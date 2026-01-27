@@ -21,12 +21,13 @@ const RecentlyDownloaded = () => {
   const [displayCount, setDisplayCount] = useState(8)
   const [isLargeScreen, setIsLargeScreen] = useState(false)
 
-  const LS_KEY = "userRecentlyDownloaded"
+  const LSD_KEY = "userRecentlyDownloaded"
+  const LSP_KEY = "recentlyPlayed"
   const addRecentlyPlayed = (song: Song) => {
     const filtered = recentlyPlayed.filter((s) => s.name !== song.name || s.folderPath !== song.folderPath)
     const newRecPlayed = [song, ...filtered]
     setRecentlyPlayed(newRecPlayed)
-    localStorage.setItem(LS_KEY, JSON.stringify(newRecPlayed))
+    localStorage.setItem(LSP_KEY, JSON.stringify(newRecPlayed))
   }
 
 
@@ -64,7 +65,7 @@ const RecentlyDownloaded = () => {
 
   const loadFromLocalStorage = () => {
 
-    const key = localStorage.getItem(LS_KEY)
+    const key = localStorage.getItem(LSD_KEY)
     if (key) {
       setRecentlyDownloaded(JSON.parse(key))
     }

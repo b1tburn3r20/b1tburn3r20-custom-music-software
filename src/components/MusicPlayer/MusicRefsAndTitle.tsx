@@ -86,41 +86,46 @@ const MusicRefsAndTitle = () => {
   useEffect(() => {
     const audioEl = audioRef.current;
     if (!audioEl) return;
-
     const handleEnded = () => {
       if (queue && currentlyPlaying) {
         const currentIndex = queue.indexOf(currentlyPlaying);
         const nextSong = queue[currentIndex + 1];
 
-        const firstSong = queue[0];
         if (nextSong && looping !== "loopSong") {
           setCurrentlyPlaying(nextSong);
           setPaused(false);
-          return
-        } if (looping === "loopPlaylist" && firstSong) {
-          setPaused(false);
-          setCurrentlyPlaying(firstSong);
-          return
-        } if (looping === "loopSong") {
-          setPaused(false);
-          if (
-            audioRef.current
-          ) {
-            audioRef.current.currentTime = 0
-            audioRef.current.play()
-          }
-          return
+          return;
         }
 
-        setPaused(true)
+        if (looping === "loopPlaylist") {
+          setPaused(false);
+          if (currentIndex !== 0) {
+            setCurrentlyPlaying(queue[0]);
+          } else {
+            if (audioRef.current) {
+              audioRef.current.currentTime = 0;
+              audioRef.current.play();
+            }
+          }
+          return;
+        }
+
+        if (looping === "loopSong") {
+          setPaused(false);
+          if (audioRef.current) {
+            audioRef.current.currentTime = 0;
+            audioRef.current.play();
+          }
+          return;
+        }
+
+        setPaused(true);
         if (audioRef?.current) {
-          audioRef.current.currentTime = 0
-          setProgress(0)
+          audioRef.current.currentTime = 0;
+          setProgress(0);
         }
       }
-    };
-
-    audioEl.addEventListener("ended", handleEnded);
+    }; audioEl.addEventListener("ended", handleEnded);
 
     return () => {
       audioEl.removeEventListener("ended", handleEnded);

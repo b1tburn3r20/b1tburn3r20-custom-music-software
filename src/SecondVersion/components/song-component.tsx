@@ -1,3 +1,4 @@
+import LottieViewer from "@/components/helpers/lottie-viewer"
 import { Button } from "@/components/ui/button"
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu"
 import { useMusicStore } from "@/stores/useMusicStore"
@@ -18,6 +19,8 @@ const SongComponent = ({ song, isPlaying, onPlay, onPause, onResume, isPaused, d
   const removeSong = useMusicStore((f) => f.removeSong)
   const setPlaylistUpdateData = useMusicStore((f) => f.setPlaylistUpdateData)
   const setIsPlaylistModalOpen = useMusicStore((f) => f.setIsPlaylistModalOpen)
+  const [hovered, setHovered] = useState(false)
+
 
   const [deleting, setDeleting] = useState(false)
   const handleClick = () => {
@@ -48,6 +51,8 @@ const SongComponent = ({ song, isPlaying, onPlay, onPause, onResume, isPaused, d
     }
   };
 
+
+
   const handleSetPlaylistAdd = () => {
     setPlaylistUpdateData(song)
     setTimeout(() => {
@@ -62,6 +67,8 @@ const SongComponent = ({ song, isPlaying, onPlay, onPause, onResume, isPaused, d
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <div
+          onMouseLeave={() => setHovered(false)}
+          onMouseOver={() => setHovered(true)}
           onClick={handleClick}
           className={`group flex items-center gap-3 py-2 px-3 rounded-lg  transition-all cursor-pointer active:scale-[0.98] touch-manipulation ${isPlaying ? "bg-muted/20" : ""}  ${darker ? "bg-black/80 hover:bg-muted/20" : "hover:bg-accent/50"}  `}
         >
@@ -77,7 +84,7 @@ const SongComponent = ({ song, isPlaying, onPlay, onPause, onResume, isPaused, d
               {song.metadata.title}
             </p>
             <p className={`text-xs md:text-sm text-muted-foreground truncate ${isPlaying ? "text-primary/70" : ""}`}>
-              {song.metadata.artist || "Unknown Artist"} <span className="text-muted-foreground/50">•</span> <span className="text-muted-foreground/50">{song.metadata.year}</span>
+              <span className={`${song?.metadata?.artist ? "hover:underline" : ""}`}>  {song.metadata.artist || "Unknown Artist"} </span>  <span className="text-muted-foreground/50">•</span> <span className="text-muted-foreground/50">{song.metadata.year}</span>
             </p>
           </div>
           <div>
@@ -91,7 +98,18 @@ const SongComponent = ({ song, isPlaying, onPlay, onPause, onResume, isPaused, d
                 className={`shrink-0 opacity-0 group-hover:opacity-100 transition-opacity ${isPlaying ? 'opacity-100' : ''} md:h-10 md:w-10 h-9 w-9`}
               >
                 {showPauseIcon ? (
-                  <Pause className={`h-4 w-4 md:h-5 md:w-5 ${isPlaying ? 'fill-current' : ''}`} />
+                  <>
+                    {hovered ? (
+
+                      <Pause className={`h-4 w-4 md:h-5 md:w-5 ${isPlaying ? 'fill-current' : ''}`} />
+
+                    ) : (
+                      <div className="opacity-85">
+
+                        <LottieViewer />
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <Play className={`h-4 w-4 md:h-5 md:w-5 ${isPlaying ? 'fill-current' : ''}`} />
                 )}

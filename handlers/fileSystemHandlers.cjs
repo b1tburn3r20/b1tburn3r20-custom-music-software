@@ -426,13 +426,20 @@ async function getSongQueue(event, { rootDir, path = "", songsToOmit = [] }) {
 
     availableSongs.forEach(song => {
       const songArtist = song.metadata?.artist?.toLowerCase() || '';
-      if (songArtist === currentArtist) {
+
+      const currentArtists = currentArtist.split(/,|&|\bfeat\.?\b|\band\b/).map(a => a.trim()).filter(Boolean);
+      const songArtists = songArtist.split(/,|&|\bfeat\.?\b|\band\b/).map(a => a.trim()).filter(Boolean);
+
+      const hasCommonArtist = currentArtists.some(ca =>
+        songArtists.some(sa => sa === ca || sa.includes(ca) || ca.includes(sa))
+      );
+
+      if (hasCommonArtist) {
         sameArtistSongs.push(song);
       } else {
         otherArtistSongs.push(song);
       }
     });
-
     const shuffledSameArtist = shuffleArray(sameArtistSongs);
     const shuffledOtherArtist = shuffleArray(otherArtistSongs);
     const combinedPool = [...shuffledSameArtist, ...shuffledOtherArtist];
@@ -726,10 +733,14 @@ function formatDuration(seconds) {
   return `${minutes}:${secs.toString().padStart(2, '0')}`;
 }
 
+function getSongCacheData() {
+  return songCache;
+}
 module.exports = {
   registerFileSystemHandlers,
   addSongToCache,
   removeSongFromCache,
   updateSongInCache,
-  invalidateCache
+  invalidateCache,
+  getSongCacheData,
 };

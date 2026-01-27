@@ -1,3 +1,4 @@
+import LottieViewer from "@/components/helpers/lottie-viewer"
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem } from "@/components/ui/context-menu"
 import { useMusicStore } from "@/stores/useMusicStore"
 import type { Song } from "@/types/DirectoryTypes"
@@ -16,7 +17,7 @@ interface SongComponentProps {
 
 const RecentlyPlayedSongComponent = ({ song, isPlaying, onPlay, onPause, onResume, isPaused }: SongComponentProps) => {
   const removeSong = useMusicStore((f) => f.removeSong)
-
+  const [hovered, setHovered] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const handleClick = () => {
     if (deleting) {
@@ -53,7 +54,8 @@ const RecentlyPlayedSongComponent = ({ song, isPlaying, onPlay, onPause, onResum
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <div
-          onClick={() => onPlay(song)}
+          onMouseOver={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+          onClick={() => handleClick()}
           className="group relative flex flex-col gap-2 p-3 rounded-xl hover:bg-accent/50 transition-all cursor-pointer active:scale-95"
         >
           <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-muted">
@@ -64,7 +66,17 @@ const RecentlyPlayedSongComponent = ({ song, isPlaying, onPlay, onPause, onResum
             />
             <div className={`absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center ${isPlaying ? 'opacity-100' : ''}`}>
               {showPauseIcon ? (
-                <Pause className={`h-4 w-4 md:h-15 md:w-15 ${isPlaying ? 'fill-current' : ''}`} />
+                <>
+                  {hovered ? (
+
+                    <Pause className={`h-4 w-4 md:h-15 md:w-15 ${isPlaying ? 'fill-current' : ''}`} />
+                  ) : (
+                    <div className="opacity-80">
+                      <LottieViewer />
+                    </div>
+                  )}
+
+                </>
               ) : (
                 <Play className={`h-4 w-4 md:h-15 md:w-15 ${isPlaying ? 'fill-current' : ''}`} />
               )}

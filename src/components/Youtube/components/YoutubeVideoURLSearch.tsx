@@ -11,7 +11,7 @@ const YoutubeVideoURLSearch = () => {
   const [error, setError] = useState<string | null>(null);
   const [videoResult, setVideoResult] = useState<YoutubeDetailsResult | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const currentDir = useDirectoryStore((f) => f.currentDir);
+  const currentDir = useDirectoryStore((f) => f.rootDir);
 
   const API_KEY = import.meta.env.VITE_YOUTUBE_API_KEY;
 

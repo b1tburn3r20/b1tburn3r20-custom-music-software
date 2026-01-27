@@ -1,3 +1,4 @@
+import { localStorageRemoveSong } from "@/components/helpers/utilities"
 import type { PlaylistType } from "@/types/AppTypes"
 import type { Song } from "@/types/DirectoryTypes"
 import { create } from "zustand"
@@ -43,11 +44,14 @@ type MusicStore = {
   setPlaylists: (data: PlaylistType[]) => void
 
 
+
   // helper zuxios
   addSong: (song: Song) => void
   removeSong: (song: Song) => void
   addSongToCache: (song: CacheSongType) => void
   replacePlaylist: (playlist: PlaylistType) => void
+  addPlaylist: (playlist: PlaylistType) => void
+  removePlaylist: (id: string) => void
 }
 
 const initialState = {
@@ -83,16 +87,24 @@ export const useMusicStore = create<MusicStore>((set) => ({
     set((state) => ({
       songCache: [...state.songCache, song]
     })),
-  removeSong: (song: Song) =>
+  removeSong: (song: Song) => {
     set((state) => ({
       randomMusic: state.randomMusic.filter((s) => s.path !== song.path),
       musicResults: state.musicResults.filter((s) => s.path !== song.path),
       recentlyPlayed: state.recentlyPlayed.filter((s) => s.path !== song.path),
-      songCache: state.songCache.filter((s) => s.path !== song.path)
+      recentlyDownloaded: state.recentlyDownloaded.filter((s) => s.path !== song.path),
+      songCache: state.songCache.filter((s) => s.path !== song.path),
+      queue: state.queue.filter((s) => s.path !== song.path),
     })),
+      localStorageRemoveSong(song)
+  },
   replacePlaylist: (playlist: PlaylistType) => set((state) => ({
     playlists: state.playlists.map((p) => p.id === playlist.id ? playlist : p)
-  })
-
-  ),
+  })),
+  addPlaylist: (playlist: PlaylistType) => set((state) => ({
+    playlists: [...state.playlists, playlist]
+  })),
+  removePlaylist: (id: string) => set((state) => ({
+    playlists: state.playlists.filter((pl) => pl.id !== id)
+  })),
 }))

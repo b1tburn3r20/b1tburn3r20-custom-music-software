@@ -1,9 +1,11 @@
 
 import { Button } from "@/components/ui/button"
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem } from "@/components/ui/context-menu"
+import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { useDirectoryStore } from "@/stores/useDirectoryStore"
 import { useMusicStore } from "@/stores/useMusicStore"
+import type { PlaylistType } from "@/types/AppTypes"
 import type { Song } from "@/types/DirectoryTypes"
 import { extendQueue } from "@/utils/musicutils"
 import { Play, Trash2, Pause, Loader2, LucideUserCircle2, LucideSquaresUnite } from "lucide-react"
@@ -21,9 +23,10 @@ interface MusicQueueItemProps {
   index: number
   queue: Song[]
   currentlyPlaying: Song
+  playingPlaylist?: PlaylistType
 }
 
-const MusicQueueItem = ({ index, song, isPlaying, onPlay, onPause, onResume, isPaused, darker, queue, currentlyPlaying }: MusicQueueItemProps) => {
+const MusicQueueItem = ({ index, song, isPlaying, onPlay, onPause, onResume, isPaused, darker, queue, currentlyPlaying, playingPlaylist }: MusicQueueItemProps) => {
   const removeSong = useMusicStore((f) => f.removeSong)
   const rootDir = useDirectoryStore((f) => f.rootDir)
   const [deleting, setDeleting] = useState(false)
@@ -62,6 +65,7 @@ const MusicQueueItem = ({ index, song, isPlaying, onPlay, onPause, onResume, isP
   const shouldFetchMoreSongs = queue.length - (queue.indexOf(currentlyPlaying) + 1) < 3
 
 
+  const shouldShowSeparator = !!(!playingPlaylist && index === 0) || (playingPlaylist && (song?.path === playingPlaylist?.songs[playingPlaylist?.songs.length - 1]?.path))
   useEffect(() => {
     if (shouldFetchMoreSongs && isPlaying) {
       const pathFlatmap = queue.flatMap((f) => f.path)
@@ -78,7 +82,7 @@ const MusicQueueItem = ({ index, song, isPlaying, onPlay, onPause, onResume, isP
         <ContextMenuTrigger asChild>
           <div
             onClick={handleClick}
-            className={`group flex items-center gap-3 py-2 px-3 rounded-lg  transition-all cursor-pointer active:scale-[0.98] touch-manipulation ${isPlaying ? "bg-muted/20" : ""}  ${darker ? "bg-black/80 hover:bg-muted/20" : "hover:bg-accent/50"}  `}
+            className={`group flex select-none items-center gap-3 py-2 px-3 rounded-lg  transition-all cursor-pointer active:scale-[0.98] touch-manipulation ${isPlaying ? "bg-muted/20" : ""}  ${darker ? "bg-black/80 hover:bg-muted/20" : "hover:bg-accent/50"}  `}
           >
             <div className="relative h-12 w-12 md:h-14 md:w-14 shrink-0 overflow-hidden rounded-md bg-muted">
               <img
@@ -88,14 +92,13 @@ const MusicQueueItem = ({ index, song, isPlaying, onPlay, onPause, onResume, isP
               />
             </div>
             <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-              <p className={`text-sm md:text-base font-semibold truncate ${isPlaying ? "text-primary" : ""}`}>
+              <p title={song?.metadata?.title} className={`text-sm md:text-base font-semibold line-clamp-1 ${isPlaying ? "text-primary" : ""}`}>
                 {song.metadata.title}
               </p>
-              <p className={`text-xs md:text-sm text-muted-foreground truncate ${isPlaying ? "text-primary/70" : ""}`}>
+              <p className={`text-xs md:text-sm text-muted-foreground line-clamp-1 ${isPlaying ? "text-primary/70" : ""}`}>
                 {song.metadata.artist || "Unknown Artist"} <span className="text-muted-foreground/50">•</span> <span className="text-muted-foreground/50">{song.metadata.year}</span>
               </p>
-            </div>
-            <div>
+            </div>           <div>
               {deleting ? (
                 <div><Loader2 className="animate-spin" /> </div>
               ) : (
@@ -122,7 +125,7 @@ const MusicQueueItem = ({ index, song, isPlaying, onPlay, onPause, onResume, isP
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
-      {index === 0 && (
+      {shouldShowSeparator && (
         <div>
           <Separator className="my-2" />
         </div>

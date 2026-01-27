@@ -4,6 +4,7 @@ import { create } from "zustand"
 export type settingsStore = {
   playerExpanded: boolean
   setPlayerExpanded: (data: boolean) => void
+
 }
 
 

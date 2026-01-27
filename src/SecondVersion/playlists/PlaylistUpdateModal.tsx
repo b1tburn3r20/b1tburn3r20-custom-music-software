@@ -1,7 +1,6 @@
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useMusicStore } from "@/stores/useMusicStore"
 import PlaylistSelect from "./PlaylistSelect"
-import { useDirectoryStore } from "@/stores/useDirectoryStore"
 
 const PlaylistUpdateModal = () => {
   const open = useMusicStore((f) => f.isPlaylistModalOpen)
@@ -9,11 +8,13 @@ const PlaylistUpdateModal = () => {
   const updateData = useMusicStore((f) => f.playlistUpdateData)
   const setUpdateData = useMusicStore((f) => f.setPlaylistUpdateData)
   const playlists = useMusicStore((f) => f.playlists)
-  const rootDir = useDirectoryStore((f) => f.rootDir)
   const replacePlaylist = useMusicStore((f) => f.replacePlaylist)
   const handleOpenChange = () => {
     if (open) {
       setOpen(false)
+      setTimeout(() => {
+        setUpdateData(null)
+      }, 300)
     } else {
       setOpen(true)
     }
@@ -25,6 +26,9 @@ const PlaylistUpdateModal = () => {
       console.log(response)
       if (response?.success) {
         replacePlaylist(response.playlist)
+        setTimeout(() => {
+          setUpdateData(null)
+        }, 300)
       }
     } catch (error) {
       console.error("This is sad")

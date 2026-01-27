@@ -8,7 +8,6 @@ import { useDirectoryStore } from "@/stores/useDirectoryStore"
 
 const RecentlyPlayed = () => {
   const currentlyPlaying = usePlayerStore((f) => f.currentlyPlaying)
-  const setPlaying = usePlayerStore((f) => f.setCurrentlyPlaying)
   const recentlyPlayed = useMusicStore((f) => f.recentlyPlayed)
   const setRecentlyPlayed = useMusicStore((f) => f.setRecentlyPlayed)
   const rootMusicDir = useDirectoryStore((f) => f.rootDir)
@@ -50,7 +49,6 @@ const RecentlyPlayed = () => {
   }
   const handlePlay = (song: Song) => {
     addRecentlyPlayed(song)
-    setPlaying(song)
     setPaused(false)
     startNewQueue(rootMusicDir, song.path)
   }
