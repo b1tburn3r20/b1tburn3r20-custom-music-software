@@ -2,7 +2,6 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { useAppStore } from "@/stores/useAppStore"
 import { formatDuration } from "@/utils/textUtils"
 import { Music } from "lucide-react"
-import { useState, useEffect, useRef } from "react"
 import { usePlayerStore } from "@/stores/usePlayerStore"
 import { addRecentlyPlayed } from "@/components/helpers/utilities"
 import { startNewQueue } from "@/utils/musicutils"
@@ -10,15 +9,20 @@ import { useDirectoryStore } from "@/stores/useDirectoryStore"
 import type { Song } from "@/types/DirectoryTypes"
 import PlaylistSongComponent from "./PlaylistSongComponent"
 import PlaylistActionButtons from "../playlists/PlaylistActionButtons/PlaylistActionButtons"
+import { useColorCacheStore } from "@/stores/useColorCacheStore"
 
 const NewActivePlaylist = () => {
   const activePlaylist = useAppStore((f) => f.currentPlaylist)
-  const [dominantColor, setDominantColor] = useState("147, 112, 219")
-  const colorCache = useRef<Map<string, string>>(new Map())
   const rootMusicDir = useDirectoryStore((f) => f.rootDir)
   const setPaused = usePlayerStore((f) => f.setPaused)
+  const paused = usePlayerStore((f) => f.paused)
+  const currentlyPlaying = usePlayerStore((f) => f.currentlyPlaying)
 
-
+  const thumbnail = activePlaylist?.songs?.[0]?.metadata?.thumbnail
+  const playlistId = activePlaylist?.id || activePlaylist?.name || ""
+  const dominantColor = useColorCacheStore((state) =>
+    state.getColor(thumbnail as string | undefined, playlistId)
+  )
 
   const handlePlay = (song: Song) => {
     setPaused(false)
@@ -32,88 +36,6 @@ const NewActivePlaylist = () => {
 
   const handleResume = () => {
     setPaused(false)
-  }
-
-
-  const paused = usePlayerStore((f) => f.paused)
-  const currentlyPlaying = usePlayerStore((f) => f.currentlyPlaying)
-  const fallbackColors = [
-    "147, 112, 219",
-    "100, 149, 237",
-    "144, 238, 144",
-    "240, 128, 128",
-    "255, 182, 193",
-    "255, 200, 124",
-  ]
-
-  useEffect(() => {
-    const thumbnail = activePlaylist?.songs?.[0]?.metadata?.thumbnail
-    const playlistId = activePlaylist?.id || activePlaylist?.name || ""
-
-    if (thumbnail) {
-      extractDominantColor(thumbnail as string)
-    } else {
-      const hash = playlistId.toString().split("").reduce((acc, char) => acc + char.charCodeAt(0), 0)
-      const colorIndex = hash % fallbackColors.length
-      setDominantColor(fallbackColors[colorIndex])
-    }
-  }, [activePlaylist])
-
-  const extractDominantColor = (imageSrc: string) => {
-    if (colorCache.current.has(imageSrc)) {
-      setDominantColor(colorCache.current.get(imageSrc)!)
-      return
-    }
-
-    const img = new Image()
-    img.crossOrigin = "Anonymous"
-    img.src = imageSrc
-
-    img.onload = () => {
-      const canvas = document.createElement("canvas")
-      const ctx = canvas.getContext("2d", { willReadFrequently: true })
-      if (!ctx) return
-
-      const size = 50
-      canvas.width = size
-      canvas.height = size
-      ctx.drawImage(img, 0, 0, size, size)
-
-      const imageData = ctx.getImageData(0, 0, size, size).data
-      const colorMap = new Map()
-
-      const step = 4 * 10
-      for (let i = 0; i < imageData.length; i += step) {
-        const r = imageData[i]
-        const g = imageData[i + 1]
-        const b = imageData[i + 2]
-        const a = imageData[i + 3]
-
-        if (a < 125 || (r > 250 && g > 250 && b > 250) || (r < 10 && g < 10 && b < 10))
-          continue
-
-        const packed = (r << 16) | (g << 8) | b
-        colorMap.set(packed, (colorMap.get(packed) || 0) + 1)
-      }
-
-      let maxCount = 0
-      let dominantPacked = 0x9370DB
-
-      for (const [packed, count] of colorMap) {
-        if (count > maxCount) {
-          maxCount = count
-          dominantPacked = packed
-        }
-      }
-
-      const r = (dominantPacked >> 16) & 0xFF
-      const g = (dominantPacked >> 8) & 0xFF
-      const b = dominantPacked & 0xFF
-
-      const dominantRGB = `${r}, ${g}, ${b}`
-      colorCache.current.set(imageSrc, dominantRGB)
-      setDominantColor(dominantRGB)
-    }
   }
 
   const NoDirSelected = () => {
@@ -154,7 +76,11 @@ const NewActivePlaylist = () => {
                 className="w-full h-full flex items-center justify-center"
                 style={{ backgroundColor: `rgba(0, 0, 0, 0.3)` }}
               >
-                <Music className="w-20 h-20 text-white" />
+                <Music
+
+                  style={{ color: `rgb(${dominantColor})` }}
+
+                  className="w-20 h-20 text-white" />
               </div>
             )}
           </div>

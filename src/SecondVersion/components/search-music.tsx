@@ -156,12 +156,14 @@ const SearchMusic = () => {
           searchMusic(searchQuery)
           setSearchQuery("");
           setOpen(false);
+          inputRef.current?.blur();
           return;
         } else if (focusedIndex < suggestions.length) {
           handleCachePlay(suggestions[focusedIndex]);
           setSearchQuery("");
           setOpen(false);
           setFocusedIndex(-1)
+          inputRef.current?.blur();
         } else {
           setView("youtube");
           const buttonIndex = focusedIndex - suggestions.length;
@@ -261,7 +263,7 @@ const SearchMusic = () => {
         />
 
         {open && (
-          <div className="absolute z-10 w-full top-full mt-1 rounded-lg bg-muted/20 backdrop-blur-[5px] p-2">
+          <div className="absolute z-10 w-full top-full mt-1 rounded-lg bg-black/40 backdrop-blur-[5px] p-2">
             <div>
               {suggestions.length > 0 && (
                 <>

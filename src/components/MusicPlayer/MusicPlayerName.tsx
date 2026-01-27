@@ -8,7 +8,7 @@ const MusicPlayerName = () => {
   return (
     <div>
 
-      <div className="flex gap-2 items-center">
+      <div className="flex select-none gap-2 items-center">
         {currentlyPlaying?.metadata?.thumbnail ? (
           <div className="bg-white/10 p-1 rounded-lg shrink-0">
             <img

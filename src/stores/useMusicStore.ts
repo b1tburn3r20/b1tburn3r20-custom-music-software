@@ -52,6 +52,7 @@ type MusicStore = {
   replacePlaylist: (playlist: PlaylistType) => void
   addPlaylist: (playlist: PlaylistType) => void
   removePlaylist: (id: string) => void
+  addSongToPlaylist: (playlistId: string, song: Song) => void
 }
 
 const initialState = {
@@ -107,4 +108,17 @@ export const useMusicStore = create<MusicStore>((set) => ({
   removePlaylist: (id: string) => set((state) => ({
     playlists: state.playlists.filter((pl) => pl.id !== id)
   })),
+  addSongToPlaylist: (playlistId: string, song: Song) =>
+    set((state) => ({
+      playlists: state.playlists.map((pl) => {
+        if (pl.id !== playlistId) return pl
+        const alreadyExists = pl.songs.some((s) => s.path === song.path)
+        if (alreadyExists) return pl
+        return {
+          ...pl,
+          songs: [...pl.songs, song],
+          updated: Date.now()
+        }
+      })
+    }))
 }))

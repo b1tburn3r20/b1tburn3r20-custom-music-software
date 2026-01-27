@@ -5,17 +5,26 @@ import { Label } from "@/components/ui/label"
 import { ListPlus } from "lucide-react"
 import { useState, useCallback } from "react"
 import { useMusicStore } from "@/stores/useMusicStore"
+import { useAppStore } from "@/stores/useAppStore"
+import { useColorCacheStore } from "@/stores/useColorCacheStore"
 
 const NewPlaylist = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [playlistName, setPlaylistName] = useState("")
   const [playlistDescription, setPlaylistDescription] = useState("")
+  const setView = useAppStore((f) => f.setView)
+
+  const setCurrentPlaylist = useAppStore((f) => f.setCurrentPlaylist)
   const addPlaylist = useMusicStore((f) => f.addPlaylist)
 
   const playlistNameSuggestions = ["Rock", "Rap", "Pop", "Indie Pop", "Japanese", "Hip-Hop", "Old School", "Breakcore", "Japanese Pop", "Korean"]
 
   const randomNumber = Math.floor(Math.random() * (playlistNameSuggestions.length - 0 + 1)) - 1
   const sugg = playlistNameSuggestions[randomNumber]
+  const dominantColor = useColorCacheStore((state) =>
+    state.getColor(undefined, "new-playlist-button")
+  )
+
 
   const handleCreatePlaylist = useCallback(async () => {
     if (!playlistName.trim()) return
@@ -27,16 +36,27 @@ const NewPlaylist = () => {
       setPlaylistName("")
       setPlaylistDescription("")
       addPlaylist(result?.playlist)
+      setCurrentPlaylist(result?.playlist)
+      setView("playlist")
     }
   }, [playlistName, playlistDescription])
 
   return (
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
       <DialogTrigger asChild>
-        <div className="h-12 w-12 shrink-0 p-1 rounded-sm cursor-pointer">
-          <div className="h-full w-full bg-background p-2 items-center flex justify-center rounded-sm">
-            <ListPlus />
-          </div>
+        <div className="h-12 w-12 shrink-0 p-1 rounded-sm cursor-pointer"
+
+
+          style={{ backgroundColor: `rgba(${dominantColor}, 0.2)` }}
+        >
+
+
+          <ListPlus
+            className="h-10 w-10 rounded-lg p-2"
+            style={{ color: `rgb(${dominantColor})` }}
+
+
+          />
         </div>
       </DialogTrigger>
       <DialogContent>

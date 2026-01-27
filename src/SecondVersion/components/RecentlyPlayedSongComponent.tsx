@@ -2,7 +2,7 @@ import LottieViewer from "@/components/helpers/lottie-viewer"
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem } from "@/components/ui/context-menu"
 import { useMusicStore } from "@/stores/useMusicStore"
 import type { Song } from "@/types/DirectoryTypes"
-import { Pause, Play, Trash2 } from "lucide-react"
+import { ListPlus, Pause, Play, Trash2 } from "lucide-react"
 import { useState } from "react"
 
 interface SongComponentProps {
@@ -19,6 +19,9 @@ const RecentlyPlayedSongComponent = ({ song, isPlaying, onPlay, onPause, onResum
   const removeSong = useMusicStore((f) => f.removeSong)
   const [hovered, setHovered] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const setPlaylistUpdateData = useMusicStore((f) => f.setPlaylistUpdateData)
+  const setIsPlaylistModalOpen = useMusicStore((f) => f.setIsPlaylistModalOpen)
+
   const handleClick = () => {
     if (deleting) {
       return
@@ -47,6 +50,13 @@ const RecentlyPlayedSongComponent = ({ song, isPlaying, onPlay, onPause, onResum
 
     }
   };
+  const handleSetPlaylistAdd = () => {
+    setPlaylistUpdateData(song)
+    setTimeout(() => {
+      setIsPlaylistModalOpen(true)
+    }, 150)
+  }
+
 
 
   const showPauseIcon = isPlaying && !isPaused
@@ -101,6 +111,12 @@ const RecentlyPlayedSongComponent = ({ song, isPlaying, onPlay, onPause, onResum
             Delete Song
           </span>
         </ContextMenuItem>
+        <ContextMenuItem onClick={handleSetPlaylistAdd} className="flex items-center gap-3 py-3 cursor-pointer">
+          <ListPlus className="h-4 w-4" />
+          <span className="text-sm">Add to Playlist</span>
+        </ContextMenuItem>
+
+
       </ContextMenuContent>
     </ContextMenu>
   )
