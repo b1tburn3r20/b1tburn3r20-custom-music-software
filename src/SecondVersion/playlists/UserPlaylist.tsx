@@ -8,7 +8,7 @@ import LottieViewer from "@/components/helpers/lottie-viewer";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useMusicStore } from "@/stores/useMusicStore";
 import { addRecentlyPlayed, shuffleArray } from "@/components/helpers/utilities";
-import { startNewQueueFromArray } from "@/utils/musicutils";
+import { addToRecentlyPlayedPlaylists, startNewQueueFromArray } from "@/utils/musicutils";
 
 const UserPlaylist = ({ playlist }: { playlist: PlaylistType }) => {
   const [contextMenuOpen, setContextMenuOpen] = useState(false);
@@ -34,6 +34,8 @@ const UserPlaylist = ({ playlist }: { playlist: PlaylistType }) => {
   }, [playlist.id, setCurrentPlaylist, setView]);
 
   const handlePlayPlaylist = useCallback(() => {
+
+    addToRecentlyPlayedPlaylists(playlist?.id)
     setPlayingPlaylist(playlist);
     setQueue(playlist?.songs);
     startPlaying(playlist?.songs[0]);
@@ -44,6 +46,7 @@ const UserPlaylist = ({ playlist }: { playlist: PlaylistType }) => {
   const handleShufflePlaylist = useCallback(() => {
     const shuffled = shuffleArray(playlist?.songs)
     startNewQueueFromArray(shuffled, playlist)
+    addToRecentlyPlayedPlaylists(playlist?.id)
     setContextMenuOpen(false);
     setPlayingPlaylist(playlist);
   }, [playlist, setPlayingPlaylist, setQueue, startPlaying]);

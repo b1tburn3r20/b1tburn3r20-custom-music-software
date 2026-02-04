@@ -47,6 +47,13 @@ type MusicStore = {
   diceIndex: number
   setDiceIndex: (data: number) => void
 
+  playlistDiceIndex: number
+  setPlaylistDiceIndex: (data: number) => void
+
+  recentlyPlayedPlaylists: PlaylistType[]
+  setRecentlyPlayedPlaylists: (data: PlaylistType[]) => void
+
+
 
   // helper zuxios
   addSong: (song: Song) => void
@@ -69,7 +76,9 @@ const initialState = {
   isPlaylistModalOpen: false,
   playlistUpdateData: null,
   playlists: [],
-  diceIndex: 1,
+  diceIndex: 5,
+  playlistDiceIndex: 3,
+  recentlyPlayedPlaylists: [],
 }
 
 export const useMusicStore = create<MusicStore>((set) => ({
@@ -93,6 +102,9 @@ export const useMusicStore = create<MusicStore>((set) => ({
     set((state) => ({
       songCache: [...state.songCache, song]
     })),
+  setPlaylistDiceIndex: (playlistDiceIndex: number) => set({ playlistDiceIndex }),
+  setRecentlyPlayedPlaylists: (recentlyPlayedPlaylists: PlaylistType[]) => set({ recentlyPlayedPlaylists }),
+  //
   removeSong: (song: Song) => {
     set((state) => ({
       randomMusic: state.randomMusic.filter((s) => s.path !== song.path),

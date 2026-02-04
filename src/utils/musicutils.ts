@@ -93,4 +93,18 @@ export const removePlaylist = (playlistId: string) => {
 
 }
 
+export const addToRecentlyPlayedPlaylists = (playlistId: string) => {
+  const playlists = useMusicStore.getState().playlists
+  const foundPlaylist = playlists.find((pl) => pl.id === playlistId)
+  const setRecentlyPlayedPlaylists = useMusicStore.getState().setRecentlyPlayedPlaylists
+  const recentlyPlayedPlaylists = useMusicStore.getState().recentlyPlayedPlaylists
+  if (foundPlaylist) {
+    const filtered = recentlyPlayedPlaylists.filter((pl) => pl.id !== playlistId)
+    const newSpread = [foundPlaylist, ...filtered]
+    setRecentlyPlayedPlaylists(newSpread)
+    localStorage.setItem("userRecentlyPlayedPlaylists", JSON.stringify(newSpread))
+  }
+}
+
+
 

@@ -7,6 +7,9 @@ import { useMusicStore } from "@/stores/useMusicStore"
 import UserPlaylist from "./playlists/UserPlaylist"
 import { Separator } from "@/components/ui/separator"
 import { useColorCacheStore } from "@/stores/useColorCacheStore"
+import RandomQueueButton from "./components/RandomQueueButton"
+import SmallRandomQueueButton from "./components/SmallRandomQueueButton"
+import SmallRandomPlaylistButton from "./components/SmallRandomPlaylistButton"
 
 const Playlists = () => {
   const setView = useAppStore((f) => f.setView)
@@ -77,6 +80,17 @@ const Playlists = () => {
       <div className="flex flex-col gap-2">
         <HomeViewModeToggle />
         <SidePanelViewModeToggle />
+      </div>
+      <Separator className="my-4 bg-gray-500/60" />
+
+      <div className="flex flex-col gap-2">
+        <div className="cursor-pointer aspect-square">
+          <SmallRandomQueueButton />
+        </div>
+        <div className="cursor-pointer aspect-square">
+          <SmallRandomPlaylistButton />
+        </div>
+
       </div>
       <Separator className="my-4 bg-gray-500/60" />
       <div className="mb-2">
