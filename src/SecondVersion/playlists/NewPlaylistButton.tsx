@@ -19,7 +19,7 @@ const NewPlaylist = () => {
 
   const playlistNameSuggestions = ["Rock", "Rap", "Pop", "Indie Pop", "Japanese", "Hip-Hop", "Old School", "Breakcore", "Japanese Pop", "Korean"]
 
-  const randomNumber = Math.floor(Math.random() * (playlistNameSuggestions.length - 0 + 1)) - 1
+  const randomNumber = Math.floor(Math.random() * (playlistNameSuggestions.length))
   const sugg = playlistNameSuggestions[randomNumber]
   const dominantColor = useColorCacheStore((state) =>
     state.getColor(undefined, "new-playlist-button")
@@ -30,7 +30,6 @@ const NewPlaylist = () => {
     if (!playlistName.trim()) return
 
     const result = await (window as any).electron.createPlaylist(playlistName.trim(), playlistDescription.trim())
-    console.log("Heres the res", result)
     if (result.success) {
       setIsDialogOpen(false)
       setPlaylistName("")

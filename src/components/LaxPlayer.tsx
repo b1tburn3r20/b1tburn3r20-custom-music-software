@@ -5,6 +5,7 @@ import { Music } from "lucide-react"
 import MusicQueue from "@/SecondVersion/components/MusicQueue"
 import { useAppStore } from "@/stores/useAppStore"
 import MusicPlayerTimeRunning from "./MusicPlayer/components/MusicPlayerTimeRunning"
+import { toast } from "sonner"
 
 const LaxPlayer = () => {
   const expanded = useSettingsStore((f) => f.playerExpanded)
@@ -46,6 +47,24 @@ const LaxPlayer = () => {
       document.removeEventListener('mousemove', handleMouseMove)
     }
   }, [expanded])
+  useEffect(() => {
+    const handleKeyPress = (e: any) => {
+      if (e.key === "Escape") {
+        toast.info("UHG")
+        if (expanded) {
+          setExpanded(false)
+        }
+      }
+    }
+
+    window.addEventListener("keypress", handleKeyPress)
+
+    return () => window.removeEventListener("keypress", handleKeyPress)
+  }, [expanded, setExpanded])
+
+
+
+
 
   const handlePause = () => {
     if (paused) {
@@ -67,17 +86,17 @@ const LaxPlayer = () => {
       className={`absolute w-screen h-screen bg-background top-0 inset-x-0 transition-transform duration-500 ease-in-out z-10 ${expanded ? "-translate-y-0" : "translate-y-full"} ${isIdle ? 'cursor-none' : ''}`}
     >
       <div
-        className="flex flex-col h-screen w-screen overflow-hidden relative bg-background transition-all duration-[3000ms] ease-in-out inset-shadow-black"
+        className="flex  flex-col h-screen w-screen overflow-hidden relative bg-background transition-all duration-[3000ms] ease-in-out inset-shadow-black"
         onDoubleClick={(e) => handleDoubleClick(e)}
         style={backgroundStyle}
       >
         <div
           className={`absolute inset-0 backdrop-blur-[200px] transition-opacity duration-[3000ms] z-[11] ${activeSong?.metadata?.thumbnail ? 'opacity-100' : 'opacity-0'}`}
         />
-        <div className="z-[12] absolute flex-col gap-2 inset-0 flex items-center justify-center -translate-y-10">
+        <div className="z-[12] absolute flex-col gap-2  inset-0 flex items-center justify-center -translate-y-10">
           {activeSong?.metadata?.thumbnail ? (
             <div
-              className="bg-white/10 p-1 rounded-lg shrink-0 w-fit select-none"
+              className="cursor-pointer bg-white/10 p-1 rounded-lg shrink-0 w-fit select-none"
               onClick={() => handlePause()}
             >
               <img
@@ -92,15 +111,16 @@ const LaxPlayer = () => {
             </div>
           )}
           <p className="select-none font-extrabold text-2xl">{activeSong?.metadata.title}</p>
-          <div className="p-2 rounded-3xl bg-muted/10 backdrop-blur-md">
-            <p className="select-none font-normal text-white/40 text-lg">
+
+          <div className="px-2 py-1 rounded-3xl bg-muted/10 backdrop-blur-md">
+            <p className="select-none font-normal text-white/50 text-lg">
               {activeSong?.metadata.artist} {activeSong?.metadata?.year ? `(${activeSong.metadata.year})` : ""}
             </p>
           </div>
 
           <div className={`transition-all pointer-events-none select-none duration-1000 ease-in-out ${isIdle ? 'opacity-100' : 'opacity-0'}`}>
 
-            <div className="bg-muted/10 p-2 rounded-3xl backdrop-blur-md">
+            <div className="bg-muted/10 py-1 px-2 rounded-3xl backdrop-blur-md">
               <MusicPlayerTimeRunning className="text-white text-lg font-semibold" />
             </div>
 

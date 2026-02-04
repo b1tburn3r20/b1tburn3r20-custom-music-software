@@ -179,44 +179,44 @@ const YoutubePlaylists = ({ playlists, currentDir }: YoutubePlaylistProps) => {
               <div className="font-bold">{playlist.title} - <span className="text-muted-foreground">{playlist.channel}</span> </div>
             </div>
             <div className="flex items-center gap-4">
-              <div className="flex gap-2 items-center">
-                {songsLeftToDownload.length > 0 ? (
-                  <>
-                    {(playlistDownloading || isAnyDownloading) && (
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={(e) => {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          cancelPlaylistDownload()
-                        }}
-                      >
-                        <X />
-                      </Button>
-                    )}
-                    <Button variant={"muted_red"} onClick={handlePlaylistCreate}>
-                      <ListMusic />
-                    </Button>
-                    <Button
-                      variant={"muted_red"}
-                      disabled={isAnyDownloading || playlistDownloading || playlistDownloaded}
-                      onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        downloadPlaylist(playlist)
-                      }}
-                      className={playlistError ? 'animate-pulse bg-red-500 hover:bg-red-600' : ''}
-                    >
-                      {(isAnyDownloading || playlistDownloading) ? <Loader2 className="animate-spin" /> : <>
-                        {playlistDownloaded ? <Check /> : <Download />}
-                      </>}
-                    </Button>
-                  </>
-                ) : (
-                  <Check />
-                )}
-              </div>
+              {/* <div className="flex gap-2 items-center"> */}
+              {/*   {songsLeftToDownload.length > 0 ? ( */}
+              {/*     <> */}
+              {/*       {(playlistDownloading || isAnyDownloading) && ( */}
+              {/*         <Button */}
+              {/*           variant="destructive" */}
+              {/*           size="sm" */}
+              {/*           onClick={(e) => { */}
+              {/*             e.preventDefault() */}
+              {/*             e.stopPropagation() */}
+              {/*             cancelPlaylistDownload() */}
+              {/*           }} */}
+              {/*         > */}
+              {/*           <X /> */}
+              {/*         </Button> */}
+              {/*       )} */}
+              {/*       <Button variant={"muted_red"} onClick={handlePlaylistCreate}> */}
+              {/*         <ListMusic /> */}
+              {/*       </Button> */}
+              {/*       <Button */}
+              {/*         variant={"muted_red"} */}
+              {/*         disabled={isAnyDownloading || playlistDownloading || playlistDownloaded} */}
+              {/*         onClick={(e) => { */}
+              {/*           e.preventDefault() */}
+              {/*           e.stopPropagation() */}
+              {/*           downloadPlaylist(playlist) */}
+              {/*         }} */}
+              {/*         className={playlistError ? 'animate-pulse bg-red-500 hover:bg-red-600' : ''} */}
+              {/*       > */}
+              {/*         {(isAnyDownloading || playlistDownloading) ? <Loader2 className="animate-spin" /> : <> */}
+              {/*           {playlistDownloaded ? <Check /> : <Download />} */}
+              {/*         </>} */}
+              {/*       </Button> */}
+              {/*     </> */}
+              {/*   ) : ( */}
+              {/*     <Check /> */}
+              {/*   )} */}
+              {/* </div> */}
               <div className="flex flex-col w-[80px]">
                 {currentlySavedSongs.length > 0 ? (
                   <>

@@ -5,6 +5,7 @@ import { usePlayerStore } from "@/stores/usePlayerStore"
 import type { Song } from "@/types/DirectoryTypes"
 import { startNewQueue } from "@/utils/musicutils"
 import { useDirectoryStore } from "@/stores/useDirectoryStore"
+import RandomQueueButton from "./RandomQueueButton"
 
 const RecentlyPlayed = () => {
   const currentlyPlaying = usePlayerStore((f) => f.currentlyPlaying)
@@ -23,20 +24,16 @@ const RecentlyPlayed = () => {
     setPaused(false)
   }
 
-
   const uniqueRecentSongs = useMemo(() => {
     const seen = new Set<string>()
     const unique: Song[] = []
-
     for (const song of recentlyPlayed) {
       const key = `${song.path}|||${song.name}`
-
-      if (!seen.has(key) && unique.length < 8) {
+      if (!seen.has(key) && unique.length < 11) {
         seen.add(key)
         unique.push(song)
       }
     }
-
     return unique
   }, [recentlyPlayed])
 
@@ -47,10 +44,11 @@ const RecentlyPlayed = () => {
       setRecentlyPlayed(par)
     }
   }
+
   const handlePlay = (song: Song) => {
     addRecentlyPlayed(song)
     setPaused(false)
-    startNewQueue(rootMusicDir, song.path)
+    startNewQueue(song.path)
   }
 
   const addRecentlyPlayed = (song: Song) => {
@@ -71,20 +69,38 @@ const RecentlyPlayed = () => {
   return (
     <div className="">
       <p className="font-bold text-3xl mb-4">Listen Again</p>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-2 items-center">
-        {uniqueRecentSongs.map((res) => (
-          <RecentlyPlayedSongComponent
-            onPause={handlePause}
-            onResume={handleResume}
-            isPaused={paused}
-
-
-            onPlay={handlePlay}
-            song={res}
-            isPlaying={currentlyPlaying?.metadata?.title === res?.metadata?.title && currentlyPlaying?.folderPath === res?.folderPath}
-            key={`${res.folderPath}|||${res.name}`}
-          />
-        ))}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+        {uniqueRecentSongs.slice(0, 4).map((res) => {
+          return (
+            <div key={`${res.folderPath}|||${res.name}`}>
+              <RecentlyPlayedSongComponent
+                onPause={handlePause}
+                onResume={handleResume}
+                isPaused={paused}
+                onPlay={handlePlay}
+                song={res}
+                isPlaying={currentlyPlaying?.metadata?.title === res?.metadata?.title && currentlyPlaying?.folderPath === res?.folderPath}
+              />
+            </div>
+          )
+        })}
+        <div className="cursor-pointer aspect-square p-3">
+          <RandomQueueButton />
+        </div>
+        {uniqueRecentSongs.slice(4, 9).map((res) => {
+          return (
+            <div key={`${res.folderPath}|||${res.name}`}>
+              <RecentlyPlayedSongComponent
+                onPause={handlePause}
+                onResume={handleResume}
+                isPaused={paused}
+                onPlay={handlePlay}
+                song={res}
+                isPlaying={currentlyPlaying?.metadata?.title === res?.metadata?.title && currentlyPlaying?.folderPath === res?.folderPath}
+              />
+            </div>
+          )
+        })}
       </div>
     </div>
   )

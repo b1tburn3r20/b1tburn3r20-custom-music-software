@@ -37,7 +37,7 @@ const MusicPlayerTimeRunning = ({ className }: MusicPlayerTimeRunningProps) => {
 
   return (
     <div className={`flex items-center gap-1 text-muted-foreground ${className}`}>
-      <span> {fancyTimeFormat((audioRef?.duration || 0) - (timeLeft || 0))} </span> <span className="text-muted-foreground">/</span> <span className="text-muted-foreground">{formatDuration(audioRef?.duration || 0)} </span>
+      <span> {fancyTimeFormat((audioRef?.duration || 0) - (timeLeft || 0))} </span> <span className="text-white/50">/</span> <span className="text-white/50">{formatDuration(audioRef?.duration || 0)} </span>
     </div>
   )
 }

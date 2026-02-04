@@ -76,7 +76,7 @@ const PlaylistSongItem = ({
     const response: any = await (window as any).electron.getSongByPath(body)
     if (response.song) {
       setPlaying(response?.song)
-      startNewQueue(currentDir, response?.song?.path)
+      startNewQueue(response?.song?.path)
       setPaused(false)
     }
   }

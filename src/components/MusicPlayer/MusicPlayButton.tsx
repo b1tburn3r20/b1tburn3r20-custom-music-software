@@ -20,23 +20,24 @@ const MusicPlayButton = () => {
   }
 
   useEffect(() => {
-    const handleKeyDown = (e: any) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === "Space" || e.key === " ") {
-        if (!document.activeElement) {
+        const target = e.target as HTMLElement;
+        const isTyping = target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable;
+
+        if (!isTyping) {
           e.preventDefault()
           handleMusicClick()
         }
-
       }
     }
-
     window.addEventListener("keydown", handleKeyDown)
-
     return () => {
       window.removeEventListener("keydown", handleKeyDown)
     }
   }, [paused, audioRef])
-
   return (
     <button
       id="music-play-button"

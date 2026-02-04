@@ -2,8 +2,10 @@ import LottieViewer from "@/components/helpers/lottie-viewer"
 import { Button } from "@/components/ui/button"
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu"
 import { useMusicStore } from "@/stores/useMusicStore"
+import type { PlaylistType } from "@/types/AppTypes"
 import type { Song } from "@/types/DirectoryTypes"
-import { Play, Trash2, Pause, Loader2, ListPlus, Shuffle } from "lucide-react"
+import { removeSongFromActivePlaylist, removeSongFromPlaylistData } from "@/utils/musicutils"
+import { Play, Trash2, Pause, Loader2, ListPlus, Shuffle, X } from "lucide-react"
 import { useState } from "react"
 interface PlaylistSongProps {
   song: Song
@@ -14,9 +16,10 @@ interface PlaylistSongProps {
   isPaused: boolean
   darker?: boolean
   index: number
+  playlist?: PlaylistType
 }
 
-const PlaylistSongComponent = ({ song, isPlaying, onPlay, onPause, onResume, isPaused, darker, index }: PlaylistSongProps) => {
+const PlaylistSongComponent = ({ song, isPlaying, onPlay, onPause, onResume, isPaused, darker, index, playlist }: PlaylistSongProps) => {
   const removeSong = useMusicStore((f) => f.removeSong)
   const setPlaylistUpdateData = useMusicStore((f) => f.setPlaylistUpdateData)
   const setIsPlaylistModalOpen = useMusicStore((f) => f.setIsPlaylistModalOpen)
@@ -50,6 +53,20 @@ const PlaylistSongComponent = ({ song, isPlaying, onPlay, onPause, onResume, isP
     }
   };
 
+  const handleRemoveFromPlaylist = async () => {
+    if (!playlist?.id) {
+
+      return
+    }
+    try {
+      await (window as any).electron.removeSongFromPlaylist(playlist.id, song.path);
+      removeSongFromActivePlaylist(song)
+      removeSongFromPlaylistData(song, playlist)
+    } catch (err) {
+    } finally {
+
+    }
+  };
 
 
   const handleSetPlaylistAdd = () => {
@@ -123,14 +140,22 @@ const PlaylistSongComponent = ({ song, isPlaying, onPlay, onPause, onResume, isP
           </div>
         </ContextMenuTrigger>
         <ContextMenuContent className="w-56">
-          <ContextMenuItem onClick={handleDelete} className="flex items-center gap-3 py-3 cursor-pointer">
-            <Trash2 className="h-4 w-4" />
-            <span className="text-sm">Delete Song</span>
-          </ContextMenuItem>
-          <ContextMenuSeparator />
           <ContextMenuItem onClick={handleSetPlaylistAdd} className="flex items-center gap-3 py-3 cursor-pointer">
             <ListPlus className="h-4 w-4" />
             <span className="text-sm">Add to Playlist</span>
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+
+          <ContextMenuItem onClick={handleRemoveFromPlaylist} className="flex items-center gap-3 py-3 cursor-pointer">
+            <X className="h-4 w-4" />
+            <span className="text-sm">Remove from Playlist</span>
+          </ContextMenuItem>
+
+          <ContextMenuSeparator />
+
+          <ContextMenuItem variant="destructive" onClick={handleDelete} className="flex items-center gap-3 py-3 cursor-pointer">
+            <Trash2 className="h-4 w-4" />
+            <span className="text-sm">Delete Song</span>
           </ContextMenuItem>
 
 

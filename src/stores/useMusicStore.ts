@@ -1,6 +1,7 @@
 import { localStorageRemoveSong } from "@/components/helpers/utilities"
 import type { PlaylistType } from "@/types/AppTypes"
 import type { Song } from "@/types/DirectoryTypes"
+import { removeSongFromActivePlaylist } from "@/utils/musicutils"
 import { create } from "zustand"
 
 export type CacheSongType = {
@@ -43,6 +44,8 @@ type MusicStore = {
   playlists: PlaylistType[]
   setPlaylists: (data: PlaylistType[]) => void
 
+  diceIndex: number
+  setDiceIndex: (data: number) => void
 
 
   // helper zuxios
@@ -65,7 +68,8 @@ const initialState = {
   newQueueKey: 0,
   isPlaylistModalOpen: false,
   playlistUpdateData: null,
-  playlists: []
+  playlists: [],
+  diceIndex: 1,
 }
 
 export const useMusicStore = create<MusicStore>((set) => ({
@@ -78,6 +82,7 @@ export const useMusicStore = create<MusicStore>((set) => ({
   setRecentlyPlayed: (recentlyPlayed: Song[]) => set({ recentlyPlayed }),
   setRecentlyDownloaded: (recentlyDownloaded: Song[]) => set({ recentlyDownloaded }),
   setQueue: (queue: Song[]) => set({ queue }),
+  setDiceIndex: (data: number) => set({ diceIndex: data }),
   setNewQueueKey: (newQueueKey: number) => set({ newQueueKey }),
   setSongCache: (songCache: CacheSongType[]) => set({ songCache }),
   addSong: (song: Song) =>
@@ -96,8 +101,14 @@ export const useMusicStore = create<MusicStore>((set) => ({
       recentlyDownloaded: state.recentlyDownloaded.filter((s) => s.path !== song.path),
       songCache: state.songCache.filter((s) => s.path !== song.path),
       queue: state.queue.filter((s) => s.path !== song.path),
+
+      playlists: state.playlists.map((playlist) => ({
+        ...playlist,
+        songs: playlist.songs.filter((s) => s.path !== song.path)
+      }))
     })),
       localStorageRemoveSong(song)
+    removeSongFromActivePlaylist(song)
   },
   replacePlaylist: (playlist: PlaylistType) => set((state) => ({
     playlists: state.playlists.map((p) => p.id === playlist.id ? playlist : p)

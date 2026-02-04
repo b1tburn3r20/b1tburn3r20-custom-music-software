@@ -33,7 +33,6 @@ const MusicRefsAndTitle = () => {
 
     audioEl
       .play()
-      .then(() => console.log("Playing:", currentlyPlaying.name))
       .catch((err) => {
         console.warn("Autoplay blocked or failed:", err.message);
       });
@@ -141,15 +140,14 @@ const MusicRefsAndTitle = () => {
     return null
   }
 
-  const cleanedFileName = currentlyPlaying.name?.replace(".mp3", "");
 
 
 
 
 
   return (
-    <div className="select-none flex justify-start truncate">
-      {cleanedFileName}
+    <div title={currentlyPlaying?.metadata?.title} className="select-none truncate">
+      {currentlyPlaying?.metadata?.title}
     </div>
   )
 }

@@ -77,9 +77,11 @@ const Playlists = () => {
       <div className="flex flex-col gap-2">
         <HomeViewModeToggle />
         <SidePanelViewModeToggle />
-        <NewPlaylist />
       </div>
       <Separator className="my-4 bg-gray-500/60" />
+      <div className="mb-2">
+        <NewPlaylist />
+      </div>
       <ScrollArea className="flex-1 min-h-0">
         <div className="flex flex-col gap-2">
           {playlists?.map((playlist) => <UserPlaylist playlist={playlist} key={`${playlist.id}-${playlist?.songs?.length}`} />)}

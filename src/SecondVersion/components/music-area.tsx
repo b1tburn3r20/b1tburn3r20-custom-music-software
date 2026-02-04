@@ -7,6 +7,8 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Loader2 } from "lucide-react"
 import { startNewQueue } from "@/utils/musicutils"
+import { useColorCacheStore } from "@/stores/useColorCacheStore"
+import SongSkeleton from "./SongSkeleton"
 
 
 
@@ -25,7 +27,7 @@ const MusicArea = () => {
   const [isLargeScreen, setIsLargeScreen] = useState(false)
   const setRootDir = useDirectoryStore((f) => f.setRootDir)
   const setSongCache = useMusicStore((f) => f.setSongCache)
-
+  const getColor = useColorCacheStore((f) => f.getColor)
   const LS_KEY = "recentlyPlayed"
 
   const setPath = (path: any) => {
@@ -42,7 +44,7 @@ const MusicArea = () => {
   const handlePlay = (song: Song) => {
     setPaused(false)
     addRecentlyPlayed(song)
-    startNewQueue(rootMusicDir, song.path)
+    startNewQueue(song.path)
   }
 
   const handlePause = () => {
@@ -138,7 +140,7 @@ const MusicArea = () => {
 
           {displayedResults.length > 0 ? (
             <>
-              <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4 p-3 md:p-4">
+              <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4">
                 {displayedResults.map((res) => (
                   <SongComponent
                     key={res.metadata.title}
@@ -169,7 +171,25 @@ const MusicArea = () => {
 
           ) : (
             <>
-              <div>No songs saved...</div>
+              <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4">
+                {[...Array(displayCount)].map((_, i) => {
+                  const dominantColor = getColor(
+                    i.toString(),
+                    (i + 1).toString()
+                  )
+                  return (
+
+                    <div key={i}>
+                      <SongSkeleton dominantColor={dominantColor} />
+                    </div>
+                  )
+
+
+
+                })}
+
+              </div>
+
             </>
 
 

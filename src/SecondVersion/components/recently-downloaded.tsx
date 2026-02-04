@@ -6,6 +6,8 @@ import type { Song } from "@/types/DirectoryTypes"
 import { useState, useEffect } from "react"
 import { startNewQueue } from "@/utils/musicutils"
 import { useDirectoryStore } from "@/stores/useDirectoryStore"
+import { useColorCacheStore } from "@/stores/useColorCacheStore"
+import SongSkeleton from "./SongSkeleton"
 
 const RecentlyDownloaded = () => {
   const currentlyPlaying = usePlayerStore((f) => f.currentlyPlaying)
@@ -20,7 +22,7 @@ const RecentlyDownloaded = () => {
 
   const [displayCount, setDisplayCount] = useState(8)
   const [isLargeScreen, setIsLargeScreen] = useState(false)
-
+  const getColor = useColorCacheStore((f) => f.getColor)
   const LSD_KEY = "userRecentlyDownloaded"
   const LSP_KEY = "recentlyPlayed"
   const addRecentlyPlayed = (song: Song) => {
@@ -35,7 +37,7 @@ const RecentlyDownloaded = () => {
     setPaused(false)
     setPlaying(song)
     addRecentlyPlayed(song)
-    startNewQueue(rootMusicDir, song.path)
+    startNewQueue(song.path)
   }
 
   const handlePause = () => {
@@ -75,7 +77,34 @@ const RecentlyDownloaded = () => {
     loadFromLocalStorage()
   }, [])
   if (!recentlyDownladed?.length) {
-    return null
+    return (
+      <div>
+        <p className="font-bold text-3xl mb-4">No Downloads Yet</p>
+        <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4">
+          {[...Array(displayCount)].map((_, i) => {
+            const dominantColor = getColor(
+              i.toString(),
+              (i + 1).toString()
+            )
+            return (
+
+              <div key={i}>
+                <SongSkeleton dominantColor={dominantColor} />
+              </div>
+            )
+
+
+
+          })}
+
+        </div>
+
+
+      </div>
+
+
+
+    )
   }
   return (
     <div>

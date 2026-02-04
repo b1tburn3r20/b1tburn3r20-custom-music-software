@@ -48,7 +48,7 @@ const SearchResults = () => {
   const handlePlay = (song: Song) => {
     addRecentlyPlayed(song)
     setPaused(false)
-    startNewQueue(rootMusicDir, song.path)
+    startNewQueue(song.path)
   }
 
   const addRecentlyPlayed = (song: Song) => {

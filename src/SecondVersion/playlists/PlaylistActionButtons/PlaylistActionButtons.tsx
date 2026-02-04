@@ -3,12 +3,14 @@ import PlaylistEditPlaylistButton from "./PlaylistEditPlaylistButton"
 import PlaylistShufflePlaylistButton from "./PlaylistShufflePlaylistButton"
 import PlaylistStartPlaylistButton from "./PlaylistStartPlaylistButton"
 import PlaylistAddSongsButton from "./PlaylistAddSongsButton"
+import type { PlaylistType } from "@/types/AppTypes"
 
 interface PlaylistActionButtonsProps {
   songs: Song[]
+  playlist: PlaylistType
 }
 
-const PlaylistActionButtons = ({ songs }: PlaylistActionButtonsProps) => {
+const PlaylistActionButtons = ({ songs, playlist }: PlaylistActionButtonsProps) => {
   return (
     <div className="flex gap-4 items-center">
       <PlaylistEditPlaylistButton />
@@ -19,7 +21,7 @@ const PlaylistActionButtons = ({ songs }: PlaylistActionButtonsProps) => {
 
         </>
       ) : ""}
-      <PlaylistAddSongsButton />
+      <PlaylistAddSongsButton playlist={playlist} />
     </div>
   )
 }

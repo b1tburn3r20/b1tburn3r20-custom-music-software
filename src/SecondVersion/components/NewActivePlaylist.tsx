@@ -5,7 +5,6 @@ import { Music } from "lucide-react"
 import { usePlayerStore } from "@/stores/usePlayerStore"
 import { addRecentlyPlayed } from "@/components/helpers/utilities"
 import { startNewQueue } from "@/utils/musicutils"
-import { useDirectoryStore } from "@/stores/useDirectoryStore"
 import type { Song } from "@/types/DirectoryTypes"
 import PlaylistSongComponent from "./PlaylistSongComponent"
 import PlaylistActionButtons from "../playlists/PlaylistActionButtons/PlaylistActionButtons"
@@ -13,7 +12,6 @@ import { useColorCacheStore } from "@/stores/useColorCacheStore"
 
 const NewActivePlaylist = () => {
   const activePlaylist = useAppStore((f) => f.currentPlaylist)
-  const rootMusicDir = useDirectoryStore((f) => f.rootDir)
   const setPaused = usePlayerStore((f) => f.setPaused)
   const paused = usePlayerStore((f) => f.paused)
   const currentlyPlaying = usePlayerStore((f) => f.currentlyPlaying)
@@ -27,7 +25,7 @@ const NewActivePlaylist = () => {
   const handlePlay = (song: Song) => {
     setPaused(false)
     addRecentlyPlayed(song)
-    startNewQueue(rootMusicDir, song.path)
+    startNewQueue(song.path)
   }
 
   const handlePause = () => {
@@ -99,7 +97,7 @@ const NewActivePlaylist = () => {
           </div>
         </div>
         <div className="absolute -bottom-10.5">
-          <PlaylistActionButtons songs={songs || []} />
+          <PlaylistActionButtons playlist={activePlaylist} songs={songs || []} />
         </div>
       </div>
 
@@ -115,6 +113,7 @@ const NewActivePlaylist = () => {
               onResume={handleResume}
               isPlaying={currentlyPlaying?.metadata.title === song.metadata.title}
               isPaused={paused}
+              playlist={activePlaylist}
             />
           ))}
         </div>

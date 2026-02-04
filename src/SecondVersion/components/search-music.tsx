@@ -69,7 +69,7 @@ const SearchMusic = () => {
       setPlaying(response.song)
       setPaused(false)
       addRecentlyPlayed(response.song)
-      startNewQueue(rootMusicDir, song.path)
+      startNewQueue(song.path)
     }
   }
 
@@ -153,9 +153,17 @@ const SearchMusic = () => {
         break;
       case 'Enter':
         if (focusedIndex === -1) {
-          searchMusic(searchQuery)
+          setSearchTerm(searchQuery);
+          setYTSearchResults([]);
           setSearchQuery("");
+          setFocusedIndex(-1)
+          setPlaylists(false);
+          incrementSearchTrigger();
           setOpen(false);
+
+          // searchMusic(searchQuery)
+          // setSearchQuery("");
+          // setOpen(false);
           inputRef.current?.blur();
           return;
         } else if (focusedIndex < suggestions.length) {

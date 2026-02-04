@@ -66,7 +66,7 @@ const RecentlyPlayedSongComponent = ({ song, isPlaying, onPlay, onPause, onResum
         <div
           onMouseOver={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
           onClick={() => handleClick()}
-          className="group relative flex flex-col gap-2 p-3 rounded-xl hover:bg-accent/50 transition-all cursor-pointer active:scale-95"
+          className="group relative select-none flex flex-col gap-2 p-3 rounded-xl hover:bg-accent/50 transition-all cursor-pointer active:scale-95"
         >
           <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-muted">
             <img
