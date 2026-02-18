@@ -7,7 +7,6 @@ import { useMusicStore } from "@/stores/useMusicStore"
 import UserPlaylist from "./playlists/UserPlaylist"
 import { Separator } from "@/components/ui/separator"
 import { useColorCacheStore } from "@/stores/useColorCacheStore"
-import RandomQueueButton from "./components/RandomQueueButton"
 import SmallRandomQueueButton from "./components/SmallRandomQueueButton"
 import SmallRandomPlaylistButton from "./components/SmallRandomPlaylistButton"
 
@@ -21,7 +20,6 @@ const Playlists = () => {
       const result = await (window as any).electron.getPlaylists({})
       if (result.success) {
         setPlaylists(result.playlists)
-        console.log("Heres the playlists", result.playlists)
       }
     }
     loadPlaylists()
@@ -33,7 +31,7 @@ const Playlists = () => {
     )
 
     return (
-      <div className="h-12 w-12 shrink-0 cursor-pointer">
+      <div onClick={() => setView("library")} className="h-12 w-12 shrink-0 cursor-pointer">
         <div className="h-full w-full">
           <div
             className="p-1 rounded-lg flex flex-col justify-center items-center h-full w-full"

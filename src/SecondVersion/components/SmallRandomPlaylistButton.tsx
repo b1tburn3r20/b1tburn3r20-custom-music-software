@@ -1,30 +1,37 @@
 
 import { useMusicStore } from "@/stores/useMusicStore"
-import { startNewQueue } from "@/utils/musicutils"
+import { usePlayerStore } from "@/stores/usePlayerStore"
 import { Dice3, Dice4, Dice5, Dice2, Dice1, Dice6 } from "lucide-react"
 import { useState } from "react"
 
 const SmallRandomPlaylistButton = () => {
-  const songCache = useMusicStore((f) => f.songCache)
   const diceIndex = useMusicStore((f) => f.playlistDiceIndex)
   const setDiceIndex = useMusicStore((f) => f.setPlaylistDiceIndex)
   const [isRolling, setIsRolling] = useState(false)
   const diceComponents = [Dice1, Dice2, Dice3, Dice4, Dice5, Dice6]
-
+  const playlists = useMusicStore((f) => f.playlists)
+  const setPlayingPlaylist = usePlayerStore((f) => f.setPlayingPlaylist)
+  const setQueue = useMusicStore((f) => f.setQueue)
+  const startPlaying = usePlayerStore((f) => f.setCurrentlyPlaying)
+  const setPaused = usePlayerStore((f) => f.setPaused)
 
 
   const getRandomSong = () => {
     if (isRolling) return
 
     setIsRolling(true)
-    const randomSongIndex = Math.floor(Math.random() * songCache.length)
+    const randomPlaylistIndex = Math.floor(Math.random() * playlists.length)
     const availableIndices = [0, 1, 2, 3, 4, 5].filter(i => i !== diceIndex)
     const newDiceIndex = availableIndices[Math.floor(Math.random() * availableIndices.length)]
 
     setTimeout(() => {
       setDiceIndex(newDiceIndex)
       setIsRolling(false)
-      startNewQueue(songCache[randomSongIndex].path)
+      const randomPlaylist = playlists[randomPlaylistIndex]
+      setQueue(randomPlaylist.songs)
+      startPlaying(randomPlaylist.songs[0])
+      setPaused(false)
+      setPlayingPlaylist(randomPlaylist)
     }, 75)
   }
 

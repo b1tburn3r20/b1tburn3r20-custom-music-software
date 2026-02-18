@@ -70,13 +70,6 @@ const ChangeRootDir = () => {
       return;
     }
 
-    if (!dirData || dirData.length === 0) {
-      toast.error("No playlists to sync", {
-        description: "Add some music folders first"
-      });
-      return;
-    }
-
     setSyncing(true);
     setSyncStatus('checking');
     setSyncMessage('Checking device connection...');

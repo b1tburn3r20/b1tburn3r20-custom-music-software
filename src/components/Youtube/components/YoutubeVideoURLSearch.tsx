@@ -4,6 +4,7 @@ import { Loader2, Link2, AlertCircle, X } from "lucide-react";
 import { useDirectoryStore } from "@/stores/useDirectoryStore";
 import YoutubeVideoResult from "./YoutubeVideoResult";
 import type { YoutubeDetailsResult } from '@/types/YoutubeTypes';
+import { useYoutubeStore } from '../useYoutubeStore';
 
 const YoutubeVideoURLSearch = () => {
   const [urlInput, setUrlInput] = useState('');
@@ -12,6 +13,8 @@ const YoutubeVideoURLSearch = () => {
   const [videoResult, setVideoResult] = useState<YoutubeDetailsResult | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const currentDir = useDirectoryStore((f) => f.rootDir);
+  const setYoutubePlaylistResults = useYoutubeStore((f) => f.setYoutubePlaylistResults);
+  const playlist = useYoutubeStore((f) => f.playlists);
 
   const API_KEY = import.meta.env.VITE_YOUTUBE_API_KEY;
 
@@ -20,6 +23,27 @@ const YoutubeVideoURLSearch = () => {
       const patterns = [
         /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
         /^([a-zA-Z0-9_-]{11})$/
+      ];
+
+      for (const pattern of patterns) {
+        const match = url.match(pattern);
+        if (match && match[1]) {
+          return match[1];
+        }
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const extractPlaylistId = (url: string): string | null => {
+    try {
+      const patterns = [
+        /[?&]list=([^&\n?#]+)/,
+        /^(PL[a-zA-Z0-9_-]+)$/,
+        /^(UU[a-zA-Z0-9_-]+)$/,
+        /^(FL[a-zA-Z0-9_-]+)$/
       ];
 
       for (const pattern of patterns) {
@@ -47,9 +71,85 @@ const YoutubeVideoURLSearch = () => {
   };
 
   const reset = () => {
-    setError(null)
-    setVideoResult(null)
-  }
+    setError(null);
+    setVideoResult(null);
+  };
+
+  const fetchPlaylistDetails = async (playlistId: string) => {
+    setLoading(true);
+    setError(null);
+    setVideoResult(null);
+
+    try {
+      const playlistRes = await fetch(
+        `https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&id=${playlistId}&key=${API_KEY}`
+      );
+      const playlistData = await playlistRes.json();
+
+      if (!playlistData.items || playlistData.items.length === 0) {
+        setError('Playlist not found. Please check the URL and try again.');
+        setLoading(false);
+        return;
+      }
+
+      const playlist = playlistData.items[0];
+      const allVideos = [];
+      let nextPageToken = null;
+
+      do {
+        const pageTokenParam = nextPageToken ? `&pageToken=${nextPageToken}` : '';
+        const playlistItemsRes = await fetch(
+          `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${playlistId}&maxResults=50&key=${API_KEY}${pageTokenParam}`
+        );
+        const playlistItemsData = await playlistItemsRes.json();
+
+        const videoIds = playlistItemsData.items
+          .map(item => item.contentDetails.videoId)
+          .filter(Boolean);
+
+        if (videoIds.length > 0) {
+          const videoRes = await fetch(
+            `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,statistics,status&id=${videoIds.join(',')}&key=${API_KEY}`
+          );
+          const { items: videoDetails } = await videoRes.json();
+
+          const videos = videoDetails.map(v => ({
+            id: v.id,
+            title: v.snippet.title,
+            thumbnail: v.snippet.thumbnails.high?.url,
+            duration: v.contentDetails.duration,
+            lengthSeconds: parseISODuration(v.contentDetails.duration),
+            views: v.statistics.viewCount,
+            embeddable: v.status.embeddable,
+            channel: v.snippet.channelTitle,
+            categoryId: v.snippet.categoryId,
+            publishedAt: v.snippet.publishedAt
+          }));
+
+          allVideos.push(...videos);
+        }
+
+        nextPageToken = playlistItemsData.nextPageToken;
+      } while (nextPageToken);
+
+      const playlistWithVideos = {
+        id: playlist.id,
+        title: playlist.snippet.title,
+        thumbnail: playlist.snippet.thumbnails.high?.url,
+        channel: playlist.snippet.channelTitle,
+        videoCount: playlist.contentDetails.itemCount,
+        videos: allVideos,
+        publishedAt: playlist.snippet.publishedAt
+      };
+
+      setYoutubePlaylistResults([playlistWithVideos]);
+    } catch (err) {
+      setError('Failed to fetch playlist details. Please try again.');
+      console.error('Error fetching playlist:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchVideoDetails = async (videoId: string) => {
     setLoading(true);
@@ -95,17 +195,27 @@ const YoutubeVideoURLSearch = () => {
   const handleSearch = () => {
     const trimmedUrl = urlInput.trim();
     if (!trimmedUrl) {
-      setError('Please enter a YouTube URL or video ID');
+      setError(`Please enter a YouTube ${playlist ? 'playlist' : 'video'} URL or ID`);
       return;
     }
 
-    const videoId = extractVideoId(trimmedUrl);
-    if (!videoId) {
-      setError('Invalid YouTube URL or video ID');
-      return;
+    if (playlist) {
+      // Playlist mode - only search for playlists
+      const playlistId = extractPlaylistId(trimmedUrl);
+      if (playlistId) {
+        fetchPlaylistDetails(playlistId);
+      } else {
+        setError('Invalid YouTube playlist URL or ID');
+      }
+    } else {
+      // Video mode - only search for videos
+      const videoId = extractVideoId(trimmedUrl);
+      if (videoId) {
+        fetchVideoDetails(videoId);
+      } else {
+        setError('Invalid YouTube video URL or ID');
+      }
     }
-
-    fetchVideoDetails(videoId);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -140,7 +250,7 @@ const YoutubeVideoURLSearch = () => {
           value={urlInput}
           onChange={(e) => setUrlInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Paste YouTube URL or video ID..."
+          placeholder={`Paste YouTube ${playlist ? 'playlist' : 'video'} URL or ID...`}
         />
       </div>
 

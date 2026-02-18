@@ -13,6 +13,18 @@ export type YoutubeStore = {
   setPlaylists: (data: boolean) => void
   youtubePlaylistResults: YoutubePlaylistResultType[]
   setYoutubePlaylistResults: (data: YoutubePlaylistResultType[]) => void
+  // filters
+  officialFilter: boolean
+  setOfficialFilter: (data: boolean) => void
+
+  safeSearch: boolean
+  setSafeSearch: (data: boolean) => void
+
+  musicCategoryOnly: boolean
+  setMusicCategoryOnly: (data: boolean) => void
+
+
+  //
   triggerSearchKey: number
   incrementTriggerSearchKey: () => void
 }
@@ -24,6 +36,9 @@ const initialState = {
   playlists: false,
   youtubePlaylistResults: [],
   triggerSearchKey: 0,
+  officialFilter: false,
+  safeSearch: false,
+  musicCategoryOnly: false,
 }
 
 export const useYoutubeStore = create<YoutubeStore>((set) => ({
@@ -33,5 +48,9 @@ export const useYoutubeStore = create<YoutubeStore>((set) => ({
   setSearchingYoutube: (data: boolean) => set({ searchingYoutube: data }),
   setPlaylists: (data: boolean) => set({ playlists: data }),
   setYoutubePlaylistResults: (data: YoutubePlaylistResultType[]) => set({ youtubePlaylistResults: data }),
+  setOfficialFilter: (data: boolean) => set({ officialFilter: data }),
+  setSafeSearch: (data: boolean) => set({ safeSearch: data }),
+  setMusicCategoryOnly: (data: boolean) => set({ musicCategoryOnly: data }),
+  //
   incrementTriggerSearchKey: () => set((state) => ({ triggerSearchKey: state.triggerSearchKey + 1 }))
 })) 

@@ -3,6 +3,7 @@ const { exec } = require("child_process");
 const { promisify } = require("util");
 const fs = require("fs").promises;
 const path = require("path");
+
 const execAsync = promisify(exec);
 
 /**
@@ -90,55 +91,56 @@ async function checkAdbConnection() {
 
 /**
  */
-async function cleanupPhoneFolders(event, deviceId, folders, results) {
+async function cleanupPhoneMusic(event, deviceId, rootPath, results) {
   try {
     event.sender.send('sync-progress', {
       status: 'cleaning',
-      message: 'Checking for old folders to remove...'
+      message: 'Checking for old files to remove...'
     });
 
     const { stdout } = await execAsync(`adb -s ${deviceId} shell "ls -1 /sdcard/Music"`);
-
-    const phoneFolders = stdout.split('\n')
+    const phoneFiles = stdout.split('\n')
       .map(line => line.trim())
       .filter(line => line && !line.includes('Permission denied'));
 
-    const syncFolderNames = folders.map(f => path.basename(f.path));
-
-    const foldersToDelete = phoneFolders.filter(phoneFolder =>
-      !syncFolderNames.includes(phoneFolder)
+    const localFiles = await fs.readdir(rootPath);
+    const musicFiles = localFiles.filter(file =>
+      /\.(mp3|m4a|flac|wav|ogg)$/i.test(file)
     );
 
-    for (const folderToDelete of foldersToDelete) {
+    const filesToDelete = phoneFiles.filter(phoneFile =>
+      !musicFiles.includes(phoneFile)
+    );
+
+    for (const fileToDelete of filesToDelete) {
       try {
         event.sender.send('sync-progress', {
           status: 'deleting',
-          folder: folderToDelete,
-          message: `Removing ${folderToDelete}...`
+          file: fileToDelete,
+          message: `Removing ${fileToDelete}...`
         });
 
-        await execAsync(`adb -s ${deviceId} shell "rm -rf '/sdcard/Music/${folderToDelete}'"`);
-
-        results.deleted.push(folderToDelete);
+        await execAsync(`adb -s ${deviceId} shell "rm -f '/sdcard/Music/${fileToDelete}'"`);
+        results.deleted.push(fileToDelete);
 
         event.sender.send('sync-progress', {
           status: 'deleted',
-          folder: folderToDelete,
-          message: `✗ ${folderToDelete} removed from phone`
+          file: fileToDelete,
+          message: `✗ ${fileToDelete} removed from phone`
         });
       } catch (error) {
-        console.error(`Error deleting folder ${folderToDelete}:`, error);
+        console.error(`Error deleting file ${fileToDelete}:`, error);
         results.errors.push({
-          folder: folderToDelete,
+          file: fileToDelete,
           error: `Failed to delete: ${error.message}`
         });
       }
     }
 
-    if (foldersToDelete.length === 0) {
+    if (filesToDelete.length === 0) {
       event.sender.send('sync-progress', {
         status: 'clean',
-        message: 'No old folders to remove'
+        message: 'No old files to remove'
       });
     }
   } catch (error) {
@@ -152,7 +154,7 @@ async function cleanupPhoneFolders(event, deviceId, folders, results) {
 
 /**
  */
-async function syncToPhone(event, { rootPath, folders }) {
+async function syncToPhone(event, { rootPath }) {
   try {
     const connectionCheck = await checkAdbConnection();
     if (!connectionCheck.success) {
@@ -161,15 +163,15 @@ async function syncToPhone(event, { rootPath, folders }) {
 
     const deviceId = connectionCheck.deviceId;
     const syncDbPath = path.join(rootPath, 'syncdb.txt');
-
     let syncDb = {};
+
     try {
       const syncDbContent = await fs.readFile(syncDbPath, 'utf8');
       syncDb = JSON.parse(syncDbContent);
     } catch (error) {
       syncDb = {
         lastSync: null,
-        folders: {}
+        files: {}
       };
     }
 
@@ -181,61 +183,68 @@ async function syncToPhone(event, { rootPath, folders }) {
       errors: []
     };
 
-    await cleanupPhoneFolders(event, deviceId, folders, results);
+    await cleanupPhoneMusic(event, deviceId, rootPath, results);
 
-    for (const folder of folders) {
+    const files = await fs.readdir(rootPath);
+    const musicFiles = files.filter(file =>
+      /\.(mp3|m4a|flac|wav|ogg)$/i.test(file)
+    );
+
+    for (const fileName of musicFiles) {
       try {
-        const folderName = path.basename(folder.path);
-        const phoneDestination = `/sdcard/Music/${folderName}`;
+        const filePath = path.join(rootPath, fileName);
+        const phoneDestination = `/sdcard/Music/${fileName}`;
 
         event.sender.send('sync-progress', {
           status: 'syncing',
-          folder: folderName,
-          message: `Syncing ${folderName}...`
+          file: fileName,
+          message: `Syncing ${fileName}...`
         });
 
-        const needsSync = !syncDb.folders[folderName] ||
-          syncDb.folders[folderName].songCount !== folder.songCount;
+        const stats = await fs.stat(filePath);
+        const fileSize = stats.size;
+        const fileModified = stats.mtime.toISOString();
 
-        if (!needsSync && syncDb.folders[folderName]) {
-          results.skipped.push(folderName);
+        const needsSync = !syncDb.files[fileName] ||
+          syncDb.files[fileName].size !== fileSize ||
+          syncDb.files[fileName].modified !== fileModified;
+
+        if (!needsSync && syncDb.files[fileName]) {
+          results.skipped.push(fileName);
           event.sender.send('sync-progress', {
             status: 'skipped',
-            folder: folderName,
-            message: `${folderName} already up to date`
+            file: fileName,
+            message: `${fileName} already up to date`
           });
           continue;
         }
 
-        await execAsync(`adb -s ${deviceId} shell "mkdir -p '${phoneDestination}'"`);
-
-        const { stdout, stderr } = await execAsync(
-          `adb -s ${deviceId} push "${folder.path}" "/sdcard/Music/"`,
+        await execAsync(
+          `adb -s ${deviceId} push "${filePath}" "${phoneDestination}"`,
           { maxBuffer: 1024 * 1024 * 100 }
         );
 
-        syncDb.folders[folderName] = {
-          path: folder.path,
-          songCount: folder.songCount,
+        syncDb.files[fileName] = {
+          size: fileSize,
+          modified: fileModified,
           lastSynced: new Date().toISOString()
         };
 
-        results.synced.push(folderName);
-
+        results.synced.push(fileName);
         event.sender.send('sync-progress', {
           status: 'complete',
-          folder: folderName,
-          message: `✓ ${folderName} synced (${folder.songCount} songs)`
+          file: fileName,
+          message: `✓ ${fileName} synced`
         });
       } catch (error) {
-        console.error(`Error syncing folder ${folder.path}:`, error);
+        console.error(`Error syncing file ${fileName}:`, error);
         results.errors.push({
-          folder: path.basename(folder.path),
+          file: fileName,
           error: error.message
         });
         event.sender.send('sync-progress', {
           status: 'error',
-          folder: path.basename(folder.path),
+          file: fileName,
           message: `Error: ${error.message}`
         });
       }

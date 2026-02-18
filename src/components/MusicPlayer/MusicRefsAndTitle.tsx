@@ -21,7 +21,6 @@ const MusicRefsAndTitle = () => {
       setAudioRef(null);
       return;
     }
-
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;

@@ -26,7 +26,6 @@ const RandomPlaylistButton = () => {
       setDiceIndex(newDiceIndex)
       setIsRolling(false)
       const randomPlaylist = playlists[randomPlaylistIndex]
-      console.log("heres the playlist", randomPlaylist)
       setQueue(randomPlaylist.songs)
       startPlaying(randomPlaylist.songs[0])
       setPaused(false)

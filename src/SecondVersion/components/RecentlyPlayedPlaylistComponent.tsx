@@ -2,22 +2,28 @@ import LottieViewer from "@/components/helpers/lottie-viewer"
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem } from "@/components/ui/context-menu"
 import { useAppStore } from "@/stores/useAppStore"
 import { useColorCacheStore } from "@/stores/useColorCacheStore"
+import { useMusicStore } from "@/stores/useMusicStore"
+import { usePlayerStore } from "@/stores/usePlayerStore"
 import type { PlaylistType } from "@/types/AppTypes"
-import type { Song } from "@/types/DirectoryTypes"
-import { Music, Play, Trash2 } from "lucide-react"
+import { formatDuration } from "@/utils/textUtils"
+import { Dot, Music, Play, Trash2 } from "lucide-react"
 
 interface RecentlyPlayedPlaylistComponentProps {
   playlist: PlaylistType
   isPlaying: boolean
-  onPlay: (data: Song) => void
   onPause: () => void
   onResume: () => void
   isPaused: boolean
 }
 
 
-const RecentlyPlayedPlaylistComponent = ({ playlist, isPlaying, onPlay, onPause, onResume, isPaused }: RecentlyPlayedPlaylistComponentProps) => {
+const RecentlyPlayedPlaylistComponent = ({ playlist, isPlaying, onPause, onResume, isPaused }: RecentlyPlayedPlaylistComponentProps) => {
   const setPlaylistToDelete = useAppStore((f) => f.setPlaylistForDelete)
+  const setPlayingPlaylist = usePlayerStore((f) => f.setPlayingPlaylist)
+  const setQueue = useMusicStore((f) => f.setQueue)
+  const startPlaying = usePlayerStore((f) => f.setCurrentlyPlaying)
+  const setPaused = usePlayerStore((f) => f.setPaused)
+
   const thumbnail = playlist?.songs[0]?.metadata?.thumbnail
   const handleClick = () => {
     if (isPlaying) {
@@ -28,7 +34,12 @@ const RecentlyPlayedPlaylistComponent = ({ playlist, isPlaying, onPlay, onPause,
       }
     } else {
       if (playlist?.songs?.length) {
-        onPlay(playlist?.songs[0])
+        setQueue(playlist.songs)
+        startPlaying(playlist.songs[0])
+        setPaused(false)
+        setPlayingPlaylist(playlist)
+
+
       }
     }
   }
@@ -37,6 +48,7 @@ const RecentlyPlayedPlaylistComponent = ({ playlist, isPlaying, onPlay, onPause,
   );
 
 
+  const fullDuration = playlist?.songs?.reduce((acc, curr) => acc + curr.metadata.duration, 0)
 
   const handleDelete = async () => {
     setPlaylistToDelete(playlist)
@@ -53,14 +65,14 @@ const RecentlyPlayedPlaylistComponent = ({ playlist, isPlaying, onPlay, onPause,
           <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-muted">
             <div className="h-full w-full transition-transform group-hover:scale-105">
               {playlist?.songs[0]?.metadata?.thumbnail ? (
-                <div className="bg-white/10 p-1 rounded-md relative h-full w-full shrink-0 transition-all group-hover:bg-white/20">
+                <div className="rounded-md relative h-full w-full shrink-0 transition-all group-hover:bg-white/20">
                   <img
                     className="h-full w-full object-cover rounded-md"
                     src={playlist?.songs[0]?.metadata?.thumbnail}
                     alt={`${playlist.name} playlist cover`}
                   />
                   {isPlaying ? (
-                    <div className="absolute z-[4] inset-0 bg-black/20 m-1 rounded-lg">
+                    <div className="absolute z-[4] inset-0 bg-black/20 m-1 rounded-lg opacity-50">
                       <LottieViewer />
                     </div>
                   ) : (
@@ -87,8 +99,8 @@ const RecentlyPlayedPlaylistComponent = ({ playlist, isPlaying, onPlay, onPause,
             <p className={`text-sm md:text-base font-semibold truncate ${isPlaying ? "text-primary" : ""}`}>
               {playlist?.name}
             </p>
-            <p className={`text-xs md:text-sm text-muted-foreground truncate ${isPlaying ? "text-primary/70" : ""}`}>
-              {playlist?.songs?.length}
+            <p className={`text-xs md:text-sm text-muted-foreground flex gap-1 items-center truncate ${isPlaying ? "text-primary/70" : ""}`}>
+              {playlist?.songs?.length} songs <Dot className="text-muted-foreground/70" />  <p className="text-sm text-muted-foreground/70">{formatDuration(fullDuration || 0)}</p>
             </p>
           </div>
         </div>

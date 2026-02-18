@@ -1,3 +1,4 @@
+import ChangeRootDir from "@/components/Folders/ChangeRootDir"
 import { Label } from "@/components/ui/label"
 import { useMusicStore } from "@/stores/useMusicStore"
 
@@ -10,6 +11,7 @@ const StatsSettings = () => {
       <div>
         <Label>Downloaded Songs</Label>
         <p>{songCache?.length}</p>
+        <ChangeRootDir />
       </div>
     </div>
   )

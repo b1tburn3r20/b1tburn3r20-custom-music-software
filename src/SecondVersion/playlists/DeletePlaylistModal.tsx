@@ -3,7 +3,7 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useAppStore } from "@/stores/useAppStore"
 import { removePlaylist } from "@/utils/musicutils"
-import { ArrowLeft, Smile, Trash2 } from "lucide-react"
+import { ArrowLeft, Trash2 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 
@@ -18,7 +18,7 @@ const DeletePlaylistModal = () => {
     setOpen(false)
     const delId = deleteData.id
     const response = await (window as any).electron.deletePlaylist(delId)
-    console.log("Heres the response", response)
+    removePlaylist(deleteData?.id)
     if (response?.success) {
       removePlaylist(delId)
     }
@@ -26,6 +26,7 @@ const DeletePlaylistModal = () => {
       closeButton: true,
       position: "top-right"
     })
+
   }
   const cancel = () => {
     setDeleteData(null)

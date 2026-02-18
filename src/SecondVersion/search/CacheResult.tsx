@@ -37,7 +37,6 @@ const CacheResult = ({ song, isPlaying, onPlay, onPause, onResume, isPaused, dar
   const handleDelete = async () => {
     setDeleting(true);
     try {
-      console.log("Heres the thin", song)
       await (window as any).electron.deleteSong(song.path);
       removeSong(song as any)
     } catch (err) {

@@ -1,10 +1,14 @@
 import LottieViewer from "@/components/helpers/lottie-viewer"
 import { Button } from "@/components/ui/button"
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu"
+import { useAppStore } from "@/stores/useAppStore"
+import { useDirectoryStore } from "@/stores/useDirectoryStore"
 import { useMusicStore } from "@/stores/useMusicStore"
 import type { Song } from "@/types/DirectoryTypes"
-import { Play, Trash2, Pause, Loader2, ListPlus } from "lucide-react"
+import { Play, Trash2, Pause, Loader2, ListPlus, Disc, User } from "lucide-react"
 import { useState } from "react"
+import { toast } from "sonner"
+
 interface SongComponentProps {
   song: Song
   isPlaying: boolean
@@ -19,10 +23,13 @@ const SongComponent = ({ song, isPlaying, onPlay, onPause, onResume, isPaused, d
   const removeSong = useMusicStore((f) => f.removeSong)
   const setPlaylistUpdateData = useMusicStore((f) => f.setPlaylistUpdateData)
   const setIsPlaylistModalOpen = useMusicStore((f) => f.setIsPlaylistModalOpen)
+  const setView = useAppStore((f) => f.setView)
+  const rootDir = useDirectoryStore((f) => f.rootDir)
   const [hovered, setHovered] = useState(false)
-
-
   const [deleting, setDeleting] = useState(false)
+  const setActiveAlbum = useMusicStore((f) => f.setActiveAlbum)
+  const setActiveArtist = useMusicStore((f) => f.setActiveArtist)
+
   const handleClick = () => {
     if (deleting) {
       return
@@ -38,20 +45,17 @@ const SongComponent = ({ song, isPlaying, onPlay, onPause, onResume, isPaused, d
     }
   }
 
-
   const handleDelete = async () => {
     setDeleting(true);
     try {
       await (window as any).electron.deleteSong(song.path);
       removeSong(song)
     } catch (err) {
+      console.error('Error deleting song:', err);
     } finally {
       setDeleting(false);
-
     }
   };
-
-
 
   const handleSetPlaylistAdd = () => {
     setPlaylistUpdateData(song)
@@ -60,6 +64,45 @@ const SongComponent = ({ song, isPlaying, onPlay, onPause, onResume, isPaused, d
     }, 150)
   }
 
+  const handleViewAlbum = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const result = await (window as any).electron.getAlbum({
+        rootDir,
+        path: song.path
+      });
+
+      if (result.success) {
+        console.log("Heres the res", result)
+        setView("album")
+        setActiveAlbum(result)
+      } else {
+        toast.error("something went wrong")
+      }
+    } catch (err) {
+      console.error('error', err);
+    }
+  }
+
+  const handleViewArtist = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const result = await (window as any).electron.getArtist({
+        rootDir,
+        path: song.path
+      });
+
+      if (result.success) {
+        console.log("heres the res", result)
+        setView("artist")
+        setActiveArtist(result)
+      } else {
+        toast.error("idk how did this")
+      }
+    } catch (err) {
+      console.error("heres the error", err)
+    }
+  }
 
   const showPauseIcon = isPlaying && !isPaused
 
@@ -83,15 +126,30 @@ const SongComponent = ({ song, isPlaying, onPlay, onPause, onResume, isPaused, d
             <p className={`text-sm md:text-base font-semibold truncate ${isPlaying ? "text-primary" : ""}`}>
               {song.metadata.title}
             </p>
-            <p className={`text-xs md:text-sm text-muted-foreground truncate ${isPlaying ? "text-primary/70" : ""}`}>
-              <span className={`${song?.metadata?.artist ? "hover:underline" : ""}`}>  {song.metadata.artist || "Unknown Artist"} </span>  <span className="text-muted-foreground/50">•</span> <span className="text-muted-foreground/50">{song.metadata.year}</span>
+            <p className={`text-xs md:text-sm text-muted-foreground truncate  ${isPlaying ? "text-primary/70" : ""}`}>
+              <span
+                onClick={handleViewArtist}
+                className={`${song?.metadata?.artist ? "hover:underline cursor-pointer" : ""}`}
+              >
+                {song.metadata.artist || "Unknown Artist"}
+              </span>
             </p>
+            {song?.metadata?.album && song?.metadata?.album !== "Unknown Album" ? (
+              <p className={`  hover:underline cursor-pointer text-xs md:text-sm text-muted-foreground/60 truncate ${isPlaying ? "text-primary/70" : ""}`}>
+                <span
+                  onClick={handleViewAlbum}
+                >
+                  {song?.metadata?.album}
+                </span>
+                <span> - </span>
+                <span>{song.metadata.year}</span>
+              </p>
+            ) : ""}
           </div>
           <div>
             {deleting ? (
               <div><Loader2 className="animate-spin" /> </div>
             ) : (
-
               <Button
                 variant="ghost"
                 size="icon"
@@ -100,12 +158,9 @@ const SongComponent = ({ song, isPlaying, onPlay, onPause, onResume, isPaused, d
                 {showPauseIcon ? (
                   <>
                     {hovered ? (
-
                       <Pause className={`h-4 w-4 md:h-5 md:w-5 ${isPlaying ? 'fill-current' : ''}`} />
-
                     ) : (
                       <div className="opacity-85">
-
                         <LottieViewer />
                       </div>
                     )}
@@ -128,8 +183,18 @@ const SongComponent = ({ song, isPlaying, onPlay, onPause, onResume, isPaused, d
           <ListPlus className="h-4 w-4" />
           <span className="text-sm">Add to Playlist</span>
         </ContextMenuItem>
-
-
+        {song?.metadata?.artist && song.metadata.artist !== "Unknown Artist" && (
+          <ContextMenuItem onClick={handleViewArtist} className="flex items-center gap-3 py-3 cursor-pointer">
+            <User className="h-4 w-4" />
+            <span className="text-sm">View Artist</span>
+          </ContextMenuItem>
+        )}
+        {song?.metadata?.album && song.metadata.album !== "Unknown Album" && (
+          <ContextMenuItem onClick={handleViewAlbum} className="flex items-center gap-3 py-3 cursor-pointer">
+            <Disc className="h-4 w-4" />
+            <span className="text-sm">View Album</span>
+          </ContextMenuItem>
+        )}
       </ContextMenuContent>
     </ContextMenu>
   )

@@ -15,6 +15,8 @@ const LaxPlayer = () => {
   const isIdle = useAppStore((f) => f.idle)
   const setIsIdle = useAppStore((f) => f.setIdle)
   const setExpanded = useSettingsStore((f) => f.setPlayerExpanded)
+  const zenEnabled = useSettingsStore((f) => f.laxPlayerAutoHide)
+  const zenTimeout = useSettingsStore((f) => f.zenModeTimeout)
   const backgroundStyle = activeSong?.metadata?.thumbnail
     ? {
       backgroundImage: `url(${activeSong.metadata.thumbnail})`,
@@ -24,6 +26,9 @@ const LaxPlayer = () => {
     : {};
 
   useEffect(() => {
+    if (!zenEnabled) {
+      return
+    }
     let timeout: any;
     const handleMouseMove = () => {
       setIsIdle(false)
@@ -32,21 +37,21 @@ const LaxPlayer = () => {
         if (expanded) {
           setIsIdle(true)
         }
-      }, 3000)
+      }, zenTimeout)
     }
     timeout = setTimeout(() => {
       if (expanded) {
 
         setIsIdle(true)
       }
-    }, 3000)
+    }, zenTimeout)
 
     document.addEventListener('mousemove', handleMouseMove)
     return () => {
       clearTimeout(timeout)
       document.removeEventListener('mousemove', handleMouseMove)
     }
-  }, [expanded])
+  }, [expanded, zenEnabled])
   useEffect(() => {
     const handleKeyPress = (e: any) => {
       if (e.key === "Escape") {
@@ -96,11 +101,11 @@ const LaxPlayer = () => {
         <div className="z-[12] absolute flex-col gap-2  inset-0 flex items-center justify-center -translate-y-10">
           {activeSong?.metadata?.thumbnail ? (
             <div
-              className="cursor-pointer bg-white/10 p-1 rounded-lg shrink-0 w-fit select-none"
+              className="cursor-pointer shrink-0 w-fit mb-2 select-none"
               onClick={() => handlePause()}
             >
               <img
-                className="shrink-0 w-[600px] h-[600px] object-cover rounded-lg"
+                className="shrink-0 w-[600px] h-[600px] object-cover shadow-xl rounded-sm"
                 src={activeSong.metadata.thumbnail}
                 alt="Album art"
               />
@@ -112,9 +117,9 @@ const LaxPlayer = () => {
           )}
           <p className="select-none font-extrabold text-2xl">{activeSong?.metadata.title}</p>
 
-          <div className="px-2 py-1 rounded-3xl bg-muted/10 backdrop-blur-md">
-            <p className="select-none font-normal text-white/50 text-lg">
-              {activeSong?.metadata.artist} {activeSong?.metadata?.year ? `(${activeSong.metadata.year})` : ""}
+          <div className="px-2 py-1 rounded-3xl bg-black/20 backdrop-blur-md">
+            <p className="select-none font-normal text-white/80 text-lg">
+              {activeSong?.metadata.artist}  {activeSong?.metadata?.album && activeSong?.metadata?.album !== "Unknown Album" ? `- ${activeSong.metadata.album} (${activeSong?.metadata?.year})` : ""}
             </p>
           </div>
 

@@ -8,7 +8,6 @@ const SongSkeleton = ({ dominantColor }: SongSkeletonProps) => {
   const randomTitleLength = Math.floor(Math.random() * 50) + 40
   const randomArtistLength = Math.floor(Math.random() * 20) + 20
 
-  console.log("Heres the number", randomTitleLength)
 
   return (
     <div className="h-14 w-full rounded-lg bg-black/20 animate-pulse flex gap-2 items-center">

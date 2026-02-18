@@ -113,7 +113,7 @@ const PlaylistAddSongsButton = ({ playlist }: PlaylistAddSongsButtonProps) => {
         </ScrollArea>
 
         <div className="flex justify-end gap-2 pt-4">
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => setOpen(false)}>
             Cancel
           </Button>
           <Button

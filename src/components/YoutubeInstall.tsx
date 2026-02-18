@@ -2,6 +2,8 @@ import { Input } from "@/components/ui/input"
 import { useEffect, useRef } from "react"
 import { useYoutubeStore } from "./Youtube/useYoutubeStore"
 import { Loader, Loader2, Search } from "lucide-react"
+import { getOptionalQueryParams } from "@/utils/youtubeutils"
+
 const YoutubeInstall = () => {
   const searchTerm = useYoutubeStore((f) => f.searchTerm)
   const setSearchTerm = useYoutubeStore((f) => f.setSearchTerm)
@@ -19,12 +21,17 @@ const YoutubeInstall = () => {
   const searchYoutube = async (search: string) => {
     setResults([])
     setLoading(true)
-    console.warn("Searching with", search)
+    const optionalParams = getOptionalQueryParams()
+
     try {
+      const query = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(search)}&key=${API_KEY}&type=${playlist ? "playlist" : "video"}&maxResults=${playlist ? "15" : "30"}${optionalParams}`
+
+      console.log("This was the query", query)
       const response = await fetch(
-        `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(search)}&key=${API_KEY}&type=${playlist ? "playlist" : "video"}&maxResults=${playlist ? "15" : "30"}`
+        query
       )
       const data = await response.json()
+      console.log("heres the data", data)
       if (playlist) {
         processYoutubePlaylistResponse(data.items)
       } else (

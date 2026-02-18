@@ -173,11 +173,6 @@ const PlayingPlaylist = () => {
       </div>
     );
   };
-
-  useEffect(() => {
-    console.log("Active dir called and changed with", activeDir)
-  }, [activeDir])
-
   if (!activeDir?.playlistName) {
     return <NoDirSelected />
   }

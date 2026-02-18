@@ -1,5 +1,5 @@
 import { localStorageRemoveSong } from "@/components/helpers/utilities"
-import type { PlaylistType } from "@/types/AppTypes"
+import type { AlbumType, ArtistType, PlaylistType } from "@/types/AppTypes"
 import type { Song } from "@/types/DirectoryTypes"
 import { removeSongFromActivePlaylist } from "@/utils/musicutils"
 import { create } from "zustand"
@@ -53,6 +53,14 @@ type MusicStore = {
   recentlyPlayedPlaylists: PlaylistType[]
   setRecentlyPlayedPlaylists: (data: PlaylistType[]) => void
 
+  activeAlbum: AlbumType | null
+  setActiveAlbum: (data: AlbumType | null) => void
+
+  activeArtist: ArtistType | null
+  setActiveArtist: (data: ArtistType | null) => void
+
+  playingAlbum: AlbumType | null
+  setPlayingAlbum: (data: AlbumType | null) => void
 
 
   // helper zuxios
@@ -79,10 +87,14 @@ const initialState = {
   diceIndex: 5,
   playlistDiceIndex: 3,
   recentlyPlayedPlaylists: [],
+  activeArtist: null,
+  activeAlbum: null,
+  playingAlbum: null,
 }
 
 export const useMusicStore = create<MusicStore>((set) => ({
   ...initialState,
+  setPlayingAlbum: (playingAlbum: AlbumType | null) => set({ playingAlbum }),
   setMusicResults: (musicResults: Song[]) => set({ musicResults }),
   setPlaylists: (data: PlaylistType[]) => set({ playlists: data }),
   setIsPlaylistModalOpen: (data: boolean) => set({ isPlaylistModalOpen: data }),
@@ -104,6 +116,9 @@ export const useMusicStore = create<MusicStore>((set) => ({
     })),
   setPlaylistDiceIndex: (playlistDiceIndex: number) => set({ playlistDiceIndex }),
   setRecentlyPlayedPlaylists: (recentlyPlayedPlaylists: PlaylistType[]) => set({ recentlyPlayedPlaylists }),
+  setActiveAlbum: (activeAlbum: AlbumType | null) => set({ activeAlbum }),
+  setActiveArtist: (activeArtist: ArtistType | null) => set({ activeArtist }),
+
   //
   removeSong: (song: Song) => {
     set((state) => ({

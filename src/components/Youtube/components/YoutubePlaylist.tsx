@@ -95,11 +95,9 @@ const YoutubePlaylists = ({ playlists, currentDir }: YoutubePlaylistProps) => {
     }
 
     const cancelPlaylistDownload = async () => {
-      console.log('CANCELLING ENTIRE PLAYLIST')
       cancelRef.current = true
       try {
         await (window as any).electron.cancelDownload()
-        console.log('Backend cancel successful')
       } catch (err) {
         console.error('Error cancelling download:', err)
       }
@@ -109,7 +107,6 @@ const YoutubePlaylists = ({ playlists, currentDir }: YoutubePlaylistProps) => {
 
     const globalDownloadSong = async (result: YoutubeDetailsResult, dir: any | null | undefined) => {
       if (!dir || cancelRef.current) {
-        console.log('Skipping download - no dir or cancelled')
         return;
       }
 
@@ -123,7 +120,6 @@ const YoutubePlaylists = ({ playlists, currentDir }: YoutubePlaylistProps) => {
         });
 
         if (cancelRef.current) {
-          console.log('Download cancelled, skipping response processing')
           return;
         }
 

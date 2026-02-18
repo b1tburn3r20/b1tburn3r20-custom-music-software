@@ -12,8 +12,24 @@ import { Tabs, TabsList, TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { Settings } from "lucide-react";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import StatsSettings from "./settings/stats-settings";
+import BehaviorsSettings from "./settings/behaviors-settings";
+import DataSettings from "./settings/data-settings";
+import { loadExpandOnPlayFromLocalStorage, loadZenModeTimeoutFromLocalStorage, loadZenModeToggleFromLocalStorage } from "@/utils/settingsutils";
+import { useEffect } from "react";
 
 const ChatSettings = () => {
+
+
+  const loadFromLocalStorage = () => {
+    loadExpandOnPlayFromLocalStorage()
+    loadZenModeToggleFromLocalStorage()
+    loadZenModeTimeoutFromLocalStorage()
+  }
+  useEffect(() => {
+    loadFromLocalStorage()
+  }, [])
+
+
   return (
     <div>
       <Dialog>
@@ -61,11 +77,17 @@ const ChatSettings = () => {
               >
                 Stats
               </TabsTrigger>
+              <TabsTrigger
+                className="w-full flex justify-start items-center text-start"
+                value="data"
+              >
+                Data
+              </TabsTrigger>
 
 
 
             </TabsList>
-            <div className="transition-all col-span-5">
+            <div className="border-l border-gray-500/20 pl-4 transition-all col-span-5">
               <TabsContent className="w-full" value="chat_settings">
                 {/* <ChatSettingsTab /> */}
                 developer
@@ -75,12 +97,13 @@ const ChatSettings = () => {
                 appearance
               </TabsContent>
               <TabsContent className="w-full" value="behaviors">
-                {/* <ChatNotificationSettings /> */}
-                behaviors
+                <BehaviorsSettings />
               </TabsContent>
               <TabsContent className="w-full" value="stats">
-                {/* <ChatNotificationSettings /> */}
                 <StatsSettings />
+              </TabsContent>
+              <TabsContent className="w-full" value="data">
+                <DataSettings />
               </TabsContent>
 
             </div>

@@ -46,7 +46,7 @@ const MusicQueue = () => {
   }
   return (
     <div className="w-full flex justify-end">
-      <div className="flex justify-end bg-black/40 w-[25vw] h-full flex-col rounded-bl-lg">
+      <div className="flex justify-end bg-black/40   max-w-md 2xl:max-w-lg h-full flex-col rounded-bl-lg">
         <div className="select-none text-xl flex gap-1 items-center font-bold p-4 pb-0 text-muted-foreground ">
           <span className="truncate">
             <>
@@ -67,7 +67,7 @@ const MusicQueue = () => {
             {playingPlaylist ? "Playlist" : "Queue"}
           </span>
         </div>
-        <ScrollArea className="px-4 pt-4  h-[85vh] min-h-0  max-w-md">
+        <ScrollArea className="px-4 pt-4  h-[85vh] min-h-0">
           {queue.map((song, index) => <MusicQueueItem currentlyPlaying={currentlyPlaying} playingPlaylist={playingPlaylist} queue={queue} index={index} song={song} key={song.path} onPlay={handlePlay} onPause={handlePause} onResume={handleResume} isPaused={paused}
 
             isPlaying={currentlyPlaying?.metadata.title === song?.metadata.title && currentlyPlaying?.folderPath === song?.folderPath}

@@ -98,7 +98,7 @@ const MusicQueueItem = ({
         <ContextMenuTrigger asChild>
           <div
             onClick={handleClick}
-            className={`group flex select-none items-center gap-3 py-2 px-3 rounded-lg transition-all cursor-pointer active:scale-[0.98]
+            className={`relative group flex select-none items-center gap-3 py-2 px-3 rounded-lg transition-all cursor-pointer active:scale-[0.98]
               ${isPlaying ? "bg-muted/20" : ""}
               ${darker ? "bg-black/80 hover:bg-muted/20" : "hover:bg-accent/50"}`}
           >
@@ -122,22 +122,19 @@ const MusicQueueItem = ({
                 className={`text-xs md:text-sm text-muted-foreground line-clamp-1 ${isPlaying ? "text-primary/70" : ""
                   }`}
               >
-                {song.metadata.artist || "Unknown Artist"}{" "}
-                <span className="text-muted-foreground/50">•</span>{" "}
-                <span className="text-muted-foreground/50">
-                  {song.metadata.year}
-                </span>
+
+                {song?.metadata?.artist}                {song?.metadata?.album && song?.metadata?.album !== "Unknown Album" ? `- ${song.metadata.album} (${song?.metadata?.year})` : ""}
               </p>
             </div>
 
-            <div>
+            <div className="absolute right-2 top-4">
               {deleting ? (
                 <Loader2 className="animate-spin" />
               ) : (
                 <Button
                   variant="ghost"
                   size="icon"
-                  className={`shrink-0 opacity-0 group-hover:opacity-100 transition-opacity ${isPlaying ? "opacity-100" : ""
+                  className={`shrink-0 opacity-0 group-hover:opacity-100 group-hover:bg-primary/70 backdrop-blur-md  transition-opacity ${isPlaying ? "opacity-100" : ""
                     } md:h-10 md:w-10 h-9 w-9`}
                 >
                   {showPauseIcon ? (

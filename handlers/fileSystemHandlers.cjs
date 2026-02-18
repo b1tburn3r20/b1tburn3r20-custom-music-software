@@ -91,14 +91,12 @@ async function loadCacheFromDisk() {
 
     // Validate cache version
     if (parsedCache.version !== CACHE_VERSION) {
-      console.log('Cache version mismatch, invalidating...');
       return false;
     }
 
     // Load song cache
     if (parsedCache.songCache) {
       songCache = parsedCache.songCache;
-      console.log(`Loaded song cache: ${songCache.songs.length} songs`);
     }
 
     return true;
@@ -312,6 +310,10 @@ function registerFileSystemHandlers() {
   ipcMain.handle('get-cache-stats', getCacheStats);
   ipcMain.handle('add-song-to-cache', handleAddSongToCache);
   ipcMain.handle('update-song-in-cache', handleUpdateSongInCache);
+  ipcMain.handle('get-album', getAlbum);
+  ipcMain.handle('get-albums', getAlbums);
+  ipcMain.handle('get-artist', getArtist);
+  ipcMain.handle('get-artists', getArtists);
 }
 
 // ============================================================================
@@ -659,7 +661,7 @@ async function extractMp3Metadata(filePath) {
     return {
       title: common.title || path.basename(filePath, '.mp3'),
       artist: common.artist || common.artists?.[0] || 'Unknown Artist',
-      album: common.album || 'Unknown Album',
+      album: common.album || null,
       duration: format.duration || 0,
       durationFormatted: formatDuration(format.duration || 0),
       year: common.year || null,
@@ -677,7 +679,7 @@ async function extractMp3Metadata(filePath) {
     return {
       title: path.basename(filePath, '.mp3'),
       artist: 'Unknown Artist',
-      album: 'Unknown Album',
+      album: null,
       duration: 0,
       durationFormatted: '0:00',
       year: null,
@@ -736,6 +738,413 @@ function formatDuration(seconds) {
 function getSongCacheData() {
   return songCache;
 }
+
+
+async function getAlbum(event, { rootDir, path = '', forceRefresh = false }) {
+  try {
+    if (forceRefresh || songCache.rootDir !== rootDir || songCache.songs.length === 0) {
+      await buildSongCache(rootDir);
+    }
+
+    const currentSong = songCache.songs.find(song => song.path === path);
+
+    if (!currentSong) {
+      return {
+        success: false,
+        error: 'Song not found in cache'
+      };
+    }
+
+    const albumName = currentSong.metadata?.album?.toLowerCase();
+
+    if (!albumName) {
+      return {
+        success: true,
+        songs: [],
+        album: null,
+        message: 'No album metadata found for this song'
+      };
+    }
+
+    const albumSongs = songCache.songs.filter(song => {
+      const songAlbum = song.metadata?.album?.toLowerCase();
+      return songAlbum && songAlbum === albumName;
+    });
+
+    // Aggregate album metadata
+    const albumArtists = [];
+    const albumReleaseDates = [];
+    let albumThumbnail = null;
+
+    albumSongs.forEach(song => {
+      // Add artist if not already included
+      const artist = song.metadata?.artist;
+      if (artist && !albumArtists.includes(artist)) {
+        albumArtists.push(artist);
+      }
+
+      // Add release date if not already included
+      const year = song.metadata?.year;
+      if (year && !albumReleaseDates.includes(year)) {
+        albumReleaseDates.push(year);
+      }
+
+      // Update thumbnail if we don't have one yet
+      if (!albumThumbnail && song.metadata?.thumbnail) {
+        albumThumbnail = song.metadata.thumbnail;
+      }
+    });
+
+    return {
+      success: true,
+      album_name: currentSong.metadata.album,
+      album_release_date: albumReleaseDates,
+      album_artists: albumArtists,
+      album_thumbnail: albumThumbnail,
+      album_songs: albumSongs
+    };
+  } catch (error) {
+    console.error('Error getting album:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+/**
+ * Get all albums with aggregated metadata
+ */
+async function getAlbums(event, { rootDir, forceRefresh = false }) {
+  try {
+    if (forceRefresh || songCache.rootDir !== rootDir || songCache.songs.length === 0) {
+      await buildSongCache(rootDir);
+    }
+
+    const albumsMap = new Map();
+
+    songCache.songs.forEach(song => {
+      const albumName = song.metadata?.album;
+
+      if (!albumName || albumName.toLowerCase() === 'unknown album') {
+        return;
+      }
+
+      const albumKey = albumName.toLowerCase();
+
+      if (!albumsMap.has(albumKey)) {
+        albumsMap.set(albumKey, {
+          album_name: albumName,
+          album_artist_name: [],
+          album_release_date: [],
+          thumbnail: song.metadata?.thumbnail || null,
+          song_paths: [],
+          song_count: 0
+        });
+      }
+
+      const album = albumsMap.get(albumKey);
+      album.song_paths.push(song.path);
+      album.song_count++;
+
+      // Add artist if not already included
+      const artist = song.metadata?.artist;
+      if (artist && !album.album_artist_name.includes(artist)) {
+        album.album_artist_name.push(artist);
+      }
+
+      // Add release date if not already included
+      const year = song.metadata?.year;
+      if (year && !album.album_release_date.includes(year)) {
+        album.album_release_date.push(year);
+      }
+
+      // Update thumbnail if current song has one and album doesn't
+      if (!album.thumbnail && song.metadata?.thumbnail) {
+        album.thumbnail = song.metadata.thumbnail;
+      }
+    });
+
+    const albums = Array.from(albumsMap.values());
+
+    return {
+      success: true,
+      albums: albums,
+      total: albums.length
+    };
+  } catch (error) {
+    console.error('Error getting albums:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+async function getArtists(event, { rootDir, forceRefresh = false }) {
+  try {
+    if (forceRefresh || songCache.rootDir !== rootDir || songCache.songs.length === 0) {
+      await buildSongCache(rootDir);
+    }
+
+    const artistsMap = new Map();
+
+    songCache.songs.forEach(song => {
+      const artistName = song.metadata?.artist;
+
+      if (!artistName || artistName.toLowerCase() === 'unknown artist') {
+        return;
+      }
+
+      // Split artists by common separators
+      const artists = artistName
+        .split(/,|&|\bfeat\.?\b|\band\b/)
+        .map(a => a.trim())
+        .filter(Boolean);
+
+      artists.forEach(artist => {
+        const artistKey = artist.toLowerCase();
+
+        if (!artistsMap.has(artistKey)) {
+          artistsMap.set(artistKey, {
+            artist_name: artist,
+            thumbnail: song.metadata?.thumbnail || null,
+            song_paths: []
+          });
+        }
+
+        const artistData = artistsMap.get(artistKey);
+
+        // Add song path if not already included
+        if (!artistData.song_paths.includes(song.path)) {
+          artistData.song_paths.push(song.path);
+        }
+
+        // Update thumbnail if current song has one and artist doesn't
+        if (!artistData.thumbnail && song.metadata?.thumbnail) {
+          artistData.thumbnail = song.metadata.thumbnail;
+        }
+      });
+    });
+
+    const artists = Array.from(artistsMap.values());
+
+    return {
+      success: true,
+      artists: artists,
+      total: artists.length
+    };
+  } catch (error) {
+    console.error('Error getting artists:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+async function getArtist(event, { rootDir, path = '', forceRefresh = false }) {
+  try {
+    if (forceRefresh || songCache.rootDir !== rootDir || songCache.songs.length === 0) {
+      await buildSongCache(rootDir);
+    }
+
+    const currentSong = songCache.songs.find(song => song.path === path);
+
+    if (!currentSong) {
+      return {
+        success: false,
+        error: 'Song not found in cache'
+      };
+    }
+
+    const artistName = currentSong.metadata?.artist?.toLowerCase() || '';
+
+    if (!artistName || artistName === 'unknown artist') {
+      return {
+        success: true,
+        songs: [],
+        albums: [],
+        artist: null,
+        message: 'No artist metadata found for this song'
+      };
+    }
+
+    // Get all artists from the current song
+    const currentArtists = artistName
+      .split(/,|&|\bfeat\.?\b|\band\b/)
+      .map(a => a.trim())
+      .filter(Boolean);
+
+    // Find all songs that feature any of these artists
+    const artistSongs = songCache.songs.filter(song => {
+      const songArtist = song.metadata?.artist?.toLowerCase() || '';
+
+      if (!songArtist || songArtist === 'unknown artist') {
+        return false;
+      }
+
+      const songArtists = songArtist
+        .split(/,|&|\bfeat\.?\b|\band\b/)
+        .map(a => a.trim())
+        .filter(Boolean);
+
+      // Check if any artist from current song appears in this song
+      return currentArtists.some(ca =>
+        songArtists.some(sa =>
+          sa === ca || sa.includes(ca) || ca.includes(sa)
+        )
+      );
+    });
+
+    // Get all unique albums from these songs where ALL current artists are present
+    const albumsMap = new Map();
+
+    artistSongs.forEach(song => {
+      const albumName = song.metadata?.album;
+
+      if (!albumName || albumName.toLowerCase() === 'unknown album') {
+        return;
+      }
+
+      const songArtist = song.metadata?.artist?.toLowerCase() || '';
+      const songArtists = songArtist
+        .split(/,|&|\bfeat\.?\b|\band\b/)
+        .map(a => a.trim())
+        .filter(Boolean);
+
+      // Check if ALL current artists are present in this song (regardless of order)
+      const hasAllArtists = currentArtists.every(ca =>
+        songArtists.some(sa => sa === ca || sa.includes(ca) || ca.includes(sa))
+      );
+
+      // Only include albums where all artists match
+      if (!hasAllArtists) {
+        return;
+      }
+
+      const albumKey = albumName.toLowerCase();
+
+      if (!albumsMap.has(albumKey)) {
+        albumsMap.set(albumKey, {
+          album_name: albumName,
+          album_artist_name: [],
+          album_release_date: [],
+          thumbnail: song.metadata?.thumbnail || null,
+          song_paths: [],
+          song_count: 0
+        });
+      }
+
+      const album = albumsMap.get(albumKey);
+      album.song_paths.push(song.path);
+      album.song_count++;
+
+      // Add artist if not already included
+      const artist = song.metadata?.artist;
+      if (artist && !album.album_artist_name.includes(artist)) {
+        album.album_artist_name.push(artist);
+      }
+
+      // Add release date if not already included
+      const year = song.metadata?.year;
+      if (year && !album.album_release_date.includes(year)) {
+        album.album_release_date.push(year);
+      }
+
+      // Update thumbnail if current song has one and album doesn't
+      if (!album.thumbnail && song.metadata?.thumbnail) {
+        album.thumbnail = song.metadata.thumbnail;
+      }
+    });
+
+    const albums = Array.from(albumsMap.values());
+
+    // Get full album data for each album by calling getAlbum logic
+    const artistAlbums = [];
+    const processedAlbums = new Set();
+
+    for (const song of artistSongs) {
+      const albumName = song.metadata?.album?.toLowerCase();
+
+      if (!albumName || albumName === 'unknown album' || processedAlbums.has(albumName)) {
+        continue;
+      }
+
+      // Check if this album has all current artists
+      const albumSongs = songCache.songs.filter(s => {
+        const sAlbum = s.metadata?.album?.toLowerCase();
+        return sAlbum && sAlbum === albumName;
+      });
+
+      // Check if album has all artists
+      const albumHasAllArtists = albumSongs.some(s => {
+        const sArtist = s.metadata?.artist?.toLowerCase() || '';
+        const sArtists = sArtist.split(/,|&|\bfeat\.?\b|\band\b/).map(a => a.trim()).filter(Boolean);
+        return currentArtists.every(ca =>
+          sArtists.some(sa => sa === ca || sa.includes(ca) || ca.includes(sa))
+        );
+      });
+
+      if (!albumHasAllArtists) {
+        continue;
+      }
+
+      processedAlbums.add(albumName);
+
+      // Build album object
+      const albumArtists = [];
+      const albumReleaseDates = [];
+      let albumThumbnail = null;
+
+      albumSongs.forEach(s => {
+        const artist = s.metadata?.artist;
+        if (artist && !albumArtists.includes(artist)) {
+          albumArtists.push(artist);
+        }
+
+        const year = s.metadata?.year;
+        if (year && !albumReleaseDates.includes(year)) {
+          albumReleaseDates.push(year);
+        }
+
+        if (!albumThumbnail && s.metadata?.thumbnail) {
+          albumThumbnail = s.metadata.thumbnail;
+        }
+      });
+
+      artistAlbums.push({
+        album_name: song.metadata.album,
+        album_release_date: albumReleaseDates,
+        album_artists: albumArtists,
+        album_thumbnail: albumThumbnail,
+        album_songs: albumSongs
+      });
+    }
+
+    // Get artist thumbnail from first song
+    let artistThumbnail = null;
+    for (const song of artistSongs) {
+      if (song.metadata?.thumbnail) {
+        artistThumbnail = song.metadata.thumbnail;
+        break;
+      }
+    }
+
+    return {
+      success: true,
+      artist_name: currentSong.metadata.artist,
+      artist_albums: artistAlbums,
+      artist_thumbnail: artistThumbnail
+    };
+  } catch (error) {
+    console.error('Error getting artist:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
 module.exports = {
   registerFileSystemHandlers,
   addSongToCache,
@@ -743,4 +1152,8 @@ module.exports = {
   updateSongInCache,
   invalidateCache,
   getSongCacheData,
+  getAlbum,
+  getAlbums,
+  getArtist,
+  getArtists
 };

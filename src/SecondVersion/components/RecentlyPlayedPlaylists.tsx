@@ -30,12 +30,6 @@ const RecentlyPlayedPlaylists = () => {
     }
   }
 
-  const handlePlay = () => {
-    // addRecentlyPlayed(song)
-    setPaused(false)
-    // startNewQueue(song.path)
-  }
-
   const addRecentlyPlayed = (playlist: PlaylistType) => {
     addToRecentlyPlayedPlaylists(playlist?.id)
   }
@@ -57,7 +51,6 @@ const RecentlyPlayedPlaylists = () => {
                 onPause={handlePause}
                 onResume={handleResume}
                 isPaused={paused}
-                onPlay={handlePlay}
                 playlist={res}
                 isPlaying={playingPlaylist?.id === res.id && !paused}
               />
@@ -74,7 +67,6 @@ const RecentlyPlayedPlaylists = () => {
                 onPause={handlePause}
                 onResume={handleResume}
                 isPaused={paused}
-                onPlay={handlePlay}
                 playlist={res}
                 isPlaying={playingPlaylist?.id === res.id && !paused}
               />

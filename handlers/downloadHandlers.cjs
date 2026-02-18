@@ -297,7 +297,7 @@ async function extractMp3Metadata(filePath) {
     return {
       title: common.title || path.basename(filePath, '.mp3'),
       artist: common.artist || common.artists?.[0] || 'Unknown Artist',
-      album: common.album || 'Unknown Album',
+      album: common.album || null,
       duration: format.duration || 0,
       durationFormatted: formatDuration(format.duration || 0),
       year: common.year || null,
@@ -315,7 +315,7 @@ async function extractMp3Metadata(filePath) {
     return {
       title: path.basename(filePath, '.mp3'),
       artist: 'Unknown Artist',
-      album: 'Unknown Album',
+      album: null,
       duration: 0,
       durationFormatted: '0:00',
       year: null,

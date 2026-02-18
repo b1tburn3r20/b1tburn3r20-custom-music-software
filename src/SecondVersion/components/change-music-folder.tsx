@@ -71,13 +71,6 @@ const ChangeMusicFolder = () => {
       return;
     }
 
-    if (!dirData || dirData.length === 0) {
-      toast.error("No playlists to sync", {
-        description: "Add some music folders first"
-      });
-      return;
-    }
-
     setSyncing(true);
     setSyncStatus('checking');
     setSyncMessage('Checking device connection...');
@@ -175,7 +168,6 @@ const ChangeMusicFolder = () => {
   }, []);
 
   useEffect(() => {
-    console.log('[ChangeRootDir] Setting up download-complete listener');
     const cleanup = window.electron.onDownloadComplete((data) => {
       if (!data.updatedFolder) {
         console.warn('[ChangeRootDir] No updatedFolder data received!');

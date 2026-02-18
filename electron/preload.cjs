@@ -36,7 +36,10 @@ contextBridge.exposeInMainWorld('electron', {
     ipcRenderer.on('sync-progress', handler);
     return () => ipcRenderer.removeListener('sync-progress', handler);
   },
-
+  getArtist: (params) => ipcRenderer.invoke('get-artist', params),
+  getArtists: (params) => ipcRenderer.invoke('get-artists', params),
+  getAlbum: (params) => ipcRenderer.invoke('get-album', params),
+  getAlbums: (params) => ipcRenderer.invoke('get-albums', params),
   cancelDownload: () => ipcRenderer.invoke('cancel-download'),
   getPlaylists: (options) => ipcRenderer.invoke('get-playlists', options),
   getSongCache: (options) => ipcRenderer.invoke('get-song-cache', options),

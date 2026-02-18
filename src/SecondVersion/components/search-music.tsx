@@ -1,4 +1,4 @@
-import { shuffleArray } from "@/components/helpers/utilities";
+import { addRecentlyPlayed, shuffleArray } from "@/components/helpers/utilities";
 import { Input } from "@/components/ui/input";
 import { useAppStore } from "@/stores/useAppStore";
 import { useDirectoryStore } from "@/stores/useDirectoryStore";
@@ -44,7 +44,6 @@ const SearchMusic = () => {
   const incrementSearchTrigger = useYoutubeStore((f) => f.incrementTriggerSearchKey)
 
 
-  const LS_KEY = "recentlyPlayed"
 
   const setPath = (path: any) => {
     setRootDir(path);
@@ -98,13 +97,6 @@ const SearchMusic = () => {
     }
   }
 
-  const addRecentlyPlayed = (song: Song) => {
-    const filtered = recentlyPlayed.filter((s) => s.name !== song.name || s.folderPath !== song.folderPath)
-    const newRecPlayed = [song, ...filtered]
-    setRecentlyPlayed(newRecPlayed)
-    localStorage.setItem(LS_KEY, JSON.stringify(newRecPlayed))
-  }
-
 
 
   const searchMusic = async (query?: string) => {
@@ -153,6 +145,7 @@ const SearchMusic = () => {
         break;
       case 'Enter':
         if (focusedIndex === -1) {
+          setView("youtube")
           setSearchTerm(searchQuery);
           setYTSearchResults([]);
           setSearchQuery("");

@@ -13,7 +13,6 @@ export const SecondVersion = () => {
     <div
       className="flex flex-col h-screen w-screen overflow-hidden relative transition-all duration-[3000ms] ease-in-out"
     >
-
       <div className="flex flex-1 min-h-0 relative">
         <Playlists />
         <div className="flex flex-col w-full">
@@ -23,7 +22,6 @@ export const SecondVersion = () => {
           </ScrollArea>
         </div>
       </div>
-
       <div className="shrink-0 relative z-30">
         <MusicPlayer />
       </div>

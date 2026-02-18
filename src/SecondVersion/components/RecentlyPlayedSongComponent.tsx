@@ -41,7 +41,6 @@ const RecentlyPlayedSongComponent = ({ song, isPlaying, onPlay, onPause, onResum
   const handleDelete = async () => {
     setDeleting(true);
     try {
-      console.log("Heres the thin", song)
       await (window as any).electron.deleteSong(song.path);
       removeSong(song)
     } catch (err) {
@@ -100,6 +99,13 @@ const RecentlyPlayedSongComponent = ({ song, isPlaying, onPlay, onPause, onResum
             <p className={`text-xs md:text-sm text-muted-foreground truncate ${isPlaying ? "text-primary/70" : ""}`}>
               {song.metadata.artist || "Unknown Artist"}
             </p>
+            {song?.metadata?.album && song?.metadata?.album !== "Unknown Album" ? (
+              <p className={`hover:underline text-xs md:text-sm text-muted-foreground/60 truncate ${isPlaying ? "text-primary/70" : ""}`}>
+                <span >{song?.metadata?.album}</span> <span >-</span> <span >{song.metadata?.year}</span>
+              </p>
+            ) : ""}
+
+
           </div>
         </div>
       </ContextMenuTrigger>

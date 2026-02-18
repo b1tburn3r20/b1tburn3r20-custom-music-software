@@ -25,7 +25,12 @@ const MusicPlayerName = () => {
         <MusicRefsAndTitle />
         <div className="flex  items-center">
           <span className="text-foreground/50">{currentlyPlaying?.metadata?.artist}</span>
-          <span className="text-foreground/50 pl-1">({currentlyPlaying?.metadata?.year})</span>
+          <div>
+            <span className="text-foreground/50 pl-1">
+              {currentlyPlaying?.metadata?.album && currentlyPlaying?.metadata?.album !== "Unknown Album" ? `- ${currentlyPlaying.metadata.album} (${currentlyPlaying?.metadata?.year})` : ""}
+            </span>
+
+          </div>
           <Dot className="text-foreground/50" />
           <MusicPlayerTimeRunning />
         </div>

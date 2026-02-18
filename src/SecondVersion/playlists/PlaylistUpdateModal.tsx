@@ -4,6 +4,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
 import PlaylistSelectItem from "./PlaylistSelect"
+import { toast } from "sonner"
 
 const PlaylistUpdateModal = () => {
   const open = useMusicStore((f) => f.isPlaylistModalOpen)
@@ -18,6 +19,7 @@ const PlaylistUpdateModal = () => {
 
   const handleOpenChange = () => {
     if (open) {
+      toast.info("Hello")
       setOpen(false)
       setTimeout(() => {
         setUpdateData(null)
@@ -99,7 +101,7 @@ const PlaylistUpdateModal = () => {
         </ScrollArea>
 
         <div className="flex justify-end gap-2 pt-4">
-          <Button variant="outline" onClick={handleOpenChange}>
+          <Button variant="outline" onClick={handleOpenChange}  >
             Cancel
           </Button>
           <Button

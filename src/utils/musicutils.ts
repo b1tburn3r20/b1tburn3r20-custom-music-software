@@ -2,7 +2,8 @@ import { useAppStore } from "@/stores/useAppStore"
 import { useDirectoryStore } from "@/stores/useDirectoryStore"
 import { useMusicStore } from "@/stores/useMusicStore"
 import { usePlayerStore } from "@/stores/usePlayerStore"
-import type { PlaylistType } from "@/types/AppTypes"
+import { useSettingsStore } from "@/stores/useSettingsStore"
+import type { AlbumType, PlaylistType } from "@/types/AppTypes"
 import type { Song } from "@/types/DirectoryTypes"
 
 
@@ -10,6 +11,8 @@ export const startNewQueue = async (path) => {
   const setQueue = useMusicStore.getState().setQueue
   const root = useDirectoryStore.getState().rootDir
   const setPlayingPlaylist = usePlayerStore.getState().setPlayingPlaylist
+  const expandOnPlay = useSettingsStore.getState().expandOnPlay
+  const setExpanded = useSettingsStore.getState().setPlayerExpanded
   const startPlaying = usePlayerStore.getState().setCurrentlyPlaying
   if (!path) {
     return
@@ -23,18 +26,29 @@ export const startNewQueue = async (path) => {
     setPlayingPlaylist(null)
     setQueue(response.songs)
     startPlaying(response?.songs[0])
+    if (expandOnPlay) {
+      setExpanded(true)
+    }
+
+
   } catch (error) {
     console.error("This went wrong", error)
   }
 }
 
-export const startNewQueueFromArray = async (array: Song[], playlist: PlaylistType) => {
+export const startNewQueueFromArray = async (array: Song[], playlist?: PlaylistType, album?: AlbumType) => {
   const setQueue = useMusicStore.getState().setQueue
   const setPlayingPlaylist = usePlayerStore.getState().setPlayingPlaylist
+  const setPlayingAlbum = useMusicStore.getState().setPlayingAlbum
   const startPlaying = usePlayerStore.getState().setCurrentlyPlaying
-  setPlayingPlaylist(playlist)
   setQueue(array)
+  if (playlist) {
+    setPlayingPlaylist(playlist)
+  }
   startPlaying(array[0])
+  if (album) {
+    setPlayingAlbum(album)
+  }
 }
 
 
