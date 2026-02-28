@@ -1,8 +1,10 @@
 import { Button } from "@/components/ui/button"
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem } from "@/components/ui/context-menu"
 import { Separator } from "@/components/ui/separator"
+import { useAppStore } from "@/stores/useAppStore"
 import { useDirectoryStore } from "@/stores/useDirectoryStore"
 import { useMusicStore } from "@/stores/useMusicStore"
+import { useSettingsStore } from "@/stores/useSettingsStore"
 import type { PlaylistType } from "@/types/AppTypes"
 import type { Song } from "@/types/DirectoryTypes"
 import { extendQueue } from "@/utils/musicutils"
@@ -39,6 +41,32 @@ const MusicQueueItem = ({
   const removeSong = useMusicStore((f) => f.removeSong)
   const rootDir = useDirectoryStore((f) => f.rootDir)
   const [deleting, setDeleting] = useState(false)
+  const setView = useAppStore((f) => f.setView)
+  const setActiveAlbum = useMusicStore((f) => f.setActiveAlbum)
+  const setExpanded = useSettingsStore((f) => f.setPlayerExpanded)
+
+  const handleViewAlbum = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpanded(false)
+    try {
+      const result = await (window as any).electron.getAlbum({
+        rootDir,
+        path: song.path
+      });
+
+      if (result.success) {
+        console.log("Heres the res", result)
+        setView("album")
+        setActiveAlbum(result)
+      } else {
+      }
+    } catch (err) {
+      console.error('error', err);
+    }
+  }
+
+
+
 
   const handleClick = () => {
     if (deleting) return
@@ -98,7 +126,7 @@ const MusicQueueItem = ({
         <ContextMenuTrigger asChild>
           <div
             onClick={handleClick}
-            className={`relative group flex select-none items-center gap-3 py-2 px-3 rounded-lg transition-all cursor-pointer active:scale-[0.98]
+            className={`relative md:min-w-[400px] group flex select-none items-center gap-3 py-2 px-3 rounded-lg transition-all cursor-pointer active:scale-[0.98]
               ${isPlaying ? "bg-muted/20" : ""}
               ${darker ? "bg-black/80 hover:bg-muted/20" : "hover:bg-accent/50"}`}
           >
@@ -110,23 +138,33 @@ const MusicQueueItem = ({
               />
             </div>
 
+
             <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-              <p
-                title={song.metadata.title}
-                className={`text-sm md:text-base font-semibold line-clamp-1 ${isPlaying ? "text-primary" : ""
-                  }`}
-              >
+              <p className={`text-sm md:text-base font-semibold truncate ${isPlaying ? "text-primary" : ""}`}>
                 {song.metadata.title}
               </p>
-              <p
-                className={`text-xs md:text-sm text-muted-foreground line-clamp-1 ${isPlaying ? "text-primary/70" : ""
-                  }`}
-              >
-
-                {song?.metadata?.artist}                {song?.metadata?.album && song?.metadata?.album !== "Unknown Album" ? `- ${song.metadata.album} (${song?.metadata?.year})` : ""}
+              <p className={`text-xs md:text-sm text-muted-foreground truncate  ${isPlaying ? "text-primary/70" : ""}`}>
+                <span
+                  onClick={() => console.log("hi")}
+                  className={`${song?.metadata?.artist ? "hover:underline cursor-pointer" : ""}`}
+                >
+                  {song.metadata.artist || "Unknown Artist"}
+                </span>
               </p>
-            </div>
+              {song?.metadata?.album && song?.metadata?.album !== "Unknown Album" ? (
+                <p
 
+                  onClick={handleViewAlbum}
+                  className={`  hover:underline cursor-pointer text-xs md:text-sm text-muted-foreground/60 truncate ${isPlaying ? "text-primary/70" : ""}`}>
+                  <span
+                  >
+                    {song?.metadata?.album}
+                  </span>
+                  <span> - </span>
+                  <span>{song.metadata.year}</span>
+                </p>
+              ) : ""}
+            </div>
             <div className="absolute right-2 top-4">
               {deleting ? (
                 <Loader2 className="animate-spin" />

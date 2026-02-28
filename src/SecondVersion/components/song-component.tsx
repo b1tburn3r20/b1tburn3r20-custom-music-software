@@ -135,9 +135,11 @@ const SongComponent = ({ song, isPlaying, onPlay, onPause, onResume, isPaused, d
               </span>
             </p>
             {song?.metadata?.album && song?.metadata?.album !== "Unknown Album" ? (
-              <p className={`  hover:underline cursor-pointer text-xs md:text-sm text-muted-foreground/60 truncate ${isPlaying ? "text-primary/70" : ""}`}>
+              <p
+
+                onClick={handleViewAlbum}
+                className={`  hover:underline cursor-pointer text-xs md:text-sm text-muted-foreground/60 truncate ${isPlaying ? "text-primary/70" : ""}`}>
                 <span
-                  onClick={handleViewAlbum}
                 >
                   {song?.metadata?.album}
                 </span>

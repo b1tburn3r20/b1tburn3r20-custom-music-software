@@ -4,7 +4,7 @@ import LaxPlayerNextUp from "@/components/Music/LaxPlayerNextUp";
 import MusicPlayer from "@/components/MusicPlayer/MusicPlayer";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import TopBar from "@/SecondVersion/components/top-bar";
-import Playlists from "@/SecondVersion/Playlists";
+import LeftBar from "@/SecondVersion/LeftBar";
 import RenderActiveView from "@/SecondVersion/RenderActiveView";
 
 export const SecondVersion = () => {
@@ -14,7 +14,7 @@ export const SecondVersion = () => {
       className="flex flex-col h-screen w-screen overflow-hidden relative transition-all duration-[3000ms] ease-in-out"
     >
       <div className="flex flex-1 min-h-0 relative">
-        <Playlists />
+        <LeftBar />
         <div className="flex flex-col w-full">
           <TopBar />
           <ScrollArea className="overflow-y-auto">

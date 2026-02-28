@@ -375,18 +375,19 @@ async function searchSongs(event, { rootDir, query = '', forceRefresh = false })
       };
     }
 
-    const searchTerm = query.toLowerCase().trim();
-    const results = songCache.songs.filter(song => {
-      return (
-        song.name.toLowerCase().includes(searchTerm) ||
-        song.metadata.title.toLowerCase().includes(searchTerm) ||
-        song.metadata.artist.toLowerCase().includes(searchTerm) ||
-        song.metadata.album.toLowerCase().includes(searchTerm) ||
-        (song.metadata.genre && song.metadata.genre.toLowerCase().includes(searchTerm))
-      );
-    });
+    const searchWords = searchTerm.split(/\s+/);
 
-    return {
+    const results = songCache.songs.filter(song => {
+      const combined = [
+        song.name ?? '',
+        song.metadata?.title ?? '',
+        song.metadata?.artist ?? '',
+        song.metadata?.album ?? '',
+        song.metadata?.genre ?? ''
+      ].join(' ').toLowerCase();
+
+      return searchWords.every(word => combined.includes(word));
+    }); return {
       success: true,
       songs: results.slice(0, 48),
       total: results.length,
@@ -739,24 +740,19 @@ function getSongCacheData() {
   return songCache;
 }
 
-
 async function getAlbum(event, { rootDir, path = '', forceRefresh = false }) {
   try {
     if (forceRefresh || songCache.rootDir !== rootDir || songCache.songs.length === 0) {
       await buildSongCache(rootDir);
     }
-
     const currentSong = songCache.songs.find(song => song.path === path);
-
     if (!currentSong) {
       return {
         success: false,
         error: 'Song not found in cache'
       };
     }
-
     const albumName = currentSong.metadata?.album?.toLowerCase();
-
     if (!albumName) {
       return {
         success: true,
@@ -765,41 +761,32 @@ async function getAlbum(event, { rootDir, path = '', forceRefresh = false }) {
         message: 'No album metadata found for this song'
       };
     }
-
     const albumSongs = songCache.songs.filter(song => {
       const songAlbum = song.metadata?.album?.toLowerCase();
       return songAlbum && songAlbum === albumName;
     });
-
     // Aggregate album metadata
-    const albumArtists = [];
+    const artistSet = new Set();
     const albumReleaseDates = [];
     let albumThumbnail = null;
-
     albumSongs.forEach(song => {
-      // Add artist if not already included
       const artist = song.metadata?.artist;
-      if (artist && !albumArtists.includes(artist)) {
-        albumArtists.push(artist);
+      if (artist) {
+        artist.split(',').map(a => a.trim()).filter(Boolean).forEach(a => artistSet.add(a));
       }
-
-      // Add release date if not already included
       const year = song.metadata?.year;
       if (year && !albumReleaseDates.includes(year)) {
         albumReleaseDates.push(year);
       }
-
-      // Update thumbnail if we don't have one yet
       if (!albumThumbnail && song.metadata?.thumbnail) {
         albumThumbnail = song.metadata.thumbnail;
       }
     });
-
     return {
       success: true,
       album_name: currentSong.metadata.album,
       album_release_date: albumReleaseDates,
-      album_artists: albumArtists,
+      album_artists: [...artistSet],
       album_thumbnail: albumThumbnail,
       album_songs: albumSongs
     };
@@ -810,9 +797,7 @@ async function getAlbum(event, { rootDir, path = '', forceRefresh = false }) {
       error: error.message
     };
   }
-}
-
-/**
+}/**
  * Get all albums with aggregated metadata
  */
 async function getAlbums(event, { rootDir, forceRefresh = false }) {

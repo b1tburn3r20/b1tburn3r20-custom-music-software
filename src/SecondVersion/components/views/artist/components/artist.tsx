@@ -1,6 +1,5 @@
 
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { formatDuration } from "@/utils/textUtils"
 import { Music } from "lucide-react"
 import { usePlayerStore } from "@/stores/usePlayerStore"
 import { addRecentlyPlayed } from "@/components/helpers/utilities"
@@ -8,17 +7,17 @@ import { startNewQueue } from "@/utils/musicutils"
 import type { Song } from "@/types/DirectoryTypes"
 import { useColorCacheStore } from "@/stores/useColorCacheStore"
 import { useMusicStore } from "@/stores/useMusicStore"
-import AlbumActionButtons from "./AlbumActionButtons"
-import AlbumSongComponent from "./AlbumSongComponent"
+import AlbumActionButtons from "./ArtistActionButtons"
+import AlbumComponent from "./AlbumComponent"
 
-const ActiveAlbum = () => {
+const ActiveArtist = () => {
   const setPaused = usePlayerStore((f) => f.setPaused)
   const paused = usePlayerStore((f) => f.paused)
   const currentlyPlaying = usePlayerStore((f) => f.currentlyPlaying)
-  const activeAlbum = useMusicStore((f) => f.activeAlbum)
-  const thumbnail = activeAlbum?.album_thumbnail
+  const activeArtist = useMusicStore((f) => f.activeArtist)
+  const thumbnail = activeArtist?.artist_thumbnail
   const dominantColor = useColorCacheStore((state) =>
-    state.getColor(thumbnail as string | undefined, "guarp")
+    state.getColor(thumbnail as string | undefined, "sguarp")
   )
 
   const handlePlay = (song: Song) => {
@@ -45,13 +44,14 @@ const ActiveAlbum = () => {
     )
   }
 
-  const songs = activeAlbum?.album_songs
-  const fullDuration = songs?.reduce((acc, curr) => acc + curr.metadata.duration, 0)
+  // const songs = activeArtist?.artist_thumbnail
 
-  if (!activeAlbum?.album_name) {
+  if (!activeArtist?.artist_name) {
     return <NoDirSelected />
   }
 
+
+  console.log("this is the album cover", activeArtist?.artist_thumbnail)
   return (
     <div className="flex flex-col h-full space-y-12">
       <div
@@ -63,10 +63,10 @@ const ActiveAlbum = () => {
 
         <div className="flex items-end gap-6">
           <div className="relative w-48 h-48 rounded-lg shadow-2xl overflow-hidden">
-            {songs && songs[0]?.metadata?.thumbnail ? (
+            {activeArtist?.artist_thumbnail ? (
               <img
-                src={songs[0].metadata.thumbnail as string}
-                alt="Playlist cover"
+                src={activeArtist?.artist_thumbnail as string}
+                alt="artist cover"
                 className="w-full h-full object-cover"
               />
             ) : (
@@ -84,44 +84,25 @@ const ActiveAlbum = () => {
           </div>
           <div className="flex-1 pb-2">
             <p className="text-sm font-semibold uppercase tracking-wider mb-2 text-white/90">
-              Album
+              Artist
             </p>
             <h1 className="text-5xl font-bold mb-4 tracking-tight text-white">
-              {activeAlbum.album_name}
+              {activeArtist?.artist_name}
             </h1>
-            <div className="mb-2">
-              <div className="flex gap-2 items-center">
-                {activeAlbum?.album_artists?.map((artist, index) => <p>{artist}{index + 1 < activeAlbum?.album_artists?.length && (<span>,</span>)}</p>)}
-              </div>
-              <div className="text-muted-foreground flex gap-2 items-center">
-                {activeAlbum?.album_release_date?.map((artist, index) => <p>{artist}{index + 1 < activeAlbum?.album_release_date?.length && (<span>,</span>)}</p>)}
-              </div>
-            </div>
             <div className="flex gap-2 items-center">
-              <p className="text-sm text-white/80">{songs?.length || 0} songs</p>
-              <p className="text-sm text-white/80">{formatDuration(fullDuration || 0)}</p>
             </div>
           </div>
         </div>
         <div className="absolute -bottom-10.5">
-          <AlbumActionButtons songs={songs || []} />
+          <AlbumActionButtons songs={[]} />
         </div>
       </div>
 
       <ScrollArea className="flex-1">
-        <div className="px-8 py-4">
-          {songs?.map((song, index) => (
-            <AlbumSongComponent
-              key={song.metadata.title}
-              index={index}
-              song={song}
-              onPlay={handlePlay}
-              onPause={handlePause}
-              onResume={handleResume}
-              isPlaying={currentlyPlaying?.metadata.title === song.metadata.title}
-              isPaused={paused}
-              album={activeAlbum}
-            />
+        <div className="px-8 py-4 grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6">
+          {activeArtist?.artist_albums?.map((album, index) => (
+            <AlbumComponent isPlaying={false} isPaused={paused} onPause={handlePause} onResume={handleResume} album={album} key={index} />
+
           ))}
         </div>
       </ScrollArea>
@@ -129,4 +110,4 @@ const ActiveAlbum = () => {
   )
 }
 
-export default ActiveAlbum
+export default ActiveArtist

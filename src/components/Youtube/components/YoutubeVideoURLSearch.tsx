@@ -14,7 +14,6 @@ const YoutubeVideoURLSearch = () => {
   const inputRef = useRef<HTMLInputElement>(null);
   const currentDir = useDirectoryStore((f) => f.rootDir);
   const setYoutubePlaylistResults = useYoutubeStore((f) => f.setYoutubePlaylistResults);
-  const playlist = useYoutubeStore((f) => f.playlists);
 
   const API_KEY = import.meta.env.VITE_YOUTUBE_API_KEY;
 
@@ -195,11 +194,11 @@ const YoutubeVideoURLSearch = () => {
   const handleSearch = () => {
     const trimmedUrl = urlInput.trim();
     if (!trimmedUrl) {
-      setError(`Please enter a YouTube ${playlist ? 'playlist' : 'video'} URL or ID`);
+      setError(`Please enter a YouTube URL or ID`);
       return;
     }
 
-    if (playlist) {
+    if (trimmedUrl?.includes("playlist")) {
       // Playlist mode - only search for playlists
       const playlistId = extractPlaylistId(trimmedUrl);
       if (playlistId) {
@@ -250,7 +249,7 @@ const YoutubeVideoURLSearch = () => {
           value={urlInput}
           onChange={(e) => setUrlInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={`Paste YouTube ${playlist ? 'playlist' : 'video'} URL or ID...`}
+          placeholder={`Paste YouTube URL or ID...`}
         />
       </div>
 

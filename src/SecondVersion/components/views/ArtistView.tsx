@@ -1,6 +1,7 @@
 
 import { useAppStore } from "@/stores/useAppStore"
 import { useMusicStore } from "@/stores/useMusicStore"
+import ActiveArtist from "./artist/components/artist"
 
 const ArtistView = () => {
   const view = useAppStore((f) => f.view)
@@ -10,7 +11,7 @@ const ArtistView = () => {
   }
 
   return (
-    <div>{activeArtist?.artist_name || "no artist"}</div>
+    <div> <ActiveArtist /> </ div>
   )
 }
 

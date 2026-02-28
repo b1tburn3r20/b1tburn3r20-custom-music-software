@@ -46,7 +46,7 @@ const MusicQueue = () => {
   }
   return (
     <div className="w-full flex justify-end">
-      <div className="flex justify-end bg-black/40   max-w-md 2xl:max-w-lg h-full flex-col rounded-bl-lg">
+      <div className="flex justify-end bg-black/60 backdrop-blur-lg  max-w-md 2xl:max-w-lg h-full flex-col rounded-bl-lg">
         <div className="select-none text-xl flex gap-1 items-center font-bold p-4 pb-0 text-muted-foreground ">
           <span className="truncate">
             <>

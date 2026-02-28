@@ -50,6 +50,27 @@ export const startNewQueueFromArray = async (array: Song[], playlist?: PlaylistT
     setPlayingAlbum(album)
   }
 }
+export const handleArtistClick = async (e: React.MouseEvent, path: string) => {
+  const rootDir = useDirectoryStore.getState().rootDir
+  const setView = useAppStore.getState().setView
+  const setActiveArtist = useMusicStore.getState().setActiveArtist
+  e.stopPropagation();
+  try {
+    const result = await (window as any).electron.getArtist({
+      rootDir,
+      path,
+    });
+
+    if (result.success) {
+      setView("artist")
+      setActiveArtist(result)
+    } else {
+    }
+  } catch (err) {
+    console.error("heres the error", err)
+  }
+}
+
 
 
 export const extendQueue = async (rootDir, path, songsToOmit) => {

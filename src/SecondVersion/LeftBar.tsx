@@ -1,6 +1,6 @@
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useAppStore } from "@/stores/useAppStore"
-import { Home, Library } from "lucide-react"
+import { Home, Library, Youtube } from "lucide-react"
 import { useEffect } from "react"
 import NewPlaylist from "./playlists/NewPlaylistButton"
 import { useMusicStore } from "@/stores/useMusicStore"
@@ -10,7 +10,7 @@ import { useColorCacheStore } from "@/stores/useColorCacheStore"
 import SmallRandomQueueButton from "./components/SmallRandomQueueButton"
 import SmallRandomPlaylistButton from "./components/SmallRandomPlaylistButton"
 
-const Playlists = () => {
+const LeftBar = () => {
   const setView = useAppStore((f) => f.setView)
   const playlists = useMusicStore((f) => f.playlists)
   const setPlaylists = useMusicStore((f) => f.setPlaylists)
@@ -27,7 +27,7 @@ const Playlists = () => {
 
   const SidePanelViewModeToggle = () => {
     const dominantColor = useColorCacheStore((state) =>
-      state.getColor(undefined, "library-view")
+      state.getColor(undefined, "library-view-btn")
     )
 
     return (
@@ -46,6 +46,28 @@ const Playlists = () => {
       </div>
     )
   }
+  const YouTubeViewButton = () => {
+    const dominantColor = useColorCacheStore((state) =>
+      state.getColor(undefined, "youtube-view")
+    )
+
+    return (
+      <div onClick={() => setView("youtube")} className="h-12 w-12 shrink-0 cursor-pointer">
+        <div className="h-full w-full">
+          <div
+            className="p-1 rounded-lg flex flex-col justify-center items-center h-full w-full"
+            style={{ backgroundColor: `rgba(${dominantColor}, 0.2)` }}
+          >
+            <Youtube
+              className="h-10 w-10 rounded-lg p-2"
+              style={{ color: `rgb(${dominantColor})` }}
+            />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
 
   const HomeViewModeToggle = () => {
     const dominantColor = useColorCacheStore((state) =>
@@ -74,10 +96,12 @@ const Playlists = () => {
   }
 
   return (
-    <div className="bg-muted/70 flex flex-col py-2 w-fit px-4">
+    <div className="bg-unset  flex flex-col py-4 border-r border-muted/30 w-fit px-4">
+
       <div className="flex flex-col gap-2">
         <HomeViewModeToggle />
         <SidePanelViewModeToggle />
+        <YouTubeViewButton />
       </div>
       <Separator className="my-4 bg-gray-500/60" />
 
@@ -103,4 +127,4 @@ const Playlists = () => {
   )
 }
 
-export default Playlists
+export default LeftBar

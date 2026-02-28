@@ -4,15 +4,17 @@ import { useAppStore } from "@/stores/useAppStore";
 import { useDirectoryStore } from "@/stores/useDirectoryStore";
 import { useMusicStore, type CacheSongType } from "@/stores/useMusicStore";
 import { useSettingsStore } from "@/stores/useSettingsStore";
-import { ListMusic, Search, Youtube } from "lucide-react";
+import { ListMusic, Music, Search, Youtube } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import CacheResult from "../search/CacheResult";
 import { Label } from "@/components/ui/label";
 import { usePlayerStore } from "@/stores/usePlayerStore";
-import type { Song } from "@/types/DirectoryTypes";
 import { startNewQueue } from "@/utils/musicutils";
 import { useYoutubeStore } from "@/components/Youtube/useYoutubeStore";
+import { Separator } from "@/components/ui/separator";
+
+const YTM_BASE = "https://music.youtube.com";
 
 const SearchMusic = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -35,7 +37,8 @@ const SearchMusic = () => {
   const setRootDir = useDirectoryStore((f) => f.setRootDir)
   const setSongCache = useMusicStore((f) => f.setSongCache)
   const [focusedIndex, setFocusedIndex] = useState(-1)
-  const totalItems = suggestions?.length + (searchQuery ? 2 : 0)
+  // 4 action items when query exists: search video (api), search playlist (api), search YTM songs, search YTM playlists
+  const totalItems = suggestions?.length + (searchQuery ? 4 : 0)
   const setPlaylists = useYoutubeStore((f) => f.setPlaylists)
   const setSearchTerm = useYoutubeStore((f) => f.setSearchTerm)
   const setView = useAppStore((f) => f.setView)
@@ -43,7 +46,17 @@ const SearchMusic = () => {
   const setPlaylistResults = useYoutubeStore((f) => f.setYoutubePlaylistResults)
   const incrementSearchTrigger = useYoutubeStore((f) => f.incrementTriggerSearchKey)
 
-
+  const openYTMPopup = (url: string) => {
+    const width = Math.min(window.screen.width * 0.85, 1200);
+    const height = Math.min(window.screen.height * 0.85, 900);
+    const left = (window.screen.width - width) / 2;
+    const top = (window.screen.height - height) / 2;
+    window.open(
+      url,
+      "ytmusic",
+      `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`
+    );
+  };
 
   const setPath = (path: any) => {
     setRootDir(path);
@@ -97,9 +110,8 @@ const SearchMusic = () => {
     }
   }
 
-
-
   const searchMusic = async (query?: string) => {
+    console.log("root dir", rootMusicDir)
     if (!rootMusicDir) return;
     setIsLoading(true);
     setQuery(query ?? "");
@@ -110,6 +122,8 @@ const SearchMusic = () => {
         query,
         forceRefresh: false,
       });
+
+      console.log("results", result)
       if (result.success) {
         setMusicResults(result.songs);
       }
@@ -120,7 +134,6 @@ const SearchMusic = () => {
       setIsLoading(false);
     }
   };
-
 
   const handleFocus = () => {
     setOpen(true);
@@ -145,18 +158,13 @@ const SearchMusic = () => {
         break;
       case 'Enter':
         if (focusedIndex === -1) {
-          setView("youtube")
-          setSearchTerm(searchQuery);
-          setYTSearchResults([]);
           setSearchQuery("");
           setFocusedIndex(-1)
-          setPlaylists(false);
           incrementSearchTrigger();
+          setView("home")
+          searchMusic(searchQuery)
+          setSearchQuery("");
           setOpen(false);
-
-          // searchMusic(searchQuery)
-          // setSearchQuery("");
-          // setOpen(false);
           inputRef.current?.blur();
           return;
         } else if (focusedIndex < suggestions.length) {
@@ -166,23 +174,42 @@ const SearchMusic = () => {
           setFocusedIndex(-1)
           inputRef.current?.blur();
         } else {
-          setView("youtube");
           const buttonIndex = focusedIndex - suggestions.length;
-          if (buttonIndex === 0) {
+          if (buttonIndex === 2) {
+            // Search video (API)
+            setView("youtube");
             setSearchTerm(searchQuery);
             setYTSearchResults([]);
             setSearchQuery("");
             setFocusedIndex(-1)
             setPlaylists(false);
-          } else if (buttonIndex === 1) {
+            incrementSearchTrigger();
+            setOpen(false);
+          } else if (buttonIndex === 3) {
+            // Search playlist (API)
+            setView("youtube");
             setPlaylistResults([]);
             setSearchQuery("");
             setSearchTerm(searchQuery);
             setPlaylists(true);
             setFocusedIndex(-1)
+            incrementSearchTrigger();
+            setOpen(false);
+          } else if (buttonIndex === 0) {
+            // Search YTM songs
+            openYTMPopup(`${YTM_BASE}/search?q=${encodeURIComponent(searchQuery)}`);
+            setSearchQuery("");
+            setFocusedIndex(-1);
+            setOpen(false);
+            inputRef.current?.blur();
+          } else if (buttonIndex === 1) {
+            // Search YTM playlists
+            openYTMPopup(`${YTM_BASE}/search?q=${encodeURIComponent(searchQuery)}&params=EgeKAQQoAUICCAE%3D`);
+            setSearchQuery("");
+            setFocusedIndex(-1);
+            setOpen(false);
+            inputRef.current?.blur();
           }
-          incrementSearchTrigger();
-          setOpen(false);
         }
         break;
       case 'Escape':
@@ -194,19 +221,24 @@ const SearchMusic = () => {
       default:
         setOpen(true);
     }
-  }; const handleInlineSearch = () => {
+  };
+
+  const handleInlineSearch = () => {
     if (!searchQuery) {
       const randomSongs = shuffleArray(songCache).slice(0, 5)
       setSuggestions(randomSongs)
-      setTimeout(() => {
-      })
     } else {
+      const searchWords = searchQuery.toLowerCase().trim().split(/\s+/)
+
       const cacheSuggestions = songCache.filter((song) => {
-        const query = searchQuery?.toLowerCase()
-        const titleMatch = song.title?.toLowerCase().includes(query)
-        const artistMatch = song.artist?.toLowerCase().includes(query)
-        return titleMatch || artistMatch
+        const combined = [
+          song.title ?? '',
+          song.artist ?? '',
+        ].join(' ').toLowerCase()
+
+        return searchWords.every(word => combined.includes(word))
       }).slice(0, 5)
+
       setSuggestions(cacheSuggestions)
     }
   }
@@ -214,8 +246,6 @@ const SearchMusic = () => {
   useEffect(() => {
     handleInlineSearch()
   }, [searchQuery, songCache]);
-
-
 
   useEffect(() => {
     function handleKeyboardShortcut(e: KeyboardEvent) {
@@ -264,7 +294,7 @@ const SearchMusic = () => {
         />
 
         {open && (
-          <div className="absolute z-10 w-full top-full mt-1 rounded-lg bg-black/40 backdrop-blur-[5px] p-2">
+          <div className="absolute z-10 w-full top-full mt-1 rounded-lg bg-black/70 backdrop-blur-md p-2">
             <div>
               {suggestions.length > 0 && (
                 <>
@@ -286,40 +316,73 @@ const SearchMusic = () => {
                             song={song}
                           />
                         </div>
-                      ))}                    </div>
+                      ))}
+                    </div>
                   </div>
                 </>
               )}
             </div>
 
             <div className="mt-2">
-
               {searchQuery.length > 0 && (
-                <>
-                  <div className="flex flex-col gap-2">
-                    <div
-                      className={`w-full rounded-sm  p-1 pl-2 flex gap-3 ${focusedIndex === suggestions.length ? 'bg-accent/10 ring-1 ring-primary/50 pointer-events-none' : 'bg-muted/50'
-                        }`}
-                    >
-                      <Youtube className="text-red-500 shrink-0" />
-                      <div className="line-clamp-1">Search video "{searchQuery}"</div>
-                    </div>
+                <div className="flex flex-col gap-2">
+                  <Separator className="my-1" />
+                  {/* Search video (API) */}
 
-                    <div
-                      className={`w-full rounded-sm p-1 pl-2 flex gap-3 ${focusedIndex === suggestions.length + 1 ? 'bg-accent/10 ring-1 ring-primary/50 pointer-events-none' : 'bg-muted/50'
-                        }`}
-                    >
-                      <ListMusic className="text-red-500 shrink-0" />
-                      <div className="line-clamp-1">Search playlist "{searchQuery}"</div>
-                    </div>
+
+
+                  <div
+                    onClick={() => {
+                      openYTMPopup(`${YTM_BASE}/search?q=${encodeURIComponent(searchQuery)}`);
+                      setSearchQuery("");
+                      setOpen(false);
+                    }}
+                    className={`w-full rounded-sm p-1 pl-2 flex gap-3 cursor-pointer ${focusedIndex === suggestions.length ? 'bg-accent/10 ring-1 ring-primary/50' : 'bg-muted/50'
+                      }`}
+                  >
+                    <Music className="text-red-500 shrink-0" />
+                    <div className="line-clamp-1">Search song <span className="text-muted-foreground mr-2">YTM</span>"{searchQuery}"</div>
                   </div>
-                </>
+
+                  {/* Search YTM playlists */}
+                  <div
+                    onClick={() => {
+                      openYTMPopup(`${YTM_BASE}/search?q=${encodeURIComponent(searchQuery)}&params=EgeKAQQoAUICCAE%3D`);
+                      setSearchQuery("");
+                      setOpen(false);
+                    }}
+                    className={`w-full rounded-sm p-1 pl-2 flex gap-3 cursor-pointer ${focusedIndex === suggestions.length + 1 ? 'bg-accent/10 ring-1 ring-primary/50' : 'bg-muted/50'
+                      }`}
+                  >
+                    <ListMusic className="text-red-500 shrink-0" />
+                    <div className="line-clamp-1">Search playlist <span className="text-muted-foreground mr-2">YTM</span>"{searchQuery}"</div>
+                  </div>
+
+                  <Separator className="my-1" />
+                  <div
+                    className={`w-full rounded-sm p-1 pl-2 flex gap-3 ${focusedIndex === suggestions.length + 2 ? 'bg-accent/10 ring-1 ring-primary/50 pointer-events-none' : 'bg-muted/50'
+                      }`}
+                  >
+                    <Youtube className="text-red-500 shrink-0" />
+                    <div className="line-clamp-1">Search video <span className="text-muted-foreground mr-2">API</span>"{searchQuery}"</div>
+                  </div>
+
+                  {/* Search playlist (API) */}
+                  <div
+                    className={`w-full rounded-sm p-1 pl-2 flex gap-3 ${focusedIndex === suggestions.length + 3 ? 'bg-accent/10 ring-1 ring-primary/50 pointer-events-none' : 'bg-muted/50'
+                      }`}
+                  >
+                    <ListMusic className="text-red-500 shrink-0" />
+                    <div className="line-clamp-1">Search playlist <span className="text-muted-foreground mr-2">API</span>"{searchQuery}"</div>
+                  </div>
+                  {/* Search YTM songs */}
+                </div>
               )}
             </div>
           </div>
         )}
       </div>
-    </div >
+    </div>
   );
 };
 
