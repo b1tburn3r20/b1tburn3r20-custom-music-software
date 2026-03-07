@@ -880,7 +880,8 @@ async function getArtists(event, { rootDir, forceRefresh = false }) {
           artistsMap.set(artistKey, {
             artist_name: artist,
             thumbnail: song.metadata?.thumbnail || null,
-            song_paths: []
+            song_paths: [],
+            songs: []
           });
         }
 
@@ -888,6 +889,7 @@ async function getArtists(event, { rootDir, forceRefresh = false }) {
 
         if (!artistData.song_paths.includes(song.path)) {
           artistData.song_paths.push(song.path);
+          artistData.songs.push(song);
         }
 
         if (!artistData.thumbnail && song.metadata?.thumbnail) {
@@ -1032,6 +1034,7 @@ async function getArtist(event, { rootDir, path = '', forceRefresh = false }) {
     return {
       success: true,
       artist_name: currentSong.metadata.artist,
+      artist_songs: artistSongs,
       artist_albums: artistAlbums,
       artist_thumbnail: artistThumbnail
     };
@@ -1087,7 +1090,10 @@ async function getArtistByName(event, { rootDir, artistName = '', forceRefresh =
       error: error.message
     };
   }
-} module.exports = {
+}
+
+
+module.exports = {
   registerFileSystemHandlers,
   addSongToCache,
   removeSongFromCache,

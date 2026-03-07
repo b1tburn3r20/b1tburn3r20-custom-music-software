@@ -7,8 +7,8 @@ import { startNewQueue } from "@/utils/musicutils"
 import type { Song } from "@/types/DirectoryTypes"
 import { useColorCacheStore } from "@/stores/useColorCacheStore"
 import { useMusicStore } from "@/stores/useMusicStore"
-import AlbumActionButtons from "./ArtistActionButtons"
 import AlbumComponent from "./AlbumComponent"
+import SongComponent from "@/SecondVersion/components/song-component"
 
 const ActiveArtist = () => {
   const setPaused = usePlayerStore((f) => f.setPaused)
@@ -92,19 +92,37 @@ const ActiveArtist = () => {
             </div>
           </div>
         </div>
-        <div className="absolute -bottom-10.5">
-          <AlbumActionButtons songs={[]} />
-        </div>
+        {/* <div className="absolute -bottom-10.5"> */}
+        {/*   <AlbumActionButtons songs={activeArtist?.artist_songs} /> */}
+        {/* </div> */}
       </div>
+      {activeArtist?.artist_albums.length ? (
 
+        <ScrollArea className="flex-1">
+          <div className="px-8 py-4 grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6">
+            {activeArtist?.artist_albums?.map((album, index) => (
+              <AlbumComponent isPlaying={false} isPaused={paused} onPause={handlePause} onResume={handleResume} album={album} key={index} />
+
+            ))}
+          </div>
+        </ScrollArea>
+
+
+      ) : ""}
       <ScrollArea className="flex-1">
-        <div className="px-8 py-4 grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6">
-          {activeArtist?.artist_albums?.map((album, index) => (
-            <AlbumComponent isPlaying={false} isPaused={paused} onPause={handlePause} onResume={handleResume} album={album} key={index} />
+        <div className="px-8 py-4 grid grid-cols-2 md:grid-cols-4 xl:grid-cols-4">
+          {activeArtist?.artist_songs?.map((song, index) => (
+            <SongComponent
+
+
+              isPlaying={currentlyPlaying?.metadata.title === song.metadata.title}
+
+              isPaused={paused} onPause={handlePause} onResume={handleResume} onPlay={handlePlay} song={song} key={index} />
 
           ))}
         </div>
       </ScrollArea>
+
     </div>
   )
 }

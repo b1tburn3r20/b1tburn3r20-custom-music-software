@@ -19,5 +19,7 @@ export type AlbumType = {
 export type ArtistType = {
   artist_albums: AlbumType[]
   artist_name: string
+  artist_songs: Song[]
+
   artist_thumbnail: string
 }
