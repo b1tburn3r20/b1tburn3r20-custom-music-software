@@ -10,6 +10,7 @@ import type { Song } from "@/types/DirectoryTypes"
 import { extendQueue } from "@/utils/musicutils"
 import { Play, Trash2, Pause, Loader2 } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
+import { toast } from "sonner"
 
 interface MusicQueueItemProps {
   song: Song
@@ -44,6 +45,7 @@ const MusicQueueItem = ({
   const setView = useAppStore((f) => f.setView)
   const setActiveAlbum = useMusicStore((f) => f.setActiveAlbum)
   const setExpanded = useSettingsStore((f) => f.setPlayerExpanded)
+  const setActiveArtist = useMusicStore((f) => f.setActiveArtist)
 
   const handleViewAlbum = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -55,13 +57,33 @@ const MusicQueueItem = ({
       });
 
       if (result.success) {
-        console.log("Heres the res", result)
         setView("album")
         setActiveAlbum(result)
       } else {
       }
     } catch (err) {
       console.error('error', err);
+    }
+  }
+
+  const handleViewArtist = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpanded(false)
+    try {
+      const result = await (window as any).electron.getArtistByName({
+        rootDir,
+        artistName: song?.metadata?.artist,
+      });
+      console.log("hi", result)
+      if (result.success) {
+        setView("artist")
+        setActiveArtist(result)
+      } else {
+        toast.error("idk how did this")
+
+      }
+    } catch (err) {
+      console.error("heres the error", err)
     }
   }
 
@@ -145,7 +167,8 @@ const MusicQueueItem = ({
               </p>
               <p className={`text-xs md:text-sm text-muted-foreground truncate  ${isPlaying ? "text-primary/70" : ""}`}>
                 <span
-                  onClick={() => console.log("hi")}
+
+                  onClick={(e) => handleViewArtist(e)}
                   className={`${song?.metadata?.artist ? "hover:underline cursor-pointer" : ""}`}
                 >
                   {song.metadata.artist || "Unknown Artist"}

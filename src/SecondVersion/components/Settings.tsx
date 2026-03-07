@@ -13,7 +13,6 @@ import { Settings } from "lucide-react";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import StatsSettings from "./settings/stats-settings";
 import BehaviorsSettings from "./settings/behaviors-settings";
-import DataSettings from "./settings/data-settings";
 import { loadExpandOnPlayFromLocalStorage, loadZenModeTimeoutFromLocalStorage, loadZenModeToggleFromLocalStorage } from "@/utils/settingsutils";
 import { useEffect } from "react";
 
@@ -53,18 +52,18 @@ const ChatSettings = () => {
             <TabsList
               className="col-span-2 flex flex-col gap-1 h-fit justify-start items-start"
             >
-              <TabsTrigger
-                className="w-full flex justify-start items-center text-start"
-                value="chat_settings"
-              >
-                Developer
-              </TabsTrigger>
-              <TabsTrigger
-                className="w-full flex justify-start items-center text-start"
-                value="appearance"
-              >
-                Appearance
-              </TabsTrigger>
+              {/* <TabsTrigger */}
+              {/*   className="w-full flex justify-start items-center text-start" */}
+              {/*   value="chat_settings" */}
+              {/* > */}
+              {/*   Developer */}
+              {/* </TabsTrigger> */}
+              {/* <TabsTrigger */}
+              {/*   className="w-full flex justify-start items-center text-start" */}
+              {/*   value="appearance" */}
+              {/* > */}
+              {/*   Appearance */}
+              {/* </TabsTrigger> */}
               <TabsTrigger
                 className="w-full flex justify-start items-center text-start"
                 value="behaviors"
@@ -77,34 +76,32 @@ const ChatSettings = () => {
               >
                 Stats
               </TabsTrigger>
-              <TabsTrigger
-                className="w-full flex justify-start items-center text-start"
-                value="data"
-              >
-                Data
-              </TabsTrigger>
+              {/* <TabsTrigger */}
+              {/*   className="w-full flex justify-start items-center text-start" */}
+              {/*   value="data" */}
+              {/* > */}
+              {/*   Data */}
+              {/* </TabsTrigger> */}
 
 
 
             </TabsList>
             <div className="border-l border-gray-500/20 pl-4 transition-all col-span-5">
-              <TabsContent className="w-full" value="chat_settings">
-                {/* <ChatSettingsTab /> */}
-                developer
-              </TabsContent>
-              <TabsContent className="w-full" value="appearance">
-                {/* <ChatMemberSettings /> */}
-                appearance
-              </TabsContent>
+              {/* <TabsContent className="w-full" value="chat_settings"> */}
+              {/*   developer */}
+              {/* </TabsContent> */}
+              {/* <TabsContent className="w-full" value="appearance"> */}
+              {/*   appearance */}
+              {/* </TabsContent> */}
               <TabsContent className="w-full" value="behaviors">
                 <BehaviorsSettings />
               </TabsContent>
               <TabsContent className="w-full" value="stats">
                 <StatsSettings />
               </TabsContent>
-              <TabsContent className="w-full" value="data">
-                <DataSettings />
-              </TabsContent>
+              {/* <TabsContent className="w-full" value="data"> */}
+              {/*   <DataSettings /> */}
+              {/* </TabsContent> */}
 
             </div>
           </Tabs>

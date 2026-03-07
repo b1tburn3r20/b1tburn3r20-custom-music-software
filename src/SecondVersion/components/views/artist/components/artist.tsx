@@ -51,7 +51,6 @@ const ActiveArtist = () => {
   }
 
 
-  console.log("this is the album cover", activeArtist?.artist_thumbnail)
   return (
     <div className="flex flex-col h-full space-y-12">
       <div

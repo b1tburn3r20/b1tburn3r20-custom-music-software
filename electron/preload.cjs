@@ -37,6 +37,7 @@ contextBridge.exposeInMainWorld('electron', {
     return () => ipcRenderer.removeListener('sync-progress', handler);
   },
   getArtist: (params) => ipcRenderer.invoke('get-artist', params),
+  getArtistByName: (params) => ipcRenderer.invoke('get-artist-by-name', params),
   getArtists: (params) => ipcRenderer.invoke('get-artists', params),
   getAlbum: (params) => ipcRenderer.invoke('get-album', params),
   getAlbums: (params) => ipcRenderer.invoke('get-albums', params),

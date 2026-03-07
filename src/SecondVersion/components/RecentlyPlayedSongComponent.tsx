@@ -1,9 +1,12 @@
 import LottieViewer from "@/components/helpers/lottie-viewer"
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem } from "@/components/ui/context-menu"
+import { useAppStore } from "@/stores/useAppStore"
+import { useDirectoryStore } from "@/stores/useDirectoryStore"
 import { useMusicStore } from "@/stores/useMusicStore"
 import type { Song } from "@/types/DirectoryTypes"
 import { ListPlus, Pause, Play, Trash2 } from "lucide-react"
 import { useState } from "react"
+import { toast } from "sonner"
 
 interface SongComponentProps {
   song: Song
@@ -21,6 +24,11 @@ const RecentlyPlayedSongComponent = ({ song, isPlaying, onPlay, onPause, onResum
   const [deleting, setDeleting] = useState(false)
   const setPlaylistUpdateData = useMusicStore((f) => f.setPlaylistUpdateData)
   const setIsPlaylistModalOpen = useMusicStore((f) => f.setIsPlaylistModalOpen)
+  const setView = useAppStore((f) => f.setView)
+  const rootDir = useDirectoryStore((f) => f.rootDir)
+  const setActiveAlbum = useMusicStore((f) => f.setActiveAlbum)
+  const setActiveArtist = useMusicStore((f) => f.setActiveArtist)
+
 
   const handleClick = () => {
     if (deleting) {
@@ -36,6 +44,44 @@ const RecentlyPlayedSongComponent = ({ song, isPlaying, onPlay, onPause, onResum
       onPlay(song)
     }
   }
+  const handleAlbumClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const result = await (window as any).electron.getAlbum({
+        rootDir,
+        path: song.path
+      });
+
+      if (result.success) {
+        setView("album")
+        setActiveAlbum(result)
+      } else {
+      }
+    } catch (err) {
+      console.error('error', err);
+    }
+  }
+
+  const handleViewArtist = async (e: React.MouseEvent, artist: string) => {
+    e.stopPropagation();
+    try {
+      const result = await (window as any).electron.getArtistByName({
+        rootDir,
+        artistName: artist,
+      });
+      if (result.success) {
+        setView("artist")
+        setActiveArtist(result)
+      } else {
+        toast.error("idk how did this")
+
+
+      }
+    } catch (err) {
+      console.error("heres the error", err)
+    }
+  }
+
 
 
   const handleDelete = async () => {
@@ -65,7 +111,8 @@ const RecentlyPlayedSongComponent = ({ song, isPlaying, onPlay, onPause, onResum
         <div
           onMouseOver={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
           onClick={() => handleClick()}
-          className="group relative select-none flex flex-col gap-2 p-3 rounded-xl hover:bg-accent/50 transition-all cursor-pointer active:scale-95"
+          className="group relative select-none flex flex-col gap-2 p-3 rounded-xl hover:bg-accent/50 transition-all cursor-pointer "
+
         >
           <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-muted">
             <img
@@ -96,11 +143,12 @@ const RecentlyPlayedSongComponent = ({ song, isPlaying, onPlay, onPause, onResum
             <p className={`text-sm md:text-base font-semibold truncate ${isPlaying ? "text-primary" : ""}`}>
               {song.metadata.title}
             </p>
-            <p className={`text-xs md:text-sm text-muted-foreground truncate ${isPlaying ? "text-primary/70" : ""}`}>
-              {song.metadata.artist || "Unknown Artist"}
-            </p>
+            <div className={`flex items-center gap-2 text-xs md:text-sm text-muted-foreground truncate ${isPlaying ? "text-primary/70" : ""}`}>
+              {song?.metadata.artist?.split(",").map((artist, index) => <p className="hover:underline cursor-pointer" onClick={(e) => handleViewArtist(e, artist)}>{artist}{index + 1 < song?.metadata?.artist?.split(",")?.length && (<span>,</span>)}</p>)}
+
+            </div>
             {song?.metadata?.album && song?.metadata?.album !== "Unknown Album" ? (
-              <p className={`hover:underline text-xs md:text-sm text-muted-foreground/60 truncate ${isPlaying ? "text-primary/70" : ""}`}>
+              <p onClick={(e) => handleAlbumClick(e)} className={`hover:underline text-xs md:text-sm text-muted-foreground/60 truncate ${isPlaying ? "text-primary/70" : ""}`}>
                 <span >{song?.metadata?.album}</span> <span >-</span> <span >{song.metadata?.year}</span>
               </p>
             ) : ""}

@@ -10,6 +10,9 @@ import { useColorCacheStore } from "@/stores/useColorCacheStore"
 import { useMusicStore } from "@/stores/useMusicStore"
 import AlbumActionButtons from "./AlbumActionButtons"
 import AlbumSongComponent from "./AlbumSongComponent"
+import { useDirectoryStore } from "@/stores/useDirectoryStore"
+import { toast } from "sonner"
+import { useAppStore } from "@/stores/useAppStore"
 
 const ActiveAlbum = () => {
   const setPaused = usePlayerStore((f) => f.setPaused)
@@ -20,6 +23,9 @@ const ActiveAlbum = () => {
   const dominantColor = useColorCacheStore((state) =>
     state.getColor(thumbnail as string | undefined, "guarp")
   )
+  const setView = useAppStore((f) => f.setView)
+  const setActiveArtist = useMusicStore((f) => f.setActiveArtist)
+  const rootDir = useDirectoryStore((f) => f.rootDir)
 
   const handlePlay = (song: Song) => {
     setPaused(false)
@@ -44,6 +50,23 @@ const ActiveAlbum = () => {
       </div>
     )
   }
+  const handleViewArtist = async (artistName: string) => {
+    try {
+      const result = await (window as any).electron.getArtistByName({
+        rootDir,
+        artistName: artistName,
+      });
+      if (result.success) {
+        setView("artist")
+        setActiveArtist(result)
+      } else {
+        toast.error("idk how did this")
+      }
+    } catch (err) {
+      console.error("heres the error", err)
+    }
+  }
+
 
   const songs = activeAlbum?.album_songs
   const fullDuration = songs?.reduce((acc, curr) => acc + curr.metadata.duration, 0)
@@ -91,7 +114,7 @@ const ActiveAlbum = () => {
             </h1>
             <div className="mb-2">
               <div className="flex gap-2 items-center">
-                {activeAlbum?.album_artists?.map((artist, index) => <p>{artist}{index + 1 < activeAlbum?.album_artists?.length && (<span>,</span>)}</p>)}
+                {activeAlbum?.album_artists?.map((artist, index) => <p className="hover:underline cursor-pointer" onClick={() => handleViewArtist(artist)}>{artist}{index + 1 < activeAlbum?.album_artists?.length && (<span>,</span>)}</p>)}
               </div>
               <div className="text-muted-foreground flex gap-2 items-center">
                 {activeAlbum?.album_release_date?.map((artist, index) => <p>{artist}{index + 1 < activeAlbum?.album_release_date?.length && (<span>,</span>)}</p>)}
