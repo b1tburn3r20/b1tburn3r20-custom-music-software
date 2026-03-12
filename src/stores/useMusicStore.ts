@@ -59,6 +59,12 @@ type MusicStore = {
   activeArtist: ArtistType | null
   setActiveArtist: (data: ArtistType | null) => void
 
+  allAlbums: AlbumType[]
+  setAllAlbums: (data: AlbumType[]) => void
+
+  allArtists: ArtistType[]
+  setAllArtists: (data: ArtistType[]) => void
+
   playingAlbum: AlbumType | null
   setPlayingAlbum: (data: AlbumType | null) => void
 
@@ -74,6 +80,8 @@ type MusicStore = {
 }
 
 const initialState = {
+  allArtists: [],
+  allAlbums: [],
   musicResults: [],
   randomMusic: [],
   recentlyPlayed: [],
@@ -94,6 +102,8 @@ const initialState = {
 
 export const useMusicStore = create<MusicStore>((set) => ({
   ...initialState,
+  setAllAlbums: (data) => set({ allAlbums: data }),
+  setAllArtists: (data) => set({ allArtists: data }),
   setPlayingAlbum: (playingAlbum: AlbumType | null) => set({ playingAlbum }),
   setMusicResults: (musicResults: Song[]) => set({ musicResults }),
   setPlaylists: (data: PlaylistType[]) => set({ playlists: data }),
