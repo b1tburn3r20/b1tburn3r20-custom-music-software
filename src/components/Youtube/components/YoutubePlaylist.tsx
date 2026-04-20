@@ -1,10 +1,8 @@
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
-import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { useMusicStore } from "@/stores/useMusicStore"
 import type { Song } from "@/types/DirectoryTypes"
 import type { YoutubeDetailsResult, YoutubePlaylistResultType } from "@/types/YoutubeTypes"
-import { Check, Download, ListMusic, Loader2, X } from "lucide-react"
 import { useState, useRef } from "react"
 import { toast } from "sonner"
 import PlaylistSongItem from "./PlaylistSongItem"
@@ -30,16 +28,9 @@ const YoutubePlaylists = ({ playlists, currentDir }: YoutubePlaylistProps) => {
   }
 
   const PlaylistItem = ({ playlist }: { playlist: YoutubePlaylistResultType }) => {
-    const [playlistDownloading, setPlaylistDownloading] = useState(false)
-    const [playlistDownloaded, setPlaylistDownloaded] = useState(false)
     const [playlistError, setPlaylistError] = useState(false)
     const cancelRef = useRef(false)
 
-    const songsLeftToDownload = playlist.videos.filter(video =>
-      !currentDir?.children?.some(child =>
-        child.name.normalize("NFC").includes(video.title.normalize("NFC"))
-      )
-    )
     const currentlySavedSongs = playlist.videos.filter(video =>
       currentDir?.children?.some(child =>
         child.name.normalize("NFC").includes(video.title.normalize("NFC"))
@@ -56,7 +47,6 @@ const YoutubePlaylists = ({ playlists, currentDir }: YoutubePlaylistProps) => {
       }
 
       cancelRef.current = false
-      setPlaylistDownloading(true)
       setPlaylistError(false)
 
       const songsToDownload = playlist.videos.filter(video =>
@@ -74,12 +64,6 @@ const YoutubePlaylists = ({ playlists, currentDir }: YoutubePlaylistProps) => {
           await globalDownloadSong(song, dir)
         }
 
-        if (!cancelRef.current) {
-          setPlaylistDownloaded(true)
-          setTimeout(() => {
-            setPlaylistDownloaded(false)
-          }, 3000)
-        }
       } catch (error) {
         if (!cancelRef.current) {
           setPlaylistError(true)
@@ -89,21 +73,10 @@ const YoutubePlaylists = ({ playlists, currentDir }: YoutubePlaylistProps) => {
             setPlaylistError(false)
           }, 1000)
         }
-      } finally {
-        setPlaylistDownloading(false)
       }
     }
 
-    const cancelPlaylistDownload = async () => {
-      cancelRef.current = true
-      try {
-        await (window as any).electron.cancelDownload()
-      } catch (err) {
-        console.error('Error cancelling download:', err)
-      }
-      setPlaylistDownloading(false)
-      toast.info("Playlist download cancelled")
-    }
+
 
     const globalDownloadSong = async (result: YoutubeDetailsResult, dir: any | null | undefined) => {
       if (!dir || cancelRef.current) {
@@ -175,44 +148,6 @@ const YoutubePlaylists = ({ playlists, currentDir }: YoutubePlaylistProps) => {
               <div className="font-bold">{playlist.title} - <span className="text-muted-foreground">{playlist.channel}</span> </div>
             </div>
             <div className="flex items-center gap-4">
-              {/* <div className="flex gap-2 items-center"> */}
-              {/*   {songsLeftToDownload.length > 0 ? ( */}
-              {/*     <> */}
-              {/*       {(playlistDownloading || isAnyDownloading) && ( */}
-              {/*         <Button */}
-              {/*           variant="destructive" */}
-              {/*           size="sm" */}
-              {/*           onClick={(e) => { */}
-              {/*             e.preventDefault() */}
-              {/*             e.stopPropagation() */}
-              {/*             cancelPlaylistDownload() */}
-              {/*           }} */}
-              {/*         > */}
-              {/*           <X /> */}
-              {/*         </Button> */}
-              {/*       )} */}
-              {/*       <Button variant={"muted_red"} onClick={handlePlaylistCreate}> */}
-              {/*         <ListMusic /> */}
-              {/*       </Button> */}
-              {/*       <Button */}
-              {/*         variant={"muted_red"} */}
-              {/*         disabled={isAnyDownloading || playlistDownloading || playlistDownloaded} */}
-              {/*         onClick={(e) => { */}
-              {/*           e.preventDefault() */}
-              {/*           e.stopPropagation() */}
-              {/*           downloadPlaylist(playlist) */}
-              {/*         }} */}
-              {/*         className={playlistError ? 'animate-pulse bg-red-500 hover:bg-red-600' : ''} */}
-              {/*       > */}
-              {/*         {(isAnyDownloading || playlistDownloading) ? <Loader2 className="animate-spin" /> : <> */}
-              {/*           {playlistDownloaded ? <Check /> : <Download />} */}
-              {/*         </>} */}
-              {/*       </Button> */}
-              {/*     </> */}
-              {/*   ) : ( */}
-              {/*     <Check /> */}
-              {/*   )} */}
-              {/* </div> */}
               <div className="flex flex-col w-[80px]">
                 {currentlySavedSongs.length > 0 ? (
                   <>

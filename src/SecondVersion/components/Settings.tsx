@@ -17,15 +17,17 @@ import { loadExpandOnPlayFromLocalStorage, loadZenModeTimeoutFromLocalStorage, l
 import { useEffect } from "react";
 
 const ChatSettings = () => {
-
-
   const loadFromLocalStorage = () => {
     loadExpandOnPlayFromLocalStorage()
     loadZenModeToggleFromLocalStorage()
     loadZenModeTimeoutFromLocalStorage()
   }
+  const setDarkMode = () => {
+    localStorage.setItem("theme", "dark")
+  }
   useEffect(() => {
     loadFromLocalStorage()
+    setDarkMode()
   }, [])
 
 

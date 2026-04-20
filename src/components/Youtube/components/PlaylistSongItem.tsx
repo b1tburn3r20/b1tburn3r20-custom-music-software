@@ -3,22 +3,30 @@ import { useMusicStore } from "@/stores/useMusicStore"
 import { usePlayerStore } from "@/stores/usePlayerStore"
 import type { Song } from "@/types/DirectoryTypes"
 import type { YoutubeDetailsResult } from "@/types/YoutubeTypes"
-import { extendQueue, startNewQueue } from "@/utils/musicutils"
+import { startNewQueue } from "@/utils/musicutils"
 import { formatDuration } from "@/utils/textUtils"
-import { Check, Download, Loader2, Pause, Play, X } from "lucide-react"
-import { useState } from "react"
+import { Check, Download, Loader2, Pause, Play } from "lucide-react"
+import { useState, memo } from "react"
 import { toast } from "sonner"
 
 interface PlaylistSongItemProps {
   song: YoutubeDetailsResult
   index: number
-  currentDir: any | null
+  currentDir: unknown | null
   isDownloading: boolean
   isDownloaded: boolean
   onDownloadComplete: (song: Song) => void
 }
 
-const PlaylistSongItem = ({
+const arePropsEqual = (prevProps: PlaylistSongItemProps, nextProps: PlaylistSongItemProps) => {
+  if (prevProps.isDownloaded === nextProps.isDownloaded && prevProps.isDownloading === nextProps.isDownloading) {
+    return true
+  } else {
+    return false
+  }
+}
+
+const PlaylistSongItem = memo(({
   song,
   index,
   currentDir,
@@ -127,14 +135,7 @@ const PlaylistSongItem = ({
     }
   }
 
-  const cancelSongDownload = async () => {
-    try {
-      await (window as any).electron.cancelDownload()
-      toast.info(`Cancelled: ${song.title}`)
-    } catch (err) {
-      console.error('Error cancelling song download:', err)
-    }
-  }
+
 
   const isDownloading = downloading || globalIsDownloading
   const isDownloaded = downloaded || globalIsDownloaded
@@ -219,18 +220,9 @@ const PlaylistSongItem = ({
           </>
         )}
 
-        {/* No match or artist only - show download button */}
         {!songSame && (
           <>
-            {/* {isDownloading && ( */}
-            {/*   <Button */}
-            {/*     variant="destructive" */}
-            {/*     size="sm" */}
-            {/*     onClick={cancelSongDownload} */}
-            {/*   > */}
-            {/*     <X /> */}
-            {/*   </Button> */}
-            {/* )} */}
+
             <Button
               disabled={isDownloaded || isDownloading}
               onClick={() => downloadSong(song)}
@@ -249,6 +241,6 @@ const PlaylistSongItem = ({
       </div>
     </div>
   )
-}
+}, arePropsEqual)
 
 export default PlaylistSongItem
