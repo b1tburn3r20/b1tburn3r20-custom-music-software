@@ -1,6 +1,7 @@
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Separator } from "@/components/ui/separator"
 import { useMusicStore } from "@/stores/useMusicStore"
+import { usePlayerStore } from "@/stores/usePlayerStore"
 import type { Song } from "@/types/DirectoryTypes"
 import type { YoutubeDetailsResult, YoutubePlaylistResultType } from "@/types/YoutubeTypes"
 import { useState, useRef } from "react"
@@ -8,8 +9,131 @@ import { toast } from "sonner"
 import PlaylistSongItem from "./PlaylistSongItem"
 
 interface YoutubePlaylistProps {
-  playlists: YoutubePlaylistResultType[],
+  playlists: YoutubePlaylistResultType[]
   currentDir?: any | null
+}
+
+interface PlaylistItemProps {
+  playlist: YoutubePlaylistResultType
+  currentDir: any | null
+  currentlyDownloading: string[]
+  currentlyDownloaded: string[]
+  onDownloadSong: (song: YoutubeDetailsResult, dir: any) => Promise<void>
+  addRecentlyDownloaded: (song: Song) => void
+}
+
+const PlaylistItem = ({
+  playlist,
+  currentDir,
+  currentlyDownloading,
+  currentlyDownloaded,
+  onDownloadSong,
+  addRecentlyDownloaded,
+}: PlaylistItemProps) => {
+  const [playlistError, setPlaylistError] = useState(false)
+  const cancelRef = useRef(false)
+  const songCache = useMusicStore((f) => f.songCache)
+  const playing = usePlayerStore((f) => f.currentlyPlaying)
+  const paused = usePlayerStore((f) => f.paused)
+
+  const currentlySavedSongs = playlist.videos.filter(video =>
+    currentDir?.children?.some((child: any) =>
+      child.name.normalize("NFC").includes(video.title.normalize("NFC"))
+    )
+  )
+
+  const downloadPlaylist = async (playlist: YoutubePlaylistResultType, newdir?: any) => {
+    const dir = newdir ?? currentDir
+    if (!dir) {
+      toast.error('Please select a folder first')
+      return
+    }
+
+    cancelRef.current = false
+    setPlaylistError(false)
+
+    const songsToDownload = playlist.videos.filter(video =>
+      !currentDir?.children?.some((child: any) =>
+        child.name.normalize("NFC").includes(video.title.normalize("NFC"))
+      )
+    )
+
+    try {
+      for (const song of songsToDownload) {
+        if (cancelRef.current) break
+        await onDownloadSong(song, dir)
+      }
+    } catch (error) {
+      if (!cancelRef.current) {
+        setPlaylistError(true)
+        toast.error("Playlist download failed")
+        console.error(error)
+        setTimeout(() => setPlaylistError(false), 1000)
+      }
+    }
+  }
+
+  return (
+    <AccordionItem className="my-2" value={playlist.id}>
+      <AccordionTrigger className="w-full px-4 mb-4 bg-muted/50">
+        <div className="flex justify-between items-center w-full">
+          <div className="flex gap-2 items-center">
+            <div className="shrink-0 aspect-square bg-white/10 p-1 rounded-lg">
+              <img className="shrink-0 w-14 h-14 object-cover rounded-lg" src={playlist.thumbnail} />
+            </div>
+            <div className="font-bold">
+              {playlist.title} - <span className="text-muted-foreground">{playlist.channel}</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex flex-col w-[80px]">
+              {currentlySavedSongs.length > 0 ? (
+                <>
+                  {currentlySavedSongs.length === Number(playlist.videoCount) ? (
+                    <div className="text-muted-foreground">{currentlySavedSongs.length} / {playlist.videoCount}</div>
+                  ) : (
+                    <div className="flex flex-col">
+                      <div>{playlist.videoCount} songs</div>
+                      <Separator className="my-1 text-muted-foreground" />
+                      <div className="text-muted-foreground">{currentlySavedSongs.length} saved</div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div>{playlist.videoCount} songs</div>
+              )}
+            </div>
+          </div>
+        </div>
+      </AccordionTrigger>
+      <AccordionContent>
+        <div className="flex flex-col gap-2">
+          {playlist.videos.map((song, indx) => {
+            const songSame = songCache.find((s) => s.title === song.title)
+            const artistSame = songCache.some((s) => song.channel.toLowerCase().includes(s.artist.toLowerCase()))
+            const isPlaying = songSame?.title === playing?.metadata?.title
+
+            return (
+              <PlaylistSongItem
+                key={song.id}
+                song={song}
+                index={indx}
+                currentDir={currentDir}
+                isDownloading={currentlyDownloading.includes(song.id)}
+                isDownloaded={currentlyDownloaded.includes(song.id)}
+                isPlaying={isPlaying ?? false}
+                isPaused={paused}
+                songSame={songSame}
+                artistSame={artistSame}
+                onDownloadSong={(song) => onDownloadSong(song, currentDir)}
+                onDownloadComplete={addRecentlyDownloaded}
+              />
+            )
+          })}
+        </div>
+      </AccordionContent>
+    </AccordionItem>
+  )
 }
 
 const YoutubePlaylists = ({ playlists, currentDir }: YoutubePlaylistProps) => {
@@ -27,173 +151,56 @@ const YoutubePlaylists = ({ playlists, currentDir }: YoutubePlaylistProps) => {
     localStorage.setItem(LS_KEY, JSON.stringify(newRecPlayed))
   }
 
-  const PlaylistItem = ({ playlist }: { playlist: YoutubePlaylistResultType }) => {
-    const [playlistError, setPlaylistError] = useState(false)
-    const cancelRef = useRef(false)
+  const downloadSong = async (result: YoutubeDetailsResult, dir: any) => {
+    if (!dir) return
 
-    const currentlySavedSongs = playlist.videos.filter(video =>
-      currentDir?.children?.some(child =>
-        child.name.normalize("NFC").includes(video.title.normalize("NFC"))
-      )
-    )
+    setCurrentlyDownloading(prev => [...prev, result.id])
 
-    const downloadPlaylist = async (playlist: YoutubePlaylistResultType, newdir?: any) => {
-      if (playlistDownloading) return;
+    try {
+      const response = await (window as any).electron.downloadYoutube({
+        videoId: result.id,
+        title: result.title,
+        savePath: dir
+      })
 
-      const dir = newdir ? newdir : currentDir
-      if (!dir) {
-        toast.error('Please select a folder first');
-        return;
-      }
-
-      cancelRef.current = false
-      setPlaylistError(false)
-
-      const songsToDownload = playlist.videos.filter(video =>
-        !currentDir?.children?.some(child =>
-          child.name.normalize("NFC").includes(video.title.normalize("NFC"))
-        )
-      );
-
-      try {
-        for (const song of songsToDownload) {
-          if (cancelRef.current) {
-            console.log('Breaking playlist download loop')
-            break
-          }
-          await globalDownloadSong(song, dir)
-        }
-
-      } catch (error) {
-        if (!cancelRef.current) {
-          setPlaylistError(true)
-          toast.error("Playlist download failed")
-          console.error(error)
-          setTimeout(() => {
-            setPlaylistError(false)
-          }, 1000)
-        }
-      }
-    }
-
-
-
-    const globalDownloadSong = async (result: YoutubeDetailsResult, dir: any | null | undefined) => {
-      if (!dir || cancelRef.current) {
-        return;
-      }
-
-      setCurrentlyDownloading(prev => [...prev, result.id])
-
-      try {
-        const response = await (window as any).electron.downloadYoutube({
-          videoId: result.id,
-          title: result.title,
-          savePath: dir
-        });
-
-        if (cancelRef.current) {
-          return;
-        }
-
-        if (response.name) {
-          addRecentlyDownloaded(response)
-          setCurrentlyDownloaded(prev => [...prev, result.id])
-          const body = {
-            title: response.metadata.title,
-            artist: response.metadata.artist,
-            path: response.path,
-            thumbnail: response.metadata.thumbnail
-          }
-          addSongToCache(body)
-
-          setTimeout(() => {
-            setCurrentlyDownloaded((prev) => {
-              return (prev.filter((ids) => ids !== result.id))
-            })
-          }, 3000);
-        } else if (!response.success) {
-          toast.error(`Failed: ${result.title}`);
-        }
-      } catch (err: any) {
-        if (!cancelRef.current && !err.message?.includes('cancelled')) {
-          toast.error(`Error downloading: ${result.title}`);
-        }
-      } finally {
-        setCurrentlyDownloading((prev) => {
-          return (
-            prev.filter((ids) => ids !== result.id)
-          )
+      if (response.name) {
+        addRecentlyDownloaded(response)
+        setCurrentlyDownloaded(prev => [...prev, result.id])
+        addSongToCache({
+          title: response.metadata.title,
+          artist: response.metadata.artist,
+          path: response.path,
+          thumbnail: response.metadata.thumbnail
         })
+        setTimeout(() => {
+          setCurrentlyDownloaded(prev => prev.filter(id => id !== result.id))
+        }, 3000)
+      } else if (!response.success) {
+        toast.error(`Failed: ${result.title}`)
       }
+    } catch (err: any) {
+      if (!err.message?.includes('cancelled')) {
+        toast.error(`Error downloading: ${result.title}`)
+      }
+    } finally {
+      setCurrentlyDownloading(prev => prev.filter(id => id !== result.id))
     }
-
-    const handlePlaylistCreate = (newDir: any) => {
-      setTimeout(() => {
-        downloadPlaylist(playlist, newDir)
-      }, 200)
-    }
-
-    const downloadingCount = playlist.videos.filter(v => currentlyDownloading.includes(v.id)).length
-    const isAnyDownloading = downloadingCount > 0
-
-    return (
-      <AccordionItem className="my-2" key={playlist.id} value={playlist.id}>
-        <AccordionTrigger className="w-full px-4 mb-4 bg-muted/50">
-          <div className="flex justify-between items-center w-full">
-            <div className="flex gap-2 items-center">
-              <div className="shrink-0 aspect-square bg-white/10 p-1 rounded-lg">
-                <img className="shrink-0 w-14 h-14 object-cover rounded-lg" src={playlist.thumbnail} />
-              </div>
-              <div className="font-bold">{playlist.title} - <span className="text-muted-foreground">{playlist.channel}</span> </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="flex flex-col w-[80px]">
-                {currentlySavedSongs.length > 0 ? (
-                  <>
-                    {currentlySavedSongs.length == Number(playlist.videoCount) ? (
-                      <div className="text-muted-foreground">{currentlySavedSongs.length} / {playlist.videoCount}</div>
-                    ) : (
-                      <div className="flex flex-col">
-                        <div>{playlist.videoCount} songs</div>
-                        <Separator className="my-1 text-muted-foreground" />
-                        <div className="text-muted-foreground">{currentlySavedSongs.length} saved</div>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div>{playlist.videoCount} songs</div>
-                )}
-              </div>
-            </div>
-          </div>
-        </AccordionTrigger>
-        <AccordionContent>
-          <div className="flex flex-col gap-2">
-            {playlist.videos.map((song, indx) => (
-              <PlaylistSongItem
-                key={song.id}
-                song={song}
-                index={indx}
-                currentDir={currentDir}
-                isDownloading={currentlyDownloading.includes(song.id)}
-                isDownloaded={currentlyDownloaded.includes(song.id)}
-                onDownloadComplete={addRecentlyDownloaded}
-              />
-            ))}
-          </div>
-        </AccordionContent>
-      </AccordionItem>
-    )
   }
 
   return (
     <div>
-      <Accordion
-        type="multiple"
-        className="w-full"
-      >
-        {playlists.map((playlist) => <PlaylistItem key={playlist.id} playlist={playlist} />)}
+      <Accordion type="multiple" className="w-full">
+        {playlists.map((playlist) => (
+          <PlaylistItem
+            key={playlist.id}
+            playlist={playlist}
+            currentDir={currentDir}
+            currentlyDownloading={currentlyDownloading}
+            currentlyDownloaded={currentlyDownloaded}
+            onDownloadSong={downloadSong}
+            addRecentlyDownloaded={addRecentlyDownloaded}
+          />
+        ))}
       </Accordion>
     </div>
   )

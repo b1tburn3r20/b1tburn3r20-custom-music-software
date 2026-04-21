@@ -19,11 +19,13 @@ const LaxPlayer = () => {
   const zenTimeout = useSettingsStore((f) => f.zenModeTimeout)
   const backgroundStyle = activeSong?.metadata?.thumbnail
     ? {
-      backgroundImage: `url(${activeSong.metadata.thumbnail})`,
+      backgroundImage: `url("${encodeURI(activeSong.metadata.thumbnail)}")`,
       backgroundSize: 'cover',
       backgroundPosition: 'center',
     }
     : {};
+
+
 
   useEffect(() => {
     if (!zenEnabled) {
@@ -63,7 +65,7 @@ const LaxPlayer = () => {
     }
 
     window.addEventListener("keypress", handleKeyPress)
-
+    console.log(backgroundStyle)
     return () => window.removeEventListener("keypress", handleKeyPress)
   }, [expanded, setExpanded])
 
@@ -88,10 +90,10 @@ const LaxPlayer = () => {
   }
   return (
     <div
-      className={`absolute w-screen h-screen bg-background top-0 inset-x-0 transition-transform duration-500 ease-in-out z-10 ${expanded ? "-translate-y-0" : "translate-y-full"} ${isIdle ? 'cursor-none' : ''}`}
+      className={`absolute w-screen h-screen top-0 inset-x-0 transition-transform duration-500 ease-in-out z-10 ${expanded ? "-translate-y-0" : "translate-y-full"} ${isIdle ? 'cursor-none' : ''}`}
     >
       <div
-        className="flex  flex-col h-screen w-screen overflow-hidden relative bg-background transition-all duration-[3000ms] ease-in-out inset-shadow-black"
+        className="flex flex-col h-screen w-screen overflow-hidden relative transition-all duration-[3000ms] ease-in-out inset-shadow-black"
         onDoubleClick={(e) => handleDoubleClick(e)}
         style={backgroundStyle}
       >

@@ -1,13 +1,19 @@
 import { Button } from "@/components/ui/button"
-import { useMusicStore } from "@/stores/useMusicStore"
 import { usePlayerStore } from "@/stores/usePlayerStore"
 import type { Song } from "@/types/DirectoryTypes"
 import type { YoutubeDetailsResult } from "@/types/YoutubeTypes"
 import { startNewQueue } from "@/utils/musicutils"
 import { formatDuration } from "@/utils/textUtils"
 import { Check, Download, Loader2, Pause, Play } from "lucide-react"
-import { useState, memo } from "react"
+import { memo } from "react"
 import { toast } from "sonner"
+
+type CachedSong = {
+  title: string
+  artist: string
+  path: string
+  thumbnail: string
+}
 
 interface PlaylistSongItemProps {
   song: YoutubeDetailsResult
@@ -15,146 +21,91 @@ interface PlaylistSongItemProps {
   currentDir: unknown | null
   isDownloading: boolean
   isDownloaded: boolean
+  isPlaying: boolean
+  isPaused: boolean
+  songSame: CachedSong | undefined
+  artistSame: boolean
+  onDownloadSong: (song: YoutubeDetailsResult) => Promise<void>
   onDownloadComplete: (song: Song) => void
 }
 
-const arePropsEqual = (prevProps: PlaylistSongItemProps, nextProps: PlaylistSongItemProps) => {
-  if (prevProps.isDownloaded === nextProps.isDownloaded && prevProps.isDownloading === nextProps.isDownloading) {
-    return true
-  } else {
-    return false
-  }
+const arePropsEqual = (prev: PlaylistSongItemProps, next: PlaylistSongItemProps) => {
+  return (
+    prev.isDownloading === next.isDownloading &&
+    prev.isDownloaded === next.isDownloaded &&
+    prev.isPlaying === next.isPlaying &&
+    prev.isPaused === next.isPaused &&
+    prev.songSame === next.songSame &&
+    prev.artistSame === next.artistSame
+  )
 }
 
 const PlaylistSongItem = memo(({
   song,
   index,
   currentDir,
-  isDownloading: globalIsDownloading,
-  isDownloaded: globalIsDownloaded,
-  onDownloadComplete
+  isDownloading,
+  isDownloaded,
+  isPlaying,
+  isPaused,
+  songSame,
+  artistSame,
+  onDownloadSong,
+  onDownloadComplete,
 }: PlaylistSongItemProps) => {
-  const [downloaded, setDownloaded] = useState(false)
-  const [downloading, setDownloading] = useState(false)
-  const [hasError, setHasError] = useState(false)
-  const addSongToCache = useMusicStore((f) => f.addSongToCache)
-  const songCache = useMusicStore((f) => f.songCache)
   const setPlaying = usePlayerStore((f) => f.setCurrentlyPlaying)
   const setPaused = usePlayerStore((f) => f.setPaused)
-  const playing = usePlayerStore((f) => f.currentlyPlaying)
-  const paused = usePlayerStore((f) => f.paused)
-
-
-  const songSame = songCache.find((s) => s.title === song.title)
-  const isPlaying = songSame?.title === playing?.metadata?.title
-
-  const artistSame = songCache.some((s) =>
-    song.channel.toLowerCase().includes(s.artist.toLowerCase())
-  )
 
   const getStyles = () => {
-    if (songSame && artistSame) {
-      return "text-emerald-500"
-    } else if (songSame) {
-      return "text-red-500"
-    } else if (artistSame) {
-      return "text-amber-500"
-    } else {
-      return ""
-    }
+    if (songSame && artistSame) return "text-emerald-500"
+    if (songSame) return "text-red-500"
+    if (artistSame) return "text-amber-500"
+    return ""
   }
 
-  const handlePlay = async (cacheSong: typeof songSame) => {
-    if (!cacheSong) return
+  const handlePlay = async () => {
+    if (!songSame) return
 
-    if (isPlaying && !paused) {
+    if (isPlaying && !isPaused) {
       setPaused(true)
       return
-    } else if (isPlaying && paused) {
+    } else if (isPlaying && isPaused) {
       setPaused(false)
       return
     }
 
-    const body = {
+    const response: any = await (window as any).electron.getSongByPath({
       rootDir: currentDir,
-      path: cacheSong.path,
+      path: songSame.path,
       forceRefresh: false,
-    }
+    })
 
-    const response: any = await (window as any).electron.getSongByPath(body)
     if (response.song) {
-      setPlaying(response?.song)
-      startNewQueue(response?.song?.path)
+      setPlaying(response.song)
+      startNewQueue(response.song.path)
       setPaused(false)
     }
   }
 
-  const downloadSong = async (result: YoutubeDetailsResult) => {
+  const handleDownload = async () => {
     if (!currentDir) {
-      toast.error('Please select a folder first');
-      return;
+      toast.error('Please select a folder first')
+      return
     }
-
-    setDownloading(true);
-    setHasError(false);
-
-    try {
-      const response = await (window as any).electron.downloadYoutube({
-        videoId: result.id,
-        title: result.title,
-        savePath: currentDir
-      });
-
-      if (response?.name) {
-        setDownloaded(true);
-        onDownloadComplete(response)
-        const body = {
-          title: response.metadata.title,
-          artist: response.metadata.artist,
-          path: response.path,
-          thumbnail: response.metadata.thumbnail
-        }
-        addSongToCache(body)
-        setTimeout(() => setDownloaded(false), 3000);
-      } else {
-        setHasError(true);
-        toast.error(response.error || 'Download failed');
-        setTimeout(() => {
-          setHasError(false);
-        }, 1000);
-      }
-    } catch (err: any) {
-      setHasError(true);
-      const errorMsg = err.toString() || 'Failed to download video';
-      toast.error(errorMsg);
-      setTimeout(() => {
-        setHasError(false);
-      }, 1000);
-    } finally {
-      setDownloading(false);
-    }
+    await onDownloadSong(song)
   }
 
-
-
-  const isDownloading = downloading || globalIsDownloading
-  const isDownloaded = downloaded || globalIsDownloaded
+  const showPlayButton = !!songSame
+  const showDownloadButton = !songSame || !artistSame
 
   return (
-    <div
-      key={song.id}
-      className={`flex justify-between p-2 rounded-lg ${index % 2 === 0 ? "bg-muted/80" : ""}`}
-    >
+    <div className={`flex justify-between p-2 rounded-lg ${index % 2 === 0 ? "bg-muted/80" : ""}`}>
       <div className="flex items-center gap-4">
         <div className="shrink-0 aspect-square bg-white/10 p-1 rounded-lg">
-          <img
-            className="shrink-0 w-10 h-10 object-cover rounded-lg"
-            src={song.thumbnail}
-            alt={song.title}
-          />
+          <img className="shrink-0 w-10 h-10 object-cover rounded-lg" src={song.thumbnail} alt={song.title} />
         </div>
         <div className={getStyles()}>
-          <p>{song.title} - {song.channel} </p>
+          <p>{song.title} - {song.channel}</p>
         </div>
       </div>
 
@@ -163,80 +114,21 @@ const PlaylistSongItem = memo(({
           {formatDuration(song.lengthSeconds)}
         </div>
 
-        {songSame && artistSame && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => handlePlay(songSame)}
-          >
-            {isPlaying && !paused ? (
-              <div>
-                <Pause className="text-primary" />
-              </div>
-            ) : (
-              <div>
-
-                <Play className="text-primary" />
-              </div>
-            )}
+        {showPlayButton && (
+          <Button variant="ghost" size="sm" onClick={handlePlay}>
+            {isPlaying && !isPaused ? <Pause className="text-primary" /> : <Play className="text-primary" />}
           </Button>
         )}
 
-        {songSame && !artistSame && (
-          <>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handlePlay(songSame)}
-            >
-              {isPlaying && !paused ? (
-                <Pause className="text-primary" />
-              ) : (
-                <Play className="text-primary" />
-              )}
-            </Button>
-            {/* {isDownloading && ( */}
-            {/*   <Button */}
-            {/*     variant="destructive" */}
-            {/*     size="sm" */}
-            {/*     onClick={cancelSongDownload} */}
-            {/*   > */}
-            {/*     <X /> */}
-            {/*   </Button> */}
-            {/* )} */}
-            <Button
-              disabled={isDownloaded || isDownloading}
-              onClick={() => downloadSong(song)}
-              className={hasError ? 'animate-pulse bg-red-500 hover:bg-red-600' : ''}
-              variant={"red"}
-              size="sm"
-            >
-              {isDownloading ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                isDownloaded ? <Check /> : <Download />
-              )}
-            </Button>
-          </>
-        )}
-
-        {!songSame && (
-          <>
-
-            <Button
-              disabled={isDownloaded || isDownloading}
-              onClick={() => downloadSong(song)}
-              className={hasError ? 'animate-pulse bg-red-500 hover:bg-red-600' : ''}
-              variant={"red"}
-              size="sm"
-            >
-              {isDownloading ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                isDownloaded ? <Check /> : <Download />
-              )}
-            </Button>
-          </>
+        {showDownloadButton && (
+          <Button
+            disabled={isDownloaded || isDownloading}
+            onClick={handleDownload}
+            variant="red"
+            size="sm"
+          >
+            {isDownloading ? <Loader2 className="animate-spin" /> : isDownloaded ? <Check /> : <Download />}
+          </Button>
         )}
       </div>
     </div>
