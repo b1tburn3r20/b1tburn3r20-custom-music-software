@@ -26,12 +26,10 @@ const YoutubeInstall = () => {
     try {
       const query = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(search)}&key=${API_KEY}&type=${playlist ? "playlist" : "video"}&maxResults=${playlist ? "15" : "30"}${optionalParams}`
 
-      console.log("This was the query", query)
       const response = await fetch(
         query
       )
       const data = await response.json()
-      console.log("heres the data", data)
       if (playlist) {
         processYoutubePlaylistResponse(data.items)
       } else (

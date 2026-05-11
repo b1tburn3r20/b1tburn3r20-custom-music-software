@@ -4,6 +4,7 @@ import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, C
 import { useAppStore } from "@/stores/useAppStore"
 import { useDirectoryStore } from "@/stores/useDirectoryStore"
 import { useMusicStore } from "@/stores/useMusicStore"
+import { usePlayerStore } from "@/stores/usePlayerStore"
 import type { Song } from "@/types/DirectoryTypes"
 import { Play, Trash2, Pause, Loader2, ListPlus, } from "lucide-react"
 import { useState } from "react"
@@ -30,6 +31,27 @@ const SongComponent = ({ song, isPlaying, onPlay, onPause, onResume, isPaused, d
   const setActiveAlbum = useMusicStore((f) => f.setActiveAlbum)
   const setActiveArtist = useMusicStore((f) => f.setActiveArtist)
 
+  const currentlyPlayingSong = usePlayerStore((s) => s.currentlyPlaying)
+
+  const handlePlayNext = () => {
+    if (isPlaying) return
+    const { queue, setQueue } = useMusicStore.getState()
+    const updatedQueue = [...queue]
+    const existingIndex = updatedQueue.findIndex(
+      (s) => s.path === song.path
+    )
+    if (existingIndex !== -1) {
+      updatedQueue.splice(existingIndex, 1)
+    }
+    const currentIndex = updatedQueue.findIndex(
+      (s) => s.path === currentlyPlayingSong?.path
+    )
+    const insertIndex = currentIndex === -1
+      ? 0
+      : currentIndex + 1
+    updatedQueue.splice(insertIndex, 0, song)
+    setQueue(updatedQueue)
+  }
   const handleClick = () => {
     if (deleting) {
       return
@@ -174,6 +196,10 @@ const SongComponent = ({ song, isPlaying, onPlay, onPause, onResume, isPaused, d
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent className="w-56">
+        <ContextMenuItem onClick={handlePlayNext} className="flex items-center gap-3 py-3 cursor-pointer">
+          <Play className="h-4 w-4" />
+          <span className="text-sm">Play Next</span>
+        </ContextMenuItem>
         <ContextMenuItem onClick={handleDelete} className="flex items-center gap-3 py-3 cursor-pointer">
           <Trash2 className="h-4 w-4" />
           <span className="text-sm">Delete Song</span>

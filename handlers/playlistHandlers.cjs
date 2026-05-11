@@ -57,7 +57,6 @@ async function loadPlaylistsFromDisk() {
     return true;
   } catch (error) {
     if (error.code === 'ENOENT') {
-      console.log('No playlist file found, will create on first save');
       playlistCache = {
         playlists: [],
         lastUpdated: Date.now()
@@ -82,7 +81,6 @@ async function savePlaylistsToDisk() {
 
     await fs.writeFile(playlistFilePath, JSON.stringify(playlistData, null, 2), 'utf-8');
     playlistCache.lastUpdated = Date.now();
-    console.log('Playlists saved to disk');
     return true;
   } catch (error) {
     console.error('Error saving playlists to disk:', error);
@@ -425,7 +423,6 @@ async function cleanupPlaylists() {
 
   if (updated) {
     await savePlaylistsToDisk();
-    console.log('Playlists cleaned up');
   }
 }
 

@@ -118,11 +118,6 @@ const ChangeMusicFolder = () => {
           description: `${result.synced.length} playlists synced to your Pixel 8 Pro`
         });
 
-        console.log('Sync results:', {
-          synced: result.synced,
-          skipped: result.skipped,
-          errors: result.errors
-        });
 
       } else {
         setSyncStatus('error');
@@ -150,7 +145,6 @@ const ChangeMusicFolder = () => {
   // Listen for sync progress updates
   useEffect(() => {
     const cleanup = window.electron.onSyncProgress?.((data) => {
-      console.log('[Sync Progress]', data);
       if (data.status === 'syncing') {
         setSyncMessage(data.message);
       } else if (data.status === 'complete') {

@@ -102,7 +102,7 @@ async function loadCacheFromDisk() {
     return true;
   } catch (error) {
     if (error.code === 'ENOENT') {
-      console.log('No cache file found, will create on first build');
+      console.info('No cache file found, will create on first build');
     } else {
       console.error('Error loading cache from disk:', error);
     }
@@ -123,7 +123,6 @@ async function saveCacheToDisk() {
     };
 
     await fs.writeFile(cacheFilePath, JSON.stringify(cacheData, null, 2), 'utf-8');
-    console.log('Cache saved to disk');
     return true;
   } catch (error) {
     console.error('Error saving cache to disk:', error);
@@ -163,8 +162,6 @@ async function buildSongCache(rootDir) {
   // Save to disk
   await saveCacheToDisk();
 
-  const duration = Date.now() - startTime;
-  console.log(`Song cache built: ${songs.length} songs in ${duration}ms`);
 
   return songCache;
 }
@@ -199,7 +196,6 @@ async function addSongToCache(filePath, rootDir) {
     // Save updated cache to disk
     await saveCacheToDisk();
 
-    console.log(`Added song to cache: ${fileName}`);
     return true;
   } catch (error) {
     console.error('Error adding song to cache:', error);
@@ -229,7 +225,6 @@ async function removeSongFromCache(filePath) {
     // Save updated cache to disk
     await saveCacheToDisk();
 
-    console.log(`Removed song from cache: ${filePath}`);
     return true;
   } catch (error) {
     console.error('Error removing song from cache:', error);
@@ -258,7 +253,6 @@ async function updateSongInCache(filePath) {
       };
       songCache.lastUpdated = Date.now();
       await saveCacheToDisk();
-      console.log(`Updated song in cache: ${fileName}`);
       return true;
     }
 
@@ -273,7 +267,6 @@ async function updateSongInCache(filePath) {
  * Invalidate cache
  */
 async function invalidateCache() {
-  console.log('Invalidating song cache');
 
   // Clear thumbnail cache directory
   try {
@@ -611,7 +604,6 @@ async function readFolder(event, folderPath) {
 }
 
 async function deleteFile(event, filePath) {
-  console.log("Got this file path", filePath);
   try {
     await fs.unlink(filePath);
 
@@ -697,7 +689,6 @@ async function extractMp3Metadata(filePath) {
   }
 }
 async function getLightweightSongIndex(event, { rootDir, forceRefresh = false }) {
-  console.log("Being ran with ", rootDir)
   try {
     if (forceRefresh || songCache.rootDir !== rootDir || songCache.songs.length === 0) {
       await buildSongCache(rootDir);

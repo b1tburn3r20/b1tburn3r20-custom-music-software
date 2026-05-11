@@ -13,14 +13,9 @@ const LibraryView = () => {
   const view = useAppStore((f) => f.view)
   const rootDir = useDirectoryStore((f) => f.rootDir)
   const setPaused = usePlayerStore((f) => f.setPaused)
-  const setView = useAppStore((store) => store.setView)
   const paused = usePlayerStore((f) => f.paused)
-  const currentlyPlaying = usePlayerStore((f) => f.currentlyPlaying)
-  const activeArtist = useMusicStore((f) => f.activeArtist)
-  const setActiveAlbum = useMusicStore((f) => f.setActiveAlbum)
   //
   const allAlbums = useMusicStore((f) => f.allAlbums)
-  const allArtists = useMusicStore((f) => f.allArtists)
   const setAllAlbums = useMusicStore((f) => f.setAllAlbums)
   const setAllArtists = useMusicStore((f) => f.setAllArtists)
   //
@@ -32,9 +27,7 @@ const LibraryView = () => {
         rootDir,
       });
       if (result.success) {
-        console.log(result)
         setAllArtists(result.artists)
-      } else {
       }
     } catch (err) {
       console.error("heres the error", err)
@@ -47,7 +40,6 @@ const LibraryView = () => {
 
       });
       if (result.success) {
-        console.log("here are the albums", result.albums)
         setAllAlbums(result.albums)
       } else {
 

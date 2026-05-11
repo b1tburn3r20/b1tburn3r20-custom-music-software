@@ -92,26 +92,7 @@ const SearchMusic = () => {
   const handleResume = () => {
     setPaused(false)
   }
-  const getSongCache = async () => {
-    if (!rootMusicDir) return
-    setIsLoading(true)
-    try {
-      const result = await (window as any).electron.getSongCache({
-        rootDir: rootMusicDir,
-        forceRefresh: false
-      })
-      if (result?.songs.length) {
-        setSongCache(result.songs)
-      }
-    } catch (error) {
-      console.error('Error loading songs:', error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
   const searchMusic = async (query?: string) => {
-    console.log("root dir", rootMusicDir)
     if (!rootMusicDir) return;
     setIsLoading(true);
     setQuery(query ?? "");
@@ -123,7 +104,6 @@ const SearchMusic = () => {
         forceRefresh: false,
       });
 
-      console.log("results", result)
       if (result.success) {
         setMusicResults(result.songs);
       }

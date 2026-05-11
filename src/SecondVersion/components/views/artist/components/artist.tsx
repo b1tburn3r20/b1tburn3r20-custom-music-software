@@ -9,6 +9,7 @@ import { useColorCacheStore } from "@/stores/useColorCacheStore"
 import { useMusicStore } from "@/stores/useMusicStore"
 import AlbumComponent from "./AlbumComponent"
 import SongComponent from "@/SecondVersion/components/song-component"
+import ArtistActionButtons from "./ArtistActionButtons"
 
 const ActiveArtist = () => {
   const setPaused = usePlayerStore((f) => f.setPaused)
@@ -89,12 +90,11 @@ const ActiveArtist = () => {
               {activeArtist?.artist_name}
             </h1>
             <div className="flex gap-2 items-center">
+
+              <ArtistActionButtons songs={activeArtist?.artist_songs} />
             </div>
           </div>
         </div>
-        {/* <div className="absolute -bottom-10.5"> */}
-        {/*   <AlbumActionButtons songs={activeArtist?.artist_songs} /> */}
-        {/* </div> */}
       </div>
       {activeArtist?.artist_albums.length ? (
 

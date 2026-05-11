@@ -1,19 +1,19 @@
 
 import type { Song } from "@/types/DirectoryTypes"
 import AlbumPlayButton from "./ArtistPlayButton"
-import AlbumSuffleButton from "./ArtistShuffleButton"
+import ArtistShuffleButton from "./artist-shuffle"
 
 interface PlaylistActionButtonsProps {
   songs: Song[]
 }
 
-const AlbumActionButtons = ({ songs }: PlaylistActionButtonsProps) => {
+const ArtistActionButtons = ({ songs }: PlaylistActionButtonsProps) => {
   return (
     <div className="flex gap-4 items-center">
       {songs?.length ? (
         <>
           <AlbumPlayButton songs={songs} />
-          <AlbumSuffleButton />
+          <ArtistShuffleButton songs={songs} />
 
         </>
       ) : ""}
@@ -21,4 +21,4 @@ const AlbumActionButtons = ({ songs }: PlaylistActionButtonsProps) => {
   )
 }
 
-export default AlbumActionButtons
+export default ArtistActionButtons

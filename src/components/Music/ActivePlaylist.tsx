@@ -38,7 +38,6 @@ const ActivePlaylist = () => {
 
   useEffect(() => {
     const cleanup = window.electron.onDownloadComplete(async (data) => {
-      console.log("this the data", data)
       if (activeDir?.path === data.folderPath) {
         const updatedDir = await window.electron.readFolderDetails(data.folderPath);
         setCurrentDir(updatedDir);

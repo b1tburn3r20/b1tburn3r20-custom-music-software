@@ -117,12 +117,6 @@ const ChangeRootDir = () => {
           description: `${result.synced.length} playlists synced to your Pixel 8 Pro`
         });
 
-        console.log('Sync results:', {
-          synced: result.synced,
-          skipped: result.skipped,
-          errors: result.errors
-        });
-
       } else {
         setSyncStatus('error');
         setSyncMessage(result.error || 'Sync failed');
@@ -149,7 +143,6 @@ const ChangeRootDir = () => {
   // Listen for sync progress updates
   useEffect(() => {
     const cleanup = window.electron.onSyncProgress?.((data) => {
-      console.log('[Sync Progress]', data);
       if (data.status === 'syncing') {
         setSyncMessage(data.message);
       } else if (data.status === 'complete') {
@@ -167,17 +160,12 @@ const ChangeRootDir = () => {
   }, []);
 
   useEffect(() => {
-    console.log('[ChangeRootDir] Setting up download-complete listener');
     const cleanup = window.electron.onDownloadComplete((data) => {
-      console.log('[ChangeRootDir] Download complete received:', data);
-      console.log('  - folderPath:', data.folderPath);
-      console.log('  - updatedFolder:', data.updatedFolder);
       if (!data.updatedFolder) {
         console.warn('[ChangeRootDir] No updatedFolder data received!');
         return;
       }
       updateFolderInDirData(data.folderPath, data.updatedFolder);
-      console.log('[ChangeRootDir] Called updateFolderInDirData');
     });
     return cleanup;
   }, [updateFolderInDirData]);

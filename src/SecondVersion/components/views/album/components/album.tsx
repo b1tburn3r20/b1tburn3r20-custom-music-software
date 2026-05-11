@@ -114,7 +114,11 @@ const ActiveAlbum = () => {
             </h1>
             <div className="mb-2">
               <div className="flex gap-2 items-center">
-                {activeAlbum?.album_artists?.map((artist, index) => <p className="hover:underline cursor-pointer" onClick={() => handleViewArtist(artist)}>{artist}{index + 1 < activeAlbum?.album_artists?.length && (<span>,</span>)}</p>)}
+                {activeAlbum?.album_artists?.length >= 5 ? "Various Artists" : (
+                  <>
+                    {activeAlbum?.album_artists?.map((artist, index) => <p className="hover:underline cursor-pointer" onClick={() => handleViewArtist(artist)}>{artist}{index + 1 < activeAlbum?.album_artists?.length && (<span>,</span>)}</p>)}
+                  </>
+                )}
               </div>
               <div className="text-muted-foreground flex gap-2 items-center">
                 {activeAlbum?.album_release_date?.map((artist, index) => <p>{artist}{index + 1 < activeAlbum?.album_release_date?.length && (<span>,</span>)}</p>)}

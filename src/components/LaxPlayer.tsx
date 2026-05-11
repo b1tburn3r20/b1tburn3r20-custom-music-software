@@ -65,7 +65,6 @@ const LaxPlayer = () => {
     }
 
     window.addEventListener("keypress", handleKeyPress)
-    console.log(backgroundStyle)
     return () => window.removeEventListener("keypress", handleKeyPress)
   }, [expanded, setExpanded])
 

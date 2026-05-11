@@ -92,7 +92,6 @@ function registerDownloadHandlers() {
  * Cancel all active downloads
  */
 function cancelAllDownloads() {
-  console.log(`Cancelling ${activeDownloadProcesses.size} active downloads`);
   activeDownloadProcesses.forEach(process => {
     try {
       process.kill('SIGTERM');
@@ -219,7 +218,6 @@ async function downloadYouTube(event, { videoId, title, savePath }) {
             try {
               await fs.access(finalFilePath);
 
-              console.log('Adding downloaded song to cache:', finalFilePath);
               await addSongToCache(finalFilePath, savePath);
 
               const newSongData = await getSongData(finalFilePath);

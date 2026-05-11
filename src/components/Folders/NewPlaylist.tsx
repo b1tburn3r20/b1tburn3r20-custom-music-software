@@ -16,7 +16,6 @@ const NewPlaylist = () => {
   const setDirData = useDirectoryStore((f) => f.setDirData)
   const setCurrentPlaylist = useDirectoryStore((f) => f.setCurrentDir)
   const [nameTaken, setNameTaken] = useState(false)
-  const setView = useAppStore((f) => f.setView)
 
   const createPlaylist = async () => {
     const body = {
@@ -30,7 +29,6 @@ const NewPlaylist = () => {
       }
       if (response.success) {
         const newfolders = await window.electron.readFolderTree(rootDir);
-        console.log("new folders", newfolders)
         setDirData(newfolders);
         lookAndSetNewPlaylist(playlistName)
       }
@@ -49,8 +47,6 @@ const NewPlaylist = () => {
       setCurrentPlaylist(playlistContents);
     } catch (err) {
       console.error('Error reading folder:', err);
-    } finally {
-      console.log("donezo")
     }
   };
 

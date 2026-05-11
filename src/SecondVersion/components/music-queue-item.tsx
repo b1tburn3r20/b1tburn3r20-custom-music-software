@@ -4,6 +4,7 @@ import { Separator } from "@/components/ui/separator"
 import { useAppStore } from "@/stores/useAppStore"
 import { useDirectoryStore } from "@/stores/useDirectoryStore"
 import { useMusicStore } from "@/stores/useMusicStore"
+import { usePlayerStore } from "@/stores/usePlayerStore"
 import { useSettingsStore } from "@/stores/useSettingsStore"
 import type { PlaylistType } from "@/types/AppTypes"
 import type { Song } from "@/types/DirectoryTypes"
@@ -46,6 +47,27 @@ const MusicQueueItem = ({
   const setActiveAlbum = useMusicStore((f) => f.setActiveAlbum)
   const setExpanded = useSettingsStore((f) => f.setPlayerExpanded)
   const setActiveArtist = useMusicStore((f) => f.setActiveArtist)
+  const currentlyPlayingSong = usePlayerStore((f) => f.currentlyPlaying)
+  const handlePlayNext = () => {
+    if (isPlaying) return
+    const { queue, setQueue } = useMusicStore.getState()
+    const updatedQueue = [...queue]
+    const existingIndex = updatedQueue.findIndex(
+      (s) => s.path === song.path
+    )
+    if (existingIndex !== -1) {
+      updatedQueue.splice(existingIndex, 1)
+    }
+    const currentIndex = updatedQueue.findIndex(
+      (s) => s.path === currentlyPlayingSong?.path
+    )
+    const insertIndex = currentIndex === -1
+      ? 0
+      : currentIndex + 1
+    updatedQueue.splice(insertIndex, 0, song)
+    setQueue(updatedQueue)
+  }
+
 
   const handleViewAlbum = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -59,7 +81,6 @@ const MusicQueueItem = ({
       if (result.success) {
         setView("album")
         setActiveAlbum(result)
-      } else {
       }
     } catch (err) {
       console.error('error', err);
@@ -74,7 +95,6 @@ const MusicQueueItem = ({
         rootDir,
         artistName: song?.metadata?.artist,
       });
-      console.log("hi", result)
       if (result.success) {
         setView("artist")
         setActiveArtist(result)
@@ -210,6 +230,14 @@ const MusicQueueItem = ({
         </ContextMenuTrigger>
 
         <ContextMenuContent className="w-56">
+          <ContextMenuItem
+            onClick={handlePlayNext}
+            className="flex items-center gap-3 py-3 cursor-pointer"
+          >
+            <Play className="h-4 w-4" />
+            <span className="text-sm">Play Next</span>
+          </ContextMenuItem>
+
           <ContextMenuItem
             onClick={handleDelete}
             className="flex items-center gap-3 py-3 cursor-pointer"

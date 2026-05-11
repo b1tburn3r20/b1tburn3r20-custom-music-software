@@ -13,6 +13,7 @@ const YoutubeVideoURLSearch = () => {
   const [videoResult, setVideoResult] = useState<YoutubeDetailsResult | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const currentDir = useDirectoryStore((f) => f.rootDir);
+  const setPlaylists = useYoutubeStore((f) => f.setPlaylists)
   const setYoutubePlaylistResults = useYoutubeStore((f) => f.setYoutubePlaylistResults);
 
   const API_KEY = import.meta.env.VITE_YOUTUBE_API_KEY;
@@ -130,11 +131,10 @@ const YoutubeVideoURLSearch = () => {
 
         nextPageToken = playlistItemsData.nextPageToken;
       } while (nextPageToken);
-
       const playlistWithVideos = {
         id: playlist.id,
         title: playlist.snippet.title,
-        thumbnail: playlist.snippet.thumbnails.high?.url,
+        thumbnail: playlist.snippet.thumbnails.medium?.url,
         channel: playlist.snippet.channelTitle,
         videoCount: playlist.contentDetails.itemCount,
         videos: allVideos,
@@ -147,6 +147,7 @@ const YoutubeVideoURLSearch = () => {
       console.error('Error fetching playlist:', err);
     } finally {
       setLoading(false);
+      setPlaylists(true)
     }
   };
 
