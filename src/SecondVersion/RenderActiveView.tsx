@@ -1,39 +1,37 @@
-import { useAppStore } from "@/stores/useAppStore"
+import { useAppStore } from "@/stores/useAppStore";
 import SecondVersionHome from "./SecondVersionHome";
 import YoutubeView from "./components/YoutubeView";
 import PlaylistView from "./components/PlaylistView";
 import LibraryView from "./components/LibraryView";
 import ArtistView from "./components/views/ArtistView";
 import AlbumView from "./components/views/AlbumView";
+import LikedSongsView from "./components/views/liked-songs-view";
 
 const RenderActiveView = () => {
-
-  const activeSegment = useAppStore((f) => f.view)
+  const activeSegment = useAppStore((f) => f.view);
 
   const renderView = () => {
     switch (activeSegment) {
       case "home":
-        return <SecondVersionHome />
+        return <SecondVersionHome />;
       case "artist":
-        return <ArtistView />
+        return <ArtistView />;
       case "album":
-        return <AlbumView />
+        return <AlbumView />;
       case "library":
-        return <LibraryView />
+        return <LibraryView />;
       case "youtube":
-        return <YoutubeView />
+        return <YoutubeView />;
+      case "likedSongs":
+        return <LikedSongsView />;
       case "playlist":
-        return <PlaylistView />
+        return <PlaylistView />;
       default:
         return <div>Unknown view</div>;
     }
-  }
+  };
 
-  return (
-    <div>
-      {renderView()}
-    </div>
-  )
-}
+  return <div>{renderView()}</div>;
+};
 
-export default RenderActiveView
+export default RenderActiveView;
