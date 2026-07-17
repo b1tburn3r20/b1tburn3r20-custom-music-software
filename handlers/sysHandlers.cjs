@@ -6,15 +6,10 @@ const path = require("path");
 
 const execAsync = promisify(exec);
 
-/**
- */
 function registerSyncHandlers() {
   ipcMain.handle('sync-to-phone', syncToPhone);
   ipcMain.handle('check-adb-connection', checkAdbConnection);
 }
-
-/**
- */
 async function checkAdbConnection() {
   try {
     try {
@@ -88,9 +83,6 @@ async function checkAdbConnection() {
     };
   }
 }
-
-/**
- */
 async function cleanupPhoneMusic(event, deviceId, rootPath, results) {
   try {
     event.sender.send('sync-progress', {
@@ -152,8 +144,6 @@ async function cleanupPhoneMusic(event, deviceId, rootPath, results) {
   }
 }
 
-/**
- */
 async function syncToPhone(event, { rootPath }) {
   try {
     const connectionCheck = await checkAdbConnection();

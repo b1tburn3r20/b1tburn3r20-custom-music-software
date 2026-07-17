@@ -5,11 +5,6 @@ const crypto = require('crypto');
 
 const fileSystemHandler = require('./fileSystemHandlers.cjs');
 
-// ============================================================================
-// PLAYLIST CACHE SYSTEM WITH PERSISTENT JSON STORAGE
-// ============================================================================
-
-// Get playlist file path in user data directory
 function getPlaylistFilePath() {
   const userDataPath = app.getPath('userData');
   return path.join(userDataPath, 'playlists.json');
@@ -20,16 +15,9 @@ let playlistCache = {
   lastUpdated: null
 };
 
-/**
- * Get song cache data from file system handler
- */
 function getSongCache() {
   return fileSystemHandler.getSongCacheData();
 }
-
-/**
- * Resolve song paths to full song objects from cache
- */
 function resolveSongsFromCache(songPaths) {
   const songCache = getSongCache();
   return songPaths
@@ -37,12 +25,8 @@ function resolveSongsFromCache(songPaths) {
       const song = songCache.songs.find(s => s.path === songPath);
       return song || null;
     })
-    .filter(song => song !== null); // Remove any songs that couldn't be found
+    .filter(song => song !== null);
 }
-
-/**
- * Load playlists from disk
- */
 async function loadPlaylistsFromDisk() {
   try {
     const playlistFilePath = getPlaylistFilePath();
@@ -67,10 +51,6 @@ async function loadPlaylistsFromDisk() {
     return false;
   }
 }
-
-/**
- * Save playlists to disk (stores only paths to keep file size small)
- */
 async function savePlaylistsToDisk() {
   try {
     const playlistFilePath = getPlaylistFilePath();
@@ -87,20 +67,12 @@ async function savePlaylistsToDisk() {
     return false;
   }
 }
-
-/**
- * Generate unique playlist ID
- */
 function generatePlaylistId() {
   return `playlist-${crypto.randomBytes(8).toString('hex')}-${Date.now()}`;
 }
 
-// Load playlists on module load
 loadPlaylistsFromDisk();
 
-// ============================================================================
-// IPC HANDLERS REGISTRATION
-// ============================================================================
 function registerPlaylistHandlers() {
   ipcMain.handle('get-playlists', getPlaylists);
   ipcMain.handle('create-playlist', createPlaylist);
@@ -110,21 +82,12 @@ function registerPlaylistHandlers() {
   ipcMain.handle('remove-song-from-playlist', removeSongFromPlaylist);
   ipcMain.handle('get-playlist-songs', getPlaylistSongs);
 }
-
-// ============================================================================
-// PLAYLIST OPERATIONS
-// ============================================================================
-
-/**
- * Get all playlists with resolved song data
- */
 async function getPlaylists(event, { forceRefresh = false } = {}) {
   try {
     if (forceRefresh) {
       await loadPlaylistsFromDisk();
     }
 
-    // Resolve songs for each playlist
     const playlistsWithSongs = playlistCache.playlists.map(playlist => ({
       ...playlist,
       songs: resolveSongsFromCache(playlist.songs),
@@ -146,9 +109,6 @@ async function getPlaylists(event, { forceRefresh = false } = {}) {
   }
 }
 
-/**
- * Get songs for a specific playlist
- */
 async function getPlaylistSongs(event, { playlistId }) {
   try {
     const playlist = playlistCache.playlists.find(p => p.id === playlistId);
@@ -176,9 +136,6 @@ async function getPlaylistSongs(event, { playlistId }) {
   }
 }
 
-/**
- * Create a new playlist
- */
 async function createPlaylist(event, { name, description = '' }) {
   try {
     if (!name || name.trim() === '') {
@@ -194,7 +151,7 @@ async function createPlaylist(event, { name, description = '' }) {
       description: description.trim(),
       created: Date.now(),
       updated: Date.now(),
-      songs: [] // Array of song paths
+      songs: []
     };
 
     playlistCache.playlists.push(newPlaylist);
@@ -204,7 +161,7 @@ async function createPlaylist(event, { name, description = '' }) {
       success: true,
       playlist: {
         ...newPlaylist,
-        songs: [], // Empty array of song objects
+        songs: [],
         songCount: 0
       }
     };
@@ -216,10 +173,6 @@ async function createPlaylist(event, { name, description = '' }) {
     };
   }
 }
-
-/**
- * Update a playlist (name, description, or reorder songs)
- */
 async function updatePlaylist(event, { playlistId, name, description, songs }) {
   try {
     const playlistIndex = playlistCache.playlists.findIndex(p => p.id === playlistId);
@@ -232,8 +185,6 @@ async function updatePlaylist(event, { playlistId, name, description, songs }) {
     }
 
     const playlist = playlistCache.playlists[playlistIndex];
-
-    // Update fields if provided
     if (name !== undefined) {
       playlist.name = name.trim();
     }
@@ -241,7 +192,6 @@ async function updatePlaylist(event, { playlistId, name, description, songs }) {
       playlist.description = description.trim();
     }
     if (songs !== undefined) {
-      // If songs are provided as objects, extract their paths
       playlist.songs = Array.isArray(songs)
         ? songs.map(song => typeof song === 'string' ? song : song.path)
         : [];
@@ -267,10 +217,6 @@ async function updatePlaylist(event, { playlistId, name, description, songs }) {
     };
   }
 }
-
-/**
- * Delete a playlist
- */
 async function deletePlaylist(event, { playlistId }) {
   try {
     const playlistIndex = playlistCache.playlists.findIndex(p => p.id === playlistId);
@@ -301,10 +247,6 @@ async function deletePlaylist(event, { playlistId }) {
     };
   }
 }
-
-/**
- * Add a song to a playlist
- */
 async function addSongToPlaylist(event, { playlistId, songPath }) {
   try {
     const playlist = playlistCache.playlists.find(p => p.id === playlistId);
@@ -315,8 +257,6 @@ async function addSongToPlaylist(event, { playlistId, songPath }) {
         error: 'Playlist not found'
       };
     }
-
-    // Verify song exists in cache
     const songCache = getSongCache();
     const songExists = songCache.songs.some(s => s.path === songPath);
 
@@ -326,8 +266,6 @@ async function addSongToPlaylist(event, { playlistId, songPath }) {
         error: 'Song not found in library'
       };
     }
-
-    // Check if song already exists in playlist
     if (playlist.songs.includes(songPath)) {
       return {
         success: false,
@@ -356,10 +294,6 @@ async function addSongToPlaylist(event, { playlistId, songPath }) {
     };
   }
 }
-
-/**
- * Remove a song from a playlist
- */
 async function removeSongFromPlaylist(event, { playlistId, songPath }) {
   try {
     const playlist = playlistCache.playlists.find(p => p.id === playlistId);
@@ -401,10 +335,6 @@ async function removeSongFromPlaylist(event, { playlistId, songPath }) {
     };
   }
 }
-
-/**
- * Clean up playlists - remove songs that no longer exist in cache
- */
 async function cleanupPlaylists() {
   const songCache = getSongCache();
   const validPaths = new Set(songCache.songs.map(s => s.path));

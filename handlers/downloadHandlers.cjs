@@ -8,7 +8,6 @@ const crypto = require('crypto');
 
 const { addSongToCache } = require('./fileSystemHandlers.cjs');
 
-// Track active download processes
 let activeDownloadProcesses = new Set();
 
 /**
@@ -35,33 +34,24 @@ let activeDownloadProcesses = new Set();
  * @property {MP3Metadata} metadata 
  */
 
-// Get thumbnail cache directory
 function getThumbnailCacheDir() {
   const userDataPath = app.getPath('userData');
   return path.join(userDataPath, 'thumbnails');
 }
 
-/**
- * Generate a consistent hash for a file path to use as thumbnail filename
- */
 function getThumbnailCachePath(filePath) {
   const hash = crypto.createHash('md5').update(filePath).digest('hex');
   return path.join(getThumbnailCacheDir(), `${hash}.jpg`);
 }
 
-/**
- * Extract and cache thumbnail from MP3 file
- */
 async function extractAndCacheThumbnail(filePath) {
   try {
     const thumbnailPath = getThumbnailCachePath(filePath);
-
-    // Check if thumbnail already cached
     try {
       await fs.access(thumbnailPath);
-      return thumbnailPath; // Already cached
-    } catch {
-      // Not cached, extract it
+      return thumbnailPath;
+    } catch (err) {
+      console.error("FAILED TO EXTRACT CACHE", err)
     }
 
     const metadata = await mm.parseFile(filePath);
@@ -70,7 +60,6 @@ async function extractAndCacheThumbnail(filePath) {
     if (common.picture && common.picture.length > 0) {
       const picture = common.picture[0];
       if (picture.format === 'image/jpeg' || picture.format === 'image/webp' || picture.format === 'image/png') {
-        // Save thumbnail to cache directory
         await fs.writeFile(thumbnailPath, picture.data);
         return thumbnailPath;
       }
@@ -88,9 +77,6 @@ function registerDownloadHandlers() {
   ipcMain.handle('cancel-download', cancelAllDownloads);
 }
 
-/**
- * Cancel all active downloads
- */
 function cancelAllDownloads() {
   activeDownloadProcesses.forEach(process => {
     try {
@@ -107,8 +93,8 @@ function cancelAllDownloads() {
  * @param {Event} event 
  * @param {Object} params 
  * @param {string} params.videoId 
- * @param {string} params.title - Video title
- * @param {string} params.savePath - Root music directory path
+ * @param {string} params.title 
+ * @param {string} params.savePath
  * @returns {Promise<DownloadedMP3>}
  */
 
@@ -133,7 +119,6 @@ async function downloadYouTube(event, { videoId, title, savePath }) {
       url
     ]);
 
-    // Track this process
     activeDownloadProcesses.add(metadataProcess);
 
     let jsonBuffer = '';
@@ -148,7 +133,6 @@ async function downloadYouTube(event, { videoId, title, savePath }) {
     });
 
     metadataProcess.on('close', (code) => {
-      // Remove from active processes
       activeDownloadProcesses.delete(metadataProcess);
 
       if (code !== 0) {
@@ -158,22 +142,6 @@ async function downloadYouTube(event, { videoId, title, savePath }) {
       }
 
       try {
-        const parsed = JSON.parse(jsonBuffer);
-
-        const metadata = {
-          duration: parsed.duration || 0,
-          durationFormatted: formatDuration(parsed.duration || 0),
-          thumbnail: null,
-          uploader: parsed.uploader || parsed.channel || 'Unknown',
-          uploadDate: parsed.upload_date || '',
-          uploadDateFormatted: formatUploadDate(parsed.upload_date),
-          viewCount: parsed.view_count || 0,
-          title: parsed.title || title,
-          description: parsed.description || '',
-          channel: parsed.channel || parsed.uploader || 'Unknown',
-          channelId: parsed.channel_id || '',
-          likeCount: parsed.like_count || 0
-        };
 
         const outputTemplate = path.join(savePath, `${sanitizedTitle}.%(ext)s`);
         const finalFilePath = outputTemplate.replace('%(ext)s', 'mp3');
@@ -190,7 +158,6 @@ async function downloadYouTube(event, { videoId, title, savePath }) {
           url
         ]);
 
-        // Track this process
         activeDownloadProcesses.add(downloadProcess);
 
         downloadProcess.stdout.on('data', (data) => {
@@ -211,7 +178,6 @@ async function downloadYouTube(event, { videoId, title, savePath }) {
         });
 
         downloadProcess.on('close', async (downloadCode) => {
-          // Remove from active processes
           activeDownloadProcesses.delete(downloadProcess);
 
           if (downloadCode === 0) {
@@ -244,7 +210,6 @@ async function downloadYouTube(event, { videoId, title, savePath }) {
               reject({ success: false, error: 'File not found after download' });
             }
           } else if (downloadCode === null) {
-            // Process was killed (cancelled)
             reject({ success: false, error: 'Download cancelled', cancelled: true });
           } else {
             reject({ success: false, error: `Download failed with code ${downloadCode}` });
@@ -262,9 +227,6 @@ async function downloadYouTube(event, { videoId, title, savePath }) {
     });
   });
 }
-/**
- * Get song data for a single file
- */
 async function getSongData(filePath) {
   try {
     const metadata = await extractMp3Metadata(filePath);
@@ -279,17 +241,11 @@ async function getSongData(filePath) {
   }
 }
 
-/**
- * Extract MP3 metadata and cache thumbnail
- * Thumbnails are extracted once and saved to disk, then referenced via file:// URLs
- */
 async function extractMp3Metadata(filePath) {
   try {
     const metadata = await mm.parseFile(filePath);
     const common = metadata.common;
     const format = metadata.format;
-
-    // Extract and cache thumbnail
     const thumbnailPath = await extractAndCacheThumbnail(filePath);
 
     return {
@@ -300,7 +256,7 @@ async function extractMp3Metadata(filePath) {
       durationFormatted: formatDuration(format.duration || 0),
       year: common.year || null,
       genre: common.genre?.[0] || null,
-      thumbnail: thumbnailPath ? `file://${thumbnailPath}` : null, // file:// URL to cached thumbnail
+      thumbnail: thumbnailPath ? `file://${thumbnailPath}` : null,
       uploader: common.artist || 'Unknown',
       channel: common.albumartist || common.artist || 'Unknown',
       description: common.comment?.[0] || '',
@@ -347,18 +303,10 @@ function formatDuration(seconds) {
 }
 
 /**
- * @param {string} dateString - YYYYMMDD format
- * @returns {string} YYYY-MM-DD format
+ * @param {string} dateString 
+ * @returns {string} 
  */
-function formatUploadDate(dateString) {
-  if (!dateString || dateString.length !== 8) return '';
 
-  const year = dateString.substring(0, 4);
-  const month = dateString.substring(4, 6);
-  const day = dateString.substring(6, 8);
-
-  return `${year}-${month}-${day}`;
-}
 
 module.exports = {
   registerDownloadHandlers

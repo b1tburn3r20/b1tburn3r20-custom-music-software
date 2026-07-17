@@ -4,18 +4,12 @@ const path = require("path");
 const mm = require('music-metadata');
 const crypto = require('crypto');
 
-// ============================================================================
-// CACHE SYSTEM WITH PERSISTENT JSON STORAGE AND THUMBNAIL EXTRACTION
-// ============================================================================
-const CACHE_VERSION = 4; // Incremented for thumbnail cache directory
+const CACHE_VERSION = 4;
 
-// Get cache file path in user data directory
 function getCacheFilePath() {
   const userDataPath = app.getPath('userData');
   return path.join(userDataPath, 'music-cache.json');
 }
-
-// Get thumbnail cache directory
 function getThumbnailCacheDir() {
   const userDataPath = app.getPath('userData');
   return path.join(userDataPath, 'thumbnails');
@@ -27,8 +21,6 @@ let songCache = {
   songs: [],
   lastUpdated: null
 };
-
-// Ensure thumbnail cache directory exists
 async function ensureThumbnailCacheDir() {
   const dir = getThumbnailCacheDir();
   try {
@@ -37,28 +29,18 @@ async function ensureThumbnailCacheDir() {
     console.error('Error creating thumbnail cache directory:', error);
   }
 }
-
-/**
- * Generate a consistent hash for a file path to use as thumbnail filename
- */
 function getThumbnailCachePath(filePath) {
   const hash = crypto.createHash('md5').update(filePath).digest('hex');
   return path.join(getThumbnailCacheDir(), `${hash}.jpg`);
 }
-
-/**
- * Extract and cache thumbnail from MP3 file
- */
 async function extractAndCacheThumbnail(filePath) {
   try {
     const thumbnailPath = getThumbnailCachePath(filePath);
-
-    // Check if thumbnail already cached
     try {
       await fs.access(thumbnailPath);
-      return thumbnailPath; // Already cached
-    } catch {
-      // Not cached, extract it
+      return thumbnailPath;
+    } catch (err) {
+      console.error("FAILED TO EXTRACT", err)
     }
 
     const metadata = await mm.parseFile(filePath);
@@ -67,7 +49,6 @@ async function extractAndCacheThumbnail(filePath) {
     if (common.picture && common.picture.length > 0) {
       const picture = common.picture[0];
       if (picture.format === 'image/jpeg' || picture.format === 'image/webp' || picture.format === 'image/png') {
-        // Save thumbnail to cache directory
         await fs.writeFile(thumbnailPath, picture.data);
         return thumbnailPath;
       }
@@ -79,22 +60,14 @@ async function extractAndCacheThumbnail(filePath) {
     return null;
   }
 }
-
-/**
- * Load cache from disk
- */
 async function loadCacheFromDisk() {
   try {
     const cacheFilePath = getCacheFilePath();
     const cacheData = await fs.readFile(cacheFilePath, 'utf-8');
     const parsedCache = JSON.parse(cacheData);
-
-    // Validate cache version
     if (parsedCache.version !== CACHE_VERSION) {
       return false;
     }
-
-    // Load song cache
     if (parsedCache.songCache) {
       songCache = parsedCache.songCache;
     }
@@ -110,9 +83,6 @@ async function loadCacheFromDisk() {
   }
 }
 
-/**
- * Save cache to disk
- */
 async function saveCacheToDisk() {
   try {
     const cacheFilePath = getCacheFilePath();
@@ -130,11 +100,7 @@ async function saveCacheToDisk() {
   }
 }
 
-/**
- * Build the song cache by scanning the root music folder
- */
 async function buildSongCache(rootDir) {
-  const startTime = Date.now();
 
   await ensureThumbnailCacheDir();
 
@@ -159,19 +125,14 @@ async function buildSongCache(rootDir) {
     lastUpdated: Date.now()
   };
 
-  // Save to disk
   await saveCacheToDisk();
 
 
   return songCache;
 }
 
-/**
- * Add a single song to the cache (called after download)
- */
 async function addSongToCache(filePath, rootDir) {
   try {
-    // Extract metadata for the new song
     const metadata = await extractMp3Metadata(filePath);
     const fileName = path.basename(filePath);
 
@@ -180,10 +141,7 @@ async function addSongToCache(filePath, rootDir) {
       path: filePath,
       metadata: metadata
     };
-
-    // Add to song cache if it exists for this root
     if (songCache.rootDir && filePath.startsWith(songCache.rootDir)) {
-      // Check if song already exists
       const existingIndex = songCache.songs.findIndex(s => s.path === filePath);
       if (existingIndex >= 0) {
         songCache.songs[existingIndex] = newSong;
@@ -192,10 +150,7 @@ async function addSongToCache(filePath, rootDir) {
       }
       songCache.lastUpdated = Date.now();
     }
-
-    // Save updated cache to disk
     await saveCacheToDisk();
-
     return true;
   } catch (error) {
     console.error('Error adding song to cache:', error);
@@ -203,38 +158,25 @@ async function addSongToCache(filePath, rootDir) {
   }
 }
 
-/**
- * Remove a song from the cache (called after deletion)
- */
 async function removeSongFromCache(filePath) {
   try {
-    // Remove from song cache
     if (songCache.rootDir && filePath.startsWith(songCache.rootDir)) {
       songCache.songs = songCache.songs.filter(s => s.path !== filePath);
       songCache.lastUpdated = Date.now();
     }
-
-    // Also remove cached thumbnail
     const thumbnailPath = getThumbnailCachePath(filePath);
     try {
       await fs.unlink(thumbnailPath);
     } catch (error) {
-      // Thumbnail might not exist, ignore
+      console.error("FAILED TO REMOVE FROM CACHE", error)
     }
-
-    // Save updated cache to disk
     await saveCacheToDisk();
-
     return true;
   } catch (error) {
     console.error('Error removing song from cache:', error);
     return false;
   }
 }
-
-/**
- * Update a song in the cache (for metadata changes)
- */
 async function updateSongInCache(filePath) {
   try {
     if (!songCache.rootDir || !filePath.startsWith(songCache.rootDir)) {
@@ -262,13 +204,7 @@ async function updateSongInCache(filePath) {
     return false;
   }
 }
-
-/**
- * Invalidate cache
- */
 async function invalidateCache() {
-
-  // Clear thumbnail cache directory
   try {
     const thumbnailDir = getThumbnailCacheDir();
     const files = await fs.readdir(thumbnailDir);
@@ -281,13 +217,8 @@ async function invalidateCache() {
   songCache.lastUpdated = null;
   await saveCacheToDisk();
 }
-
-// Load cache on module load
 loadCacheFromDisk();
 
-// ============================================================================
-// IPC HANDLERS REGISTRATION
-// ============================================================================
 function registerFileSystemHandlers() {
   ipcMain.handle('select-folder', selectFolder);
   ipcMain.handle('read-folder', readFolder);
@@ -309,11 +240,6 @@ function registerFileSystemHandlers() {
   ipcMain.handle('get-artists', getArtists);
   ipcMain.handle('get-artist-by-name', getArtistByName);
 }
-
-// ============================================================================
-// SEARCH AND RETRIEVAL FUNCTIONALITY
-// ============================================================================
-
 function shuffleArray(array) {
   const shuffled = [...array];
   for (let i = shuffled.length - 1; i > 0; i--) {
@@ -322,10 +248,6 @@ function shuffleArray(array) {
   }
   return shuffled;
 }
-
-/**
- * Get all songs from the root directory
- */
 async function getAllSongs(event, { rootDir, forceRefresh = false, limit = null }) {
   try {
     if (forceRefresh || songCache.rootDir !== rootDir || songCache.songs.length === 0) {
@@ -348,17 +270,11 @@ async function getAllSongs(event, { rootDir, forceRefresh = false, limit = null 
     };
   }
 }
-
-/**
- * Search for songs with caching
- */
 async function searchSongs(event, { rootDir, query = '', forceRefresh = false }) {
   try {
     if (forceRefresh || songCache.rootDir !== rootDir || songCache.songs.length === 0) {
       await buildSongCache(rootDir);
     }
-
-    // Return random selection if no query
     if (!query || query.trim() === '') {
       const randomSongs = shuffleArray(songCache.songs).slice(0, 48);
       return {
@@ -478,10 +394,6 @@ async function getSongQueue(event, { rootDir, path = "", songsToOmit = [] }) {
   }
 }
 
-
-/**
- * Manually rebuild cache
- */
 async function rebuildCache(event, { rootDir }) {
   try {
     await buildSongCache(rootDir);
@@ -502,9 +414,6 @@ async function rebuildCache(event, { rootDir }) {
   }
 }
 
-/**
- * Get cache statistics
- */
 async function getCacheStats() {
   return {
     songs: {
@@ -517,28 +426,14 @@ async function getCacheStats() {
     thumbnailCacheDir: getThumbnailCacheDir()
   };
 }
-
-/**
- * IPC handler for adding song to cache
- */
 async function handleAddSongToCache(event, { filePath, rootDir }) {
   return await addSongToCache(filePath, rootDir);
 }
 
-/**
- * IPC handler for updating song in cache
- */
+
 async function handleUpdateSongInCache(event, { filePath }) {
   return await updateSongInCache(filePath);
 }
-
-// ============================================================================
-// FILE SYSTEM OPERATIONS
-// ============================================================================
-
-/**
- * Get song audio data
- */
 async function getSongAudio(event, filePath) {
   try {
     const fileBuffer = await fs.readFile(filePath);
@@ -550,13 +445,8 @@ async function getSongAudio(event, filePath) {
     return { success: false, error: err.message };
   }
 }
-
-/**
- * Get thumbnail - returns file:// URL to cached thumbnail
- */
 async function getThumbnail(event, thumbnailUrl) {
   try {
-    // If already a file path, verify it exists
     if (thumbnailUrl.startsWith('file://')) {
       const filePath = thumbnailUrl.replace('file://', '');
       await fs.access(filePath);
@@ -606,26 +496,17 @@ async function readFolder(event, folderPath) {
 async function deleteFile(event, filePath) {
   try {
     await fs.unlink(filePath);
-
-    // Remove from cache
     await removeSongFromCache(filePath);
-
-    // Notify renderer
     event.sender.send("song-deleted", {
       filePath: filePath,
       success: true
     });
-
     return { success: true, message: 'File deleted successfully' };
   } catch (error) {
     console.error(`Error deleting file ${filePath}:`, error);
     return { success: false, error: error.message };
   }
 }
-
-// ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
 
 async function getMp3Files(dirPath) {
   try {
@@ -639,17 +520,11 @@ async function getMp3Files(dirPath) {
   }
 }
 
-/**
- * Extract MP3 metadata and cache thumbnail
- * Thumbnails are extracted once and saved to disk, then referenced via file:// URLs
- */
 async function extractMp3Metadata(filePath) {
   try {
     const metadata = await mm.parseFile(filePath);
     const common = metadata.common;
     const format = metadata.format;
-
-    // Extract and cache thumbnail
     const thumbnailPath = await extractAndCacheThumbnail(filePath);
 
     return {
@@ -660,7 +535,7 @@ async function extractMp3Metadata(filePath) {
       durationFormatted: formatDuration(format.duration || 0),
       year: common.year || null,
       genre: common.genre?.[0] || null,
-      thumbnail: thumbnailPath ? `file://${thumbnailPath}` : null, // file:// URL to cached thumbnail
+      thumbnail: thumbnailPath ? `file://${thumbnailPath}` : null,
       uploader: common.artist || 'Unknown',
       channel: common.albumartist || common.artist || 'Unknown',
       description: common.comment?.[0] || '',
@@ -703,8 +578,6 @@ async function getLightweightSongIndex(event, { rootDir, forceRefresh = false })
 
     return {
       songs: lightweightSongs,
-      // total: lightweightSongs.length,
-      // cacheAge: songCache.lastUpdated ? Date.now() - songCache.lastUpdated : null
     };
   } catch (error) {
     console.error('Error getting lightweight song index:', error);
