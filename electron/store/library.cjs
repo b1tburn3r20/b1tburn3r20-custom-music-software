@@ -6,7 +6,7 @@ const path = require("path");
 const crypto = require("crypto");
 const { readJson, writeJsonAtomic, createDebouncedSaver, exists } = require("../lib/atomic.cjs");
 const { AUDIO_EXT_RE, fingerprintFile, readAudioMetadata, sourceIdFromFileName } = require("../lib/media.cjs");
-const { LIBRARY_VERSION, emptyLibrary, migrateLegacyLibrary } = require("./migrate.cjs");
+const { LIBRARY_VERSION, emptyLibrary, migrateLegacyLibrary, repairGuessedSourceIds } = require("./migrate.cjs");
 const { backupFiles } = require("./paths.cjs");
 
 async function pool(items, limit, fn) {
@@ -54,6 +54,16 @@ function createLibraryStore({ userData, emit = () => { } }) {
     }
     if (data && data.version === LIBRARY_VERSION) {
       lib = data;
+      return report;
+    }
+    if (data && data.version === 5) {
+      report.backup = await backupFiles(userData, ["library.json"], "library-v6");
+      lib = data;
+      const cleared = repairGuessedSourceIds(lib);
+      await writeJsonAtomic(file, lib);
+      report.migrated = true;
+      report.repairedSourceIds = cleared.length;
+      console.info(`[library] v5→v6: cleared ${cleared.length} title-guessed YouTube ids`, cleared.map((c) => c.title));
       return report;
     }
     if (data && data.version > LIBRARY_VERSION) {

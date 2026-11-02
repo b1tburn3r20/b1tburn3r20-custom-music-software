@@ -103,7 +103,7 @@ export function SearchTab() {
       {!loading && videos && (videos.length ? (
         <div className="flex flex-wrap justify-center gap-4">
           {videos.map((v) => (
-            <VideoCard key={v.id} video={v} owned={owned(v.id, v.title)} />
+            <VideoCard key={v.id} video={v} owned={owned(v)} />
           ))}
         </div>
       ) : <EmptyState icon={Youtube} title="No videos found" />)}

@@ -1,25 +1,20 @@
-import { useMemo } from "react"
+import { useCallback } from "react"
 import { useLibraryStore } from "@/stores/useLibraryStore"
 import type { Song } from "@/types/DirectoryTypes"
+import { findOwnedSong } from "../../../shared/songMatch.mjs"
 
-/** Lookup of library songs by YouTube id, plus a weaker title match for downloads made before ids were recorded. */
+export type VideoRef = { id: string; title: string; channel?: string; duration?: number }
+
+/**
+ * Is this YouTube video already in the library? Exact YouTube id, or — for songs
+ * downloaded before ids were recorded — a strict title + artist + length match
+ * (same matcher the download queue uses). A title alone is never enough.
+ */
 export function useOwnedIndex() {
   const songs = useLibraryStore((s) => s.songs)
-  return useMemo(() => {
-    const bySource = new Map<string, Song>()
-    const byTitle = new Map<string, Song[]>()
-    for (const s of songs) {
-      if (s.sourceId) bySource.set(s.sourceId, s)
-      else {
-        const k = s.metadata.title.trim().toLowerCase()
-        byTitle.set(k, [...(byTitle.get(k) ?? []), s])
-      }
-    }
-    return (videoId: string, title: string): { song: Song; exact: boolean } | null => {
-      const exact = bySource.get(videoId)
-      if (exact) return { song: exact, exact: true }
-      const t = byTitle.get(title.trim().toLowerCase())
-      return t && t.length === 1 ? { song: t[0], exact: false } : null
-    }
-  }, [songs])
+  return useCallback(
+    (v: VideoRef): { song: Song; exact: boolean } | null =>
+      findOwnedSong(songs, { id: v.id, title: v.title, channel: v.channel ?? "", duration: v.duration ?? 0 }) as { song: Song; exact: boolean } | null,
+    [songs],
+  )
 }

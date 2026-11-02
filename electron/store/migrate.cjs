@@ -5,7 +5,7 @@ const path = require("path");
 const { splitArtists } = require("../lib/artists.cjs");
 const { formatDuration, sourceIdFromFileName } = require("../lib/media.cjs");
 
-const LIBRARY_VERSION = 5;
+const LIBRARY_VERSION = 6;
 const USER_VERSION = 1;
 
 const DEFAULT_SETTINGS = Object.freeze({
@@ -98,6 +98,24 @@ function migrateLegacyLibrary(legacy, { newId }) {
     report.songs++;
   }
   return { library: lib, report };
+}
+
+/**
+ * v5 → v6: an earlier build linked pre-overhaul files to YouTube videos by title
+ * alone, so two different songs with the same title could share an id (e.g. two
+ * "JUMP"s). Keep only ids that come from the file name ("Title [id].mp3"); the
+ * stricter matcher re-links the rest safely.
+ */
+function repairGuessedSourceIds(lib) {
+  const cleared = [];
+  for (const s of Object.values(lib.songs)) {
+    if (s.sourceId && !String(s.fileName || "").includes(`[${s.sourceId}]`)) {
+      cleared.push({ id: s.id, title: s.metadata ? s.metadata.title : s.fileName, sourceId: s.sourceId });
+      s.sourceId = sourceIdFromFileName(s.fileName || "");
+    }
+  }
+  lib.version = 6;
+  return cleared;
 }
 
 function pathIndex(library) {
@@ -285,6 +303,7 @@ module.exports = {
   emptyLibrary,
   normalizeMetadata,
   migrateLegacyLibrary,
+  repairGuessedSourceIds,
   migrateLegacyPlaylists,
   importRendererLegacy,
   pathIndex,

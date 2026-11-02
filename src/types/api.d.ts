@@ -85,12 +85,16 @@ export type RawApi = {
     checkAuth(): Promise<IpcResult<{ ok: true; playlists: number } | { ok: false; code: string; message: string; at: number }>>
     myPlaylists(): Promise<IpcResult<MyYoutubePlaylist[]>>
     playlistItems(id: string): Promise<IpcResult<{ id: string; title: string; channel: string; videos: { id: string; title: string; channel: string; duration: number; thumbnail: string | null; unavailable: boolean }[] }>>
-    enqueue(videos: { videoId: string; title: string }[], opts?: { playlistId?: string; mirror?: { youtubeId: string; title: string } }): Promise<IpcResult<{ items: DownloadItem[]; playlistId: string | null }>>
+    enqueue(videos: { videoId: string; title: string; channel?: string; duration?: number }[], opts?: { playlistId?: string; mirror?: { youtubeId: string; title: string } }): Promise<IpcResult<{ items: DownloadItem[]; playlistId: string | null }>>
     downloads(): Promise<IpcResult<DownloadItem[]>>
     cancel(videoId?: string): Promise<IpcResult<boolean>>
     clearFinished(): Promise<IpcResult<DownloadItem[]>>
     download(input: { videoId: string; title: string }): Promise<IpcResult<{ songId: string; alreadyHad: boolean }>>
     onDownloadUpdate(cb: (item: DownloadItem) => void): Unsubscribe
+  }
+  positions: {
+    get(songId: string): Promise<IpcResult<number | null>>
+    set(songId: string, positionSec: number | null): Promise<IpcResult<null>>
   }
   stats: {
     recordPlay(event: { songId: string; startedAt: number; endedAt: number; listenedMs: number; durationMs: number; counted: boolean; context?: { type: string; id?: string } | null }): Promise<IpcResult<boolean>>

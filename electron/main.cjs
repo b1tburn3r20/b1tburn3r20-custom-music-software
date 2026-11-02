@@ -4,6 +4,7 @@ const { configureUserData, copyLegacyUserData } = require("./store/paths.cjs");
 const { createLibraryStore } = require("./store/library.cjs");
 const { createUserStore } = require("./store/user.cjs");
 const { createPlaysStore } = require("./store/plays.cjs");
+const { createPositionsStore } = require("./store/positions.cjs");
 const { splitArtists } = require("./lib/artists.cjs");
 const { registerMediaScheme, handleMediaProtocol } = require("./media-protocol.cjs");
 const { registerLibraryIpc, registerStatsIpc, broadcast } = require("./ipc.cjs");
@@ -42,8 +43,10 @@ async function initStores() {
     },
   });
   const playsReport = await plays.load();
-  stores = { library, user, plays };
-  registerLibraryIpc({ library, user, plays, userData });
+  const positions = createPositionsStore({ userData });
+  await positions.load();
+  stores = { library, user, plays, positions };
+  registerLibraryIpc({ library, user, plays, positions, userData });
   registerStatsIpc({ plays });
   registerYoutubeIpc({ library, user, userData });
   registerSyncHandlers();
@@ -91,7 +94,7 @@ app.on("before-quit", async (e) => {
   if (!stores || stores.flushed) return;
   e.preventDefault();
   stores.flushed = true;
-  await Promise.allSettled([stores.library.flush(), stores.user.flush()]);
+  await Promise.allSettled([stores.library.flush(), stores.user.flush(), stores.positions.flush()]);
   app.quit();
 });
 

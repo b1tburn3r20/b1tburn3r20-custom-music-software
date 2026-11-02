@@ -24,6 +24,7 @@ describe("migrateLegacyLibrary", () => {
     n = 0
     const { library, report } = m.migrateLegacyLibrary(legacyCache, { newId })
     expect(report.songs).toBe(3)
+    expect(library.version).toBe(6)
     type S = { id: string; path: string; fileName: string; sourceId: string | null; thumbnailFile: string | null; metadata: { title: string; artists: string[]; album: string | null } }
     const songs = Object.values(library.songs) as S[]
     expect(new Set(songs.map((s) => s.id)).size).toBe(3)
@@ -119,5 +120,24 @@ describe("importRendererLegacy", () => {
     const { report } = m.importRendererLegacy(m.emptyUserState(), { likedSongs: JSON.stringify(likes), userRecentlyDownloaded: JSON.stringify(downloads) }, { origin: "o", pathToId: idx, playlistIds: new Set(), now: 1 })
     expect(report.suspectedLikesCorruption).toBe(true)
     expect(report.likesAlsoInDownloads).toBe(11)
+  })
+})
+
+describe("repairGuessedSourceIds (v5 → v6)", () => {
+  it("keeps ids from file names and clears title-guessed ones", () => {
+    const lib = {
+      version: 5,
+      rootDir: "/m",
+      songs: {
+        a: { id: "a", fileName: "JUMP.mp3", sourceId: "gtfGdKPXDpE", metadata: { title: "JUMP" } },
+        b: { id: "b", fileName: "Sky [dQw4w9WgXcQ].mp3", sourceId: "dQw4w9WgXcQ", metadata: { title: "Sky" } },
+        c: { id: "c", fileName: "x.mp3", sourceId: null, metadata: { title: "x" } },
+      },
+    }
+    const cleared = m.repairGuessedSourceIds(lib)
+    expect(cleared.map((c: { id: string }) => c.id)).toEqual(["a"])
+    expect(lib.songs.a.sourceId).toBeNull()
+    expect(lib.songs.b.sourceId).toBe("dQw4w9WgXcQ")
+    expect(lib.version).toBe(6)
   })
 })

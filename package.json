@@ -30,6 +30,7 @@
       "dist/**/*",
       "electron/**/*",
       "handlers/**/*",
+      "shared/**/*",
       "lib/**/*",
       "public/**/*",
       "node_modules/**/*",

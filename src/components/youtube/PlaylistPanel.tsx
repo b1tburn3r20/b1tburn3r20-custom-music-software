@@ -54,13 +54,13 @@ export function PlaylistPanel({ id, title, subtitle, thumbnail, videos: initial,
   }
 
   const available = useMemo(() => (videos ?? []).filter((v) => !v.unavailable), [videos])
-  const missing = useMemo(() => available.filter((v) => !owned(v.id, v.title)?.exact), [available, owned])
+  const missing = useMemo(() => available.filter((v) => !owned(v)), [available, owned])
   const activeCount = available.filter((v) => isActive(downloads[v.id])).length
 
   const download = async (list: YtVideo[]) => {
     if (!list.length) return
     const res = await enqueueVideos(
-      list.map((v) => ({ videoId: v.id, title: v.title })),
+      list.map((v) => ({ videoId: v.id, title: v.title, channel: v.channel, duration: v.duration })),
       mirror ? { mirror: { youtubeId: id, title } } : undefined,
     )
     if (res) {
@@ -109,7 +109,7 @@ export function PlaylistPanel({ id, title, subtitle, thumbnail, videos: initial,
               </div>
               <div className="flex flex-col">
                 {videos.map((v, i) => {
-                  const own = owned(v.id, v.title)
+                  const own = owned(v)
                   const sel = selected.has(v.id)
                   return (
                     <div key={`${v.id}-${i}`} className={cn("flex items-center gap-3 rounded-lg px-2 py-1.5", i % 2 === 0 && "bg-muted/40", v.unavailable && "opacity-50")}>
@@ -133,13 +133,13 @@ export function PlaylistPanel({ id, title, subtitle, thumbnail, videos: initial,
                       </button>
                       <Artwork src={v.thumbnail} size="sm" />
                       <div className="min-w-0 flex-1 text-sm">
-                        <p className={cn("truncate", own?.exact && "text-success", own && !own.exact && "text-warning")} title={v.title}>
+                        <p className={cn("truncate", own && "text-success")} title={v.title}>
                           {v.title}
                         </p>
                         <p className="truncate text-muted-foreground">{v.unavailable ? "Unavailable (private or deleted)" : v.channel}</p>
                       </div>
                       <span className="shrink-0 text-sm tabular-nums text-muted-foreground">{formatDuration(v.duration)}</span>
-                      {!v.unavailable && <DownloadButton videoId={v.id} title={v.title} owned={own?.exact} />}
+                      {!v.unavailable && <DownloadButton videoId={v.id} title={v.title} channel={v.channel} duration={v.duration} owned={Boolean(own)} />}
                     </div>
                   )
                 })}

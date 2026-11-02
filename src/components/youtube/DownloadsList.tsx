@@ -42,10 +42,10 @@ export function DownloadsList() {
             <div className="min-w-0 flex-1">
               <p className="truncate">{i.title}</p>
               <p className="truncate text-xs text-muted-foreground">
-                {i.status === "downloading" && `${Math.round(i.percent)}%`}
+                {i.status === "downloading" && (i.note === "finishing…" ? "Finishing — waiting for earlier downloads to keep the order" : `${Math.round(i.percent)}%`)}
                 {i.status === "queued" && "Waiting…"}
                 {i.status === "done" && "Saved to your library"}
-                {i.status === "skipped" && (i.note === "matched by title" ? "Already in your library (matched by title)" : "Already in your library")}
+                {i.status === "skipped" && (i.note === "matched title, artist and length" ? "Already in your library (matched title, artist and length)" : "Already in your library")}
                 {i.status === "cancelled" && "Cancelled"}
                 {i.status === "error" && i.error?.message}
               </p>

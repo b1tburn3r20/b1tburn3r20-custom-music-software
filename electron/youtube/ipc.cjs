@@ -24,8 +24,8 @@ function registerYoutubeIpc({ library, user, userData }) {
   handle("youtube:cancel", (videoId) => (videoId ? downloads.cancel(videoId) : downloads.cancelAll()));
   handle("youtube:clear-finished", () => downloads.clearFinished());
   // Single download that resolves when finished (used by search results).
-  handle("youtube:download", async ({ videoId, title }) => {
-    downloads.enqueue([{ videoId, title }]);
+  handle("youtube:download", async ({ videoId, title, channel, duration }) => {
+    downloads.enqueue([{ videoId, title, channel, duration }]);
     const item = await downloads.waitFor(videoId);
     if (item.status === "error") throw Object.assign(new Error(item.error.message), { code: item.error.code });
     if (item.status === "cancelled") throw Object.assign(new Error("Download cancelled"), { code: "CANCELLED" });

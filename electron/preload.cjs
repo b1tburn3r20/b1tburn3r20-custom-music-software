@@ -51,6 +51,10 @@ contextBridge.exposeInMainWorld("api", {
     download: (input) => invoke("youtube:download", input),
     onDownloadUpdate: on("youtube:download-update"),
   },
+  positions: {
+    get: (songId) => invoke("positions:get", songId),
+    set: (songId, pos) => invoke("positions:set", songId, pos),
+  },
   stats: {
     recordPlay: (event) => invoke("stats:record-play", event),
     get: (range) => invoke("stats:get", range),

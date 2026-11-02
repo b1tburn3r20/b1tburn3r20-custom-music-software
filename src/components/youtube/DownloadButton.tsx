@@ -5,7 +5,7 @@ import { enqueueVideos } from "./downloadActions"
 import { cn } from "@/lib/utils"
 
 /** Download / progress / done / retry for one video, driven by the main-process queue. */
-export function DownloadButton({ videoId, title, owned, size = "sm", className }: { videoId: string; title: string; owned?: boolean; size?: "sm" | "default"; className?: string }) {
+export function DownloadButton({ videoId, title, channel, duration, owned, size = "sm", className }: { videoId: string; title: string; channel?: string; duration?: number; owned?: boolean; size?: "sm" | "default"; className?: string }) {
   const item = useDownloadStore((s) => s.byId[videoId])
   const active = isActive(item)
   if (active)
@@ -30,12 +30,12 @@ export function DownloadButton({ videoId, title, owned, size = "sm", className }
     )
   if (item?.status === "error")
     return (
-      <Button size={size} variant="muted_destructive" className={cn("min-w-28", className)} title={item.error?.message} onClick={() => enqueueVideos([{ videoId, title }])}>
+      <Button size={size} variant="muted_destructive" className={cn("min-w-28", className)} title={item.error?.message} onClick={() => enqueueVideos([{ videoId, title, channel, duration }])}>
         <RotateCw /> Retry
       </Button>
     )
   return (
-    <Button size={size} variant="youtube" className={cn("min-w-28", className)} onClick={() => enqueueVideos([{ videoId, title }])}>
+    <Button size={size} variant="youtube" className={cn("min-w-28", className)} onClick={() => enqueueVideos([{ videoId, title, channel, duration }])}>
       <Download /> Download
     </Button>
   )

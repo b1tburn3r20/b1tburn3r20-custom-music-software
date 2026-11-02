@@ -47,7 +47,9 @@ async function deleteAudioFile(filePath) {
   }
 }
 
-function registerLibraryIpc({ library, user, plays, userData }) {
+function registerLibraryIpc({ library, user, plays, positions, userData }) {
+  handle("positions:get", (songId) => (positions ? positions.get(songId) : null));
+  handle("positions:set", (songId, pos) => positions && positions.set(songId, pos));
   // ----- library -----
   handle("library:get", () => library.snapshot());
   handle("library:rescan", () => library.scan());
@@ -63,6 +65,7 @@ function registerLibraryIpc({ library, user, plays, userData }) {
     const how = await deleteAudioFile(song.path);
     await library.removeSong(songId);
     user.purgeSongs([songId]);
+    if (positions) positions.purgeSongs([songId]);
     if (plays) await plays.purgeSongs([songId]);
     broadcast("stats:changed", { at: Date.now() });
     return { deleted: songId, how };
@@ -79,6 +82,7 @@ function registerLibraryIpc({ library, user, plays, userData }) {
     // forgetting missing songs creates dangling references, so clean those afterwards
     const refsRemoved = dangling || forgotten.length ? user.removeDangling() : 0;
     if (plays && forgotten.length) await plays.purgeSongs(forgotten);
+    if (positions && forgotten.length) positions.purgeSongs(forgotten);
     return { thumbsRemoved, refsRemoved, forgotten: forgotten.length };
   });
   handle("library:show-in-folder", (songId) => {

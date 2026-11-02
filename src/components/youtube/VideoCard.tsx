@@ -34,9 +34,8 @@ export const VideoCard = memo(function VideoCard({ video, owned }: { video: YtVi
         )}
       </div>
       <div className="min-w-0 px-1 text-sm" title={video.title}>
-        <p className={owned?.exact ? "line-clamp-2 font-semibold text-success" : "line-clamp-2 font-semibold"}>{video.title}</p>
+        <p className={owned ? "line-clamp-2 font-semibold text-success" : "line-clamp-2 font-semibold"}>{video.title}</p>
         <p className="truncate text-muted-foreground">{video.channel}</p>
-        {owned && !owned.exact && <p className="text-xs text-warning">A song with this title is already in your library</p>}
       </div>
       <div className="mt-auto flex gap-2">
         {owned && (
@@ -44,7 +43,7 @@ export const VideoCard = memo(function VideoCard({ video, owned }: { video: YtVi
             {playing ? <Pause /> : <Play />} {playing ? "Pause" : "Play"}
           </Button>
         )}
-        <DownloadButton videoId={video.id} title={video.title} owned={owned?.exact} className="flex-1" />
+        <DownloadButton videoId={video.id} title={video.title} channel={video.channel} duration={video.duration} owned={Boolean(owned)} className="flex-1" />
       </div>
     </div>
   )
