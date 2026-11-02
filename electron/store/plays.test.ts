@@ -2,7 +2,7 @@ import { createRequire } from "module"
 import { describe, expect, it } from "vitest"
 
 const require = createRequire(import.meta.url)
-const { aggregate, sanitizeEvent } = require("./plays.cjs")
+const { aggregate, sanitizeEvent, forgottenFrom } = require("./plays.cjs")
 const DAY = 86_400_000
 const now = 100 * DAY
 const ev = (songId: string, daysAgo: number, listenedMs: number, counted = true) => ({ songId, endedAt: now - daysAgo * DAY, listenedMs, counted })
@@ -33,5 +33,15 @@ describe("sanitizeEvent", () => {
     expect(sanitizeEvent({ songId: "a", listenedMs: 500 })).toBeNull()
     expect(sanitizeEvent({ listenedMs: 5000 })).toBeNull()
     expect(sanitizeEvent({ songId: "a", listenedMs: 5000, counted: 1 })).toMatchObject({ songId: "a", listenedMs: 5000, counted: true })
+  })
+})
+
+describe("forgottenFrom", () => {
+  it("returns songs played more than 10 times but not in the last 30 days", () => {
+    const many = (id: string, n: number, daysAgo: number) => Array.from({ length: n }, (_, i) => ev(id, daysAgo + i * 0.01, 120_000))
+    const events = [...many("a", 12, 45), ...many("b", 15, 2), ...many("c", 8, 60), ...many("deleted", 20, 90)]
+    const r = forgottenFrom(events, { minPlays: 10, olderThanDays: 30, limit: 10, now, songInfo: info })
+    expect(r.map((x: { songId: string }) => x.songId)).toEqual(["a"]) // b played recently, c too few plays, deleted excluded
+    expect(r[0].plays).toBe(12)
   })
 })

@@ -34,3 +34,46 @@ describe("search", () => {
     expect(searchSongs(songs, "lotta").map((s) => s.id).sort()).toEqual(["1", "2"])
   })
 })
+
+describe("tags and radio", () => {
+  const civilian = song("c", "Civilian", "Wye Oak", "Civilian")
+  const party = song("p", "Party", "Daughter", "Stereo Mind Game")
+  const filler = Array.from({ length: 60 }, (_, i) => song(`f${i}`, `Filler ${i}`, `Band ${i}`, null))
+  const lib2 = [civilian, party, ...filler]
+  const tags = { c: ["somber"], p: ["Somber", "indie"] }
+
+  it("ignores YouTube categories written into the genre tag", async () => {
+    const { tagsOf } = await import("./catalog")
+    const yt = song("y", "Yt", "Someone", null)
+    yt.metadata.genre = "Music"
+    const real = song("r", "Real", "Someone", null)
+    real.metadata.genre = "Shoegaze"
+    expect(tagsOf(yt, {})).toEqual([])
+    expect(tagsOf(real, {})).toEqual(["Shoegaze"])
+  })
+
+  it("keeps variety: unrelated songs still make up part of each batch", async () => {
+    const { radioFor } = await import("./catalog")
+    const batch = radioFor(lib2, civilian, new Set(), 5, Math.random, tags)
+    expect(batch.filter((s) => s.id.startsWith("f")).length).toBeGreaterThanOrEqual(3)
+  })
+
+  it("lists tags (case-insensitive) and finds songs by tag", async () => {
+    const { buildTagList, songsWithTag, tagsOf } = await import("./catalog")
+    expect(tagsOf(party, tags)).toEqual(["Somber", "indie"])
+    const list = buildTagList(lib2, tags)
+    expect(list[0]).toMatchObject({ key: "somber", count: 2, own: true })
+    expect(songsWithTag(lib2, "SOMBER", tags).map((s) => s.id)).toEqual(["c", "p"])
+  })
+
+  it("radio strongly prefers songs sharing a tag, even across artists", async () => {
+    const { radioFor } = await import("./catalog")
+    let hits = 0
+    for (let i = 0; i < 200; i++) if (radioFor(lib2, civilian, new Set(), 5, Math.random, tags).some((s) => s.id === "p")) hits++
+    // Party is the only related song, so it's in (almost) every batch
+    expect(hits / 200).toBeGreaterThan(0.95)
+    let hitsNoTags = 0
+    for (let i = 0; i < 200; i++) if (radioFor(lib2, civilian, new Set(), 5, Math.random, {}).some((s) => s.id === "p")) hitsNoTags++
+    expect(hitsNoTags / 200).toBeLessThan(0.25)
+  })
+})

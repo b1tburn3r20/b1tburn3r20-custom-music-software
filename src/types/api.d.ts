@@ -35,6 +35,8 @@ export type UserSnapshot = {
   recentPlaylists: string[]
   settings: Settings
   notices: { id: string; createdAt: number; message: string }[]
+  /** songId -> your own tags */
+  songTags: Record<string, string[]>
   legacyUnresolved: { kind: string; path: string | null; title: string | null; origin: string }[]
 }
 
@@ -74,6 +76,10 @@ export type RawApi = {
     recordRecentPlaylist(id: string): Promise<IpcResult<null>>
     updateSettings(patch: Partial<Settings>): Promise<IpcResult<Settings>>
     dismissNotice(id: string): Promise<IpcResult<null>>
+    setSongTags(songIds: string[], tags: string[]): Promise<IpcResult<string[]>>
+    changeTag(songIds: string[], tag: string, add: boolean): Promise<IpcResult<string>>
+    renameTag(from: string, to: string): Promise<IpcResult<string>>
+    deleteTag(tag: string): Promise<IpcResult<null>>
     importLegacy(dump: Record<string, string | null>, origin: string): Promise<IpcResult<unknown>>
     onChanged(cb: (snap: UserSnapshot) => void): Unsubscribe
   }
@@ -100,6 +106,7 @@ export type RawApi = {
     recordPlay(event: { songId: string; startedAt: number; endedAt: number; listenedMs: number; durationMs: number; counted: boolean; context?: { type: string; id?: string } | null }): Promise<IpcResult<boolean>>
     get(range: StatsRange): Promise<IpcResult<StatsSummary>>
     history(opts?: { limit?: number; before?: number }): Promise<IpcResult<PlayEvent[]>>
+    forgotten(opts?: { minPlays?: number; olderThanDays?: number; limit?: number }): Promise<IpcResult<{ songId: string; plays: number; ms: number; lastPlayedAt: number }[]>>
     onChanged(cb: (p: { at: number }) => void): Unsubscribe
   }
   sync: {

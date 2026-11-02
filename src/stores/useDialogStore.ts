@@ -9,6 +9,8 @@ type DialogState = {
   addToPlaylistSongs: Song[] | null
   playlistForm: PlaylistFormState | null
   playlistToDelete: string | null
+  tagSongs: Song[] | null
+  openTags: (songs: Song[] | null) => void
   confirmDeleteSong: (song: Song | null) => void
   openAddToPlaylist: (songs: Song[] | null) => void
   openPlaylistForm: (form: PlaylistFormState | null) => void
@@ -20,6 +22,8 @@ export const useDialogStore = create<DialogState>((set) => ({
   addToPlaylistSongs: null,
   playlistForm: null,
   playlistToDelete: null,
+  tagSongs: null,
+  openTags: (tagSongs) => set({ tagSongs }),
   confirmDeleteSong: (songToDelete) => set({ songToDelete }),
   openAddToPlaylist: (addToPlaylistSongs) => set({ addToPlaylistSongs }),
   openPlaylistForm: (playlistForm) => set({ playlistForm }),

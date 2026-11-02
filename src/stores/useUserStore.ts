@@ -30,6 +30,7 @@ export const useUserStore = create<UserState>((set) => ({
   recentPlaylists: [],
   settings: DEFAULT_SETTINGS,
   notices: [],
+  songTags: {},
   legacyUnresolved: [],
   setSnapshot: (snap) => set({ ...snap, loaded: true, likedIds: new Set(snap.likes.map((l) => l.songId)) }),
 }))

@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils"
 import type { Song } from "@/types/DirectoryTypes"
 import { usePlayerStore } from "@/stores/usePlayerStore"
 import { useLibraryStore } from "@/stores/useLibraryStore"
+import { useUserStore } from "@/stores/useUserStore"
+import { navigate } from "@/stores/useAppStore"
 import { togglePlay } from "@/player/controls"
 import { songArtists } from "@/lib/catalog"
 import { formatDuration } from "@/utils/textUtils"
@@ -104,6 +106,7 @@ export const SongRow = memo(function SongRow(props: SongRowProps) {
   const globalPlaying = usePlayerStore((s) => (props.isCurrent !== undefined ? !s.paused : false))
   const isPlaying = isCurrent && (props.isCurrent !== undefined ? globalPlaying : storePlaying)
   const duplicateTitle = useLibraryStore((s) => (s.titleCounts.get(song.metadata.title.trim().toLowerCase()) ?? 0) > 1)
+  const tags = useUserStore((s) => s.songTags[song.id])
   const [hovered, setHovered] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   // Build menu entries only after a menu was first opened (cheap rows in long
@@ -227,6 +230,25 @@ export const SongRow = memo(function SongRow(props: SongRowProps) {
           )}
           {variant === "compact" && duplicateTitle && meta.album && <span className="text-muted-foreground/70 truncate text-xs">{meta.album}</span>}
         </div>
+        {variant === "row" && tags && tags.length > 0 && (
+          <span className="hidden shrink-0 items-center gap-1 lg:flex">
+            {tags.slice(0, 3).map((t) => (
+              <button
+                key={t}
+                type="button"
+                title={`Open the “${t}” mix`}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  navigate({ name: "tag", tag: t })
+                }}
+                className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-muted-foreground hover:bg-primary/20 hover:text-foreground"
+              >
+                {t}
+              </button>
+            ))}
+            {tags.length > 3 && <span className="text-xs text-muted-foreground">+{tags.length - 3}</span>}
+          </span>
+        )}
         {(variant === "row" || duplicateTitle) && <span className="shrink-0 text-sm tabular-nums text-muted-foreground">{formatDuration(meta.duration)}</span>}
         {moreButton}
       </div>

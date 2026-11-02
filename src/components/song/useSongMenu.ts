@@ -2,7 +2,7 @@
 // the app (library, playlists, albums, artist, search, queue, history, liked,
 // downloads) renders these entries.
 import { useMemo } from "react"
-import { Disc3, FolderOpen, Heart, HeartOff, ListEnd, ListMusic, ListPlus, ListStart, Mic2, Play, Plus, Trash2, X } from "lucide-react"
+import { Disc3, FolderOpen, Heart, HeartOff, ListEnd, ListMusic, ListPlus, ListStart, Mic2, Play, Plus, Tags, Trash2, X } from "lucide-react"
 import type { Song } from "@/types/DirectoryTypes"
 import type { QueueContext } from "@/player/queue"
 import { addToQueue, playFromList, playNext, playRadio, removeFromQueue } from "@/player/controls"
@@ -68,6 +68,7 @@ export function useSongMenu(song: Song, ctx: SongContext, enabled = true): MenuE
       entries.push({ kind: "item", key: "rmq", label: "Remove from queue", icon: X, onSelect: () => removeFromQueue(uid) })
     }
     entries.push({ kind: "item", key: "like", label: liked ? "Remove from Liked Songs" : "Add to Liked Songs", icon: liked ? HeartOff : Heart, onSelect: () => void setLiked(song.id, !liked) })
+    entries.push({ kind: "item", key: "tags", label: "Tags…", icon: Tags, onSelect: () => dialogs().openTags([song]) })
     entries.push({ kind: "separator", key: "s2" })
 
     const artists = songArtists(song)

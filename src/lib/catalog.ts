@@ -161,16 +161,101 @@ export function shuffled<T>(arr: readonly T[], rand: () => number = Math.random)
   return out
 }
 
-/** Radio suggestions: same-artist songs first (shuffled), then the rest (shuffled). */
-export function radioFor(songs: Song[], seed: Song, exclude: Set<string>, count = 15, rand: () => number = Math.random): Song[] {
+export type TagMap = Record<string, string[]>
+
+/** YouTube video categories that yt-dlp writes into the genre tag — not real genres. */
+const YOUTUBE_CATEGORIES = new Set(["film & animation", "autos & vehicles", "music", "pets & animals", "sports", "travel & events", "gaming", "people & blogs", "comedy", "entertainment", "news & politics", "howto & style", "education", "science & technology", "nonprofits & activism", "shows", "trailers"])
+/** The file's genre, unless it's just a YouTube category. */
+export const realGenre = (song: Song): string | null => {
+  const g = song.metadata.genre?.trim()
+  return g && !YOUTUBE_CATEGORIES.has(lc(g)) ? g : null
+}
+
+/** Your own tags for a song plus its file's genre tag (e.g. "Hip-Hop"), deduped case-insensitively. */
+export function tagsOf(song: Song, userTags: TagMap = {}): string[] {
+  const out: string[] = []
+  const seen = new Set<string>()
+  const genre = realGenre(song)
+  for (const t of [...(userTags[song.id] ?? []), ...(genre ? [genre] : [])]) {
+    const k = lc(t)
+    if (k && !seen.has(k)) {
+      seen.add(k)
+      out.push(t)
+    }
+  }
+  return out
+}
+
+/** Every tag in use, with how many songs carry it. Your own tags first, then file genres. */
+export function buildTagList(songs: Song[], userTags: TagMap): { key: string; name: string; count: number; own: boolean; thumbnail: string | null }[] {
+  const map = new Map<string, { key: string; name: string; count: number; own: boolean; thumbnail: string | null }>()
+  for (const s of songs) {
+    const own = new Set((userTags[s.id] ?? []).map(lc))
+    for (const t of tagsOf(s, userTags)) {
+      const k = lc(t)
+      const e = map.get(k) ?? { key: k, name: t, count: 0, own: false, thumbnail: null }
+      e.count++
+      e.own ||= own.has(k)
+      e.thumbnail ??= s.metadata.thumbnail
+      map.set(k, e)
+    }
+  }
+  return [...map.values()].sort((a, b) => Number(b.own) - Number(a.own) || b.count - a.count || a.name.localeCompare(b.name))
+}
+
+export const songsWithTag = (songs: Song[], tag: string, userTags: TagMap) => songs.filter((s) => tagsOf(s, userTags).some((t) => lc(t) === lc(tag)))
+
+/** How strongly a candidate relates to the seed: shared tags weigh most, then shared artists, then file genre. */
+export function radioWeight(seed: Song, cand: Song, userTags: TagMap = {}): number {
+  const seedOwn = new Set((userTags[seed.id] ?? []).map(lc))
+  const candOwn = (userTags[cand.id] ?? []).map(lc)
+  const sharedTags = candOwn.filter((t) => seedOwn.has(t)).length
   const seedArtists = new Set(songArtists(seed).map(lc))
-  const same: Song[] = []
-  const other: Song[] = []
+  const sharedArtist = songArtists(cand).some((a) => seedArtists.has(lc(a)))
+  const g1 = realGenre(seed)
+  const g2 = realGenre(cand)
+  const sameGenre = Boolean(g1 && g2 && lc(g1) === lc(g2))
+  return sharedTags * 4 + (sharedArtist ? 3 : 0) + (sameGenre ? 1.5 : 0)
+}
+
+/** Weighted random sample without replacement (Efraimidis–Spirakis). */
+function weightedSample<T>(items: { v: T; w: number }[], n: number, rand: () => number): T[] {
+  return items
+    .map((x) => ({ v: x.v, k: Math.pow(rand() || 1e-12, 1 / x.w) }))
+    .sort((a, b) => b.k - a.k)
+    .slice(0, n)
+    .map((x) => x.v)
+}
+
+/** Share of each radio batch taken from songs related to the seed (shared tags/artists/genre). */
+export const RADIO_RELATED_SHARE = 0.7
+
+/**
+ * Radio suggestions. About 70% of each batch comes from songs related to the
+ * seed — sharing your tags (weighted most), an artist, or a real genre — drawn
+ * by weight, so a "somber" seed mixes in other "somber" songs across artists.
+ * The rest is random variety, interleaved so related songs are spread out.
+ */
+export function radioFor(songs: Song[], seed: Song, exclude: Set<string>, count = 15, rand: () => number = Math.random, userTags: TagMap = {}): Song[] {
+  const related: { v: Song; w: number }[] = []
+  const others: { v: Song; w: number }[] = []
   for (const s of songs) {
     if (s.id === seed.id || exclude.has(s.id)) continue
-    ;(songArtists(s).some((a) => seedArtists.has(lc(a))) ? same : other).push(s)
+    const w = radioWeight(seed, s, userTags)
+    ;(w > 0 ? related : others).push({ v: s, w: w || 1 })
   }
-  return [...shuffled(same, rand), ...shuffled(other, rand)].slice(0, count)
+  const wantRelated = Math.min(related.length, Math.max(1, Math.round(count * RADIO_RELATED_SHARE)))
+  const pickedRelated = weightedSample(related, wantRelated, rand)
+  const pickedOthers = weightedSample(others, count - pickedRelated.length, rand)
+  // interleave: related, related, other, related, …
+  const out: Song[] = []
+  let r = 0
+  let o = 0
+  while (out.length < count && (r < pickedRelated.length || o < pickedOthers.length)) {
+    const takeRelated = r < pickedRelated.length && (o >= pickedOthers.length || (out.length % 3) !== 2)
+    out.push(takeRelated ? pickedRelated[r++] : pickedOthers[o++])
+  }
+  return out
 }
 
 const rank = (name: string, words: string[], q: string) => {

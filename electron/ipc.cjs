@@ -103,6 +103,10 @@ function registerLibraryIpc({ library, user, plays, positions, userData }) {
   handle("user:record-recently-played", (songId) => user.recordRecentlyPlayed(songId));
   handle("user:record-recent-playlist", (id) => user.recordRecentPlaylist(id));
   handle("user:update-settings", (patch) => user.updateSettings(patch));
+  handle("user:set-song-tags", (songIds, tags) => user.setSongTags(songIds, tags));
+  handle("user:change-tag", (songIds, tag, add) => user.changeTag(songIds, tag, add));
+  handle("user:rename-tag", (from, to) => user.renameTag(from, to));
+  handle("user:delete-tag", (tag) => user.deleteTag(tag));
   handle("user:dismiss-notice", (id) => user.dismissNotice(id));
   handle("user:import-legacy", async (dump, origin) => {
     // Keep a raw copy of the old localStorage before anything is interpreted.
@@ -127,6 +131,7 @@ function registerStatsIpc({ plays }) {
   }));
   handle("stats:get", (range) => plays.stats(["week", "month", "all"].includes(range) ? range : "all"));
   handle("stats:history", (opts) => plays.history(opts || {}));
+  handle("stats:forgotten", (opts) => plays.forgotten(opts || {}));
 }
 
 module.exports = { registerLibraryIpc, registerStatsIpc, broadcast, handle, AppError };

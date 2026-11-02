@@ -72,6 +72,22 @@ function aggregate(events, { range = "all", now = Date.now(), songInfo, limit = 
   };
 }
 
+function forgottenFrom(events, { minPlays, olderThanDays, limit, now, songInfo }) {
+  const bySong = new Map();
+  for (const e of events) {
+    const r = bySong.get(e.songId) || { songId: e.songId, plays: 0, ms: 0, lastPlayedAt: 0 };
+    if (e.counted) r.plays++;
+    r.ms += e.listenedMs;
+    r.lastPlayedAt = Math.max(r.lastPlayedAt, e.endedAt);
+    bySong.set(e.songId, r);
+  }
+  const cutoff = now - olderThanDays * DAY;
+  return [...bySong.values()]
+    .filter((r) => r.plays > minPlays && r.lastPlayedAt < cutoff && songInfo(r.songId))
+    .sort((a, b) => b.plays - a.plays || a.lastPlayedAt - b.lastPlayedAt)
+    .slice(0, limit);
+}
+
 function createPlaysStore({ userData, songInfo }) {
   const file = path.join(userData, "plays.jsonl");
   let events = [];
@@ -135,7 +151,15 @@ function createPlaysStore({ userData, songInfo }) {
 
   const invalidate = () => (cache = new Map());
 
-  return { load, record, purgeSongs, stats, history, invalidate };
+  /**
+   * Forgotten favorites: songs you played more than `minPlays` times (counted
+   * plays, all time) but not in the last `olderThanDays` days. Most-played first.
+   */
+  function forgotten({ minPlays = 10, olderThanDays = 30, limit = 50, now = Date.now() } = {}) {
+    return forgottenFrom(events, { minPlays, olderThanDays, limit, now, songInfo });
+  }
+
+  return { load, record, purgeSongs, stats, history, invalidate, forgotten };
 }
 
-module.exports = { createPlaysStore, aggregate, sanitizeEvent };
+module.exports = { createPlaysStore, aggregate, sanitizeEvent, forgottenFrom };

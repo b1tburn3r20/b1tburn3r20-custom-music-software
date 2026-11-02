@@ -28,6 +28,8 @@ function emptyUserState() {
     recentlyPlayed: [],
     recentlyDownloaded: [],
     recentPlaylists: [],
+    /** songId -> your own tags (moods/genres), e.g. ["somber", "rap"] */
+    songTags: {},
     settings: { ...DEFAULT_SETTINGS, youtubeAuth: { ...DEFAULT_SETTINGS.youtubeAuth } },
     legacyImports: {},
     legacyUnresolved: [],

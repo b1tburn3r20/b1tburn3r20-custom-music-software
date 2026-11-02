@@ -33,6 +33,10 @@ contextBridge.exposeInMainWorld("api", {
     recordRecentPlaylist: (id) => invoke("user:record-recent-playlist", id),
     updateSettings: (patch) => invoke("user:update-settings", patch),
     dismissNotice: (id) => invoke("user:dismiss-notice", id),
+    setSongTags: (songIds, tags) => invoke("user:set-song-tags", songIds, tags),
+    changeTag: (songIds, tag, add) => invoke("user:change-tag", songIds, tag, add),
+    renameTag: (from, to) => invoke("user:rename-tag", from, to),
+    deleteTag: (tag) => invoke("user:delete-tag", tag),
     importLegacy: (dump, origin) => invoke("user:import-legacy", dump, origin),
     onChanged: on("user:changed"),
   },
@@ -59,6 +63,7 @@ contextBridge.exposeInMainWorld("api", {
     recordPlay: (event) => invoke("stats:record-play", event),
     get: (range) => invoke("stats:get", range),
     history: (opts) => invoke("stats:history", opts),
+    forgotten: (opts) => invoke("stats:forgotten", opts),
     onChanged: on("stats:changed"),
   },
   sync: {

@@ -8,7 +8,7 @@ const { readJson, writeJsonAtomic, createDebouncedSaver } = require("../lib/atom
 const { USER_VERSION, DEFAULT_SETTINGS, emptyUserState, migrateLegacyPlaylists, importRendererLegacy } = require("./migrate.cjs");
 const { backupFiles } = require("./paths.cjs");
 
-const LIMITS = { recentlyPlayed: 100, recentlyDownloaded: 200, recentPlaylists: 20, nameLength: 100, descriptionLength: 500 };
+const LIMITS = { recentlyPlayed: 100, recentlyDownloaded: 200, recentPlaylists: 20, nameLength: 100, descriptionLength: 500, tagLength: 32, tagsPerSong: 24 };
 const SETTINGS_KEYS = new Set(Object.keys(DEFAULT_SETTINGS));
 
 class UserError extends Error {
@@ -35,6 +35,7 @@ function createUserStore({ userData, library, emit = () => { } }) {
     recentPlaylists: user.recentPlaylists,
     settings: user.settings,
     notices: user.notices,
+    songTags: user.songTags,
     legacyUnresolved: user.legacyUnresolved,
   });
 
@@ -278,9 +279,80 @@ function createUserStore({ userData, library, emit = () => { } }) {
     user.likes = user.likes.filter((l) => !ids.has(l.songId));
     user.recentlyPlayed = user.recentlyPlayed.filter((r) => !ids.has(r.songId));
     user.recentlyDownloaded = user.recentlyDownloaded.filter((s) => !ids.has(s));
+    for (const id of ids) delete user.songTags[id];
     for (const pl of user.playlists) if (pl.mirrorMap) for (const [vid, e] of Object.entries(pl.mirrorMap)) if (ids.has(e.songId)) delete pl.mirrorMap[vid];
     commit();
     return touched;
+  }
+
+  // ---------- tags ----------
+  /** Normalize tag text and reuse the existing spelling of a tag (case-insensitive). */
+  function canonicalTags(tags) {
+    const known = new Map();
+    for (const list of Object.values(user.songTags)) for (const t of list) known.set(t.toLowerCase(), t);
+    const out = [];
+    const seen = new Set();
+    for (const raw of tags || []) {
+      const t = String(raw || "").trim().replace(/\s+/g, " ").slice(0, LIMITS.tagLength);
+      if (!t) continue;
+      const k = t.toLowerCase();
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push(known.get(k) || t);
+    }
+    if (out.length > LIMITS.tagsPerSong) throw new UserError("TOO_MANY_TAGS", `A song can have at most ${LIMITS.tagsPerSong} tags.`);
+    return out;
+  }
+
+  /** Replace the tags of one or more songs. */
+  function setSongTags(songIds, tags) {
+    const clean = canonicalTags(tags);
+    for (const id of songIds) {
+      if (!library.hasSong(id)) continue;
+      if (clean.length) user.songTags[id] = clean;
+      else delete user.songTags[id];
+    }
+    commit();
+    return clean;
+  }
+
+  /** Add (or remove) one tag on several songs, keeping their other tags. */
+  function changeTag(songIds, tag, add) {
+    const [t] = canonicalTags([tag]);
+    if (!t) throw new UserError("TAG_REQUIRED", "Type a tag name.");
+    for (const id of songIds) {
+      if (!library.hasSong(id)) continue;
+      const cur = user.songTags[id] || [];
+      const next = add ? (cur.some((c) => c.toLowerCase() === t.toLowerCase()) ? cur : [...cur, t]) : cur.filter((c) => c.toLowerCase() !== t.toLowerCase());
+      if (next.length > LIMITS.tagsPerSong) throw new UserError("TOO_MANY_TAGS", `A song can have at most ${LIMITS.tagsPerSong} tags.`);
+      if (next.length) user.songTags[id] = next;
+      else delete user.songTags[id];
+    }
+    commit();
+    return t;
+  }
+
+  /** Rename a tag everywhere (merges into an existing tag of that name). */
+  function renameTag(from, to) {
+    const [target] = canonicalTags([to]);
+    if (!target) throw new UserError("TAG_REQUIRED", "Type a tag name.");
+    const f = String(from).toLowerCase();
+    for (const [id, list] of Object.entries(user.songTags)) {
+      if (!list.some((t) => t.toLowerCase() === f)) continue;
+      user.songTags[id] = canonicalTags(list.map((t) => (t.toLowerCase() === f ? target : t)));
+    }
+    commit();
+    return target;
+  }
+
+  function deleteTag(tag) {
+    const k = String(tag).toLowerCase();
+    for (const [id, list] of Object.entries(user.songTags)) {
+      const next = list.filter((t) => t.toLowerCase() !== k);
+      if (next.length) user.songTags[id] = next;
+      else delete user.songTags[id];
+    }
+    commit();
   }
 
   // ---------- settings ----------
@@ -356,6 +428,10 @@ function createUserStore({ userData, library, emit = () => { } }) {
     addRecentlyDownloaded,
     purgeSongs,
     updateSettings,
+    setSongTags,
+    changeTag,
+    renameTag,
+    deleteTag,
     importLegacy,
     dismissNotice,
     danglingReferences,

@@ -111,3 +111,23 @@ export async function rescanLibrary() {
 export function updateSettings(patch: Partial<Settings>) {
   return attempt("Couldn't save settings", () => call(window.api.user.updateSettings(patch)))
 }
+
+// ---------- tags ----------
+export async function setSongTags(songIds: string[], tags: string[]) {
+  return attempt("Couldn't save tags", () => call(window.api.user.setSongTags(songIds, tags)))
+}
+export async function addTagToSongs(songIds: string[], tag: string) {
+  const t = await attempt("Couldn't add tag", () => call(window.api.user.changeTag(songIds, tag, true)))
+  if (t) toast.success(`Tagged ${plural(songIds.length, "song")} “${t}”`)
+  return t
+}
+export async function removeTagFromSongs(songIds: string[], tag: string) {
+  return attempt("Couldn't remove tag", () => call(window.api.user.changeTag(songIds, tag, false)))
+}
+/** Throws on validation errors so the dialog can show them inline. */
+export const renameTag = (from: string, to: string) => call(window.api.user.renameTag(from, to))
+export async function deleteTag(tag: string) {
+  const ok = await attempt("Couldn't delete tag", () => call(window.api.user.deleteTag(tag)).then(() => true))
+  if (ok) toast.info(`Removed the tag “${tag}” from all songs`)
+  return Boolean(ok)
+}

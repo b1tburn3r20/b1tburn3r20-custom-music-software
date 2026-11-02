@@ -6,6 +6,7 @@ import DeleteSongDialog from "@/components/dialogs/DeleteSongDialog"
 import AddToPlaylistDialog from "@/components/dialogs/AddToPlaylistDialog"
 import PlaylistFormDialog from "@/components/dialogs/PlaylistFormDialog"
 import DeletePlaylistDialog from "@/components/dialogs/DeletePlaylistDialog"
+import TagsDialog from "@/components/dialogs/TagsDialog"
 import { useAppStore } from "@/stores/useAppStore"
 import { useEffect, useRef, useState } from "react"
 import { ScrollParentContext } from "./scrollContext"
@@ -56,6 +57,7 @@ export default function AppShell() {
       <AddToPlaylistDialog />
       <PlaylistFormDialog />
       <DeletePlaylistDialog />
+      <TagsDialog />
     </div>
   )
 }

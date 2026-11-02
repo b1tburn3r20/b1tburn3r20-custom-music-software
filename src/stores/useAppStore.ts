@@ -4,11 +4,12 @@ import { create } from "zustand"
 export type Route =
   | { name: "home" }
   | { name: "search"; q: string }
-  | { name: "library"; tab?: "albums" | "artists" | "songs" }
+  | { name: "library"; tab?: "albums" | "artists" | "songs" | "tags" }
   | { name: "playlist"; id: string }
   | { name: "album"; key: string }
   | { name: "artist"; artist: string }
   | { name: "liked" }
+  | { name: "tag"; tag: string }
   | { name: "history" }
   | { name: "stats" }
   | { name: "youtube" }

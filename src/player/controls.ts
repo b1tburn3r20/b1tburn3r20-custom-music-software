@@ -43,7 +43,7 @@ export function playFromList(list: readonly Song[], song: Song, context: Q.Queue
 export function playRadio(seed: Song) {
   const lib = useLibraryStore.getState()
   // Start small; the engine tops the queue up as you get near the end.
-  const more = radioFor(lib.songs, seed, new Set([seed.id]), RADIO_BATCH - 1)
+  const more = radioFor(lib.songs, seed, new Set([seed.id]), RADIO_BATCH - 1, Math.random, useUserStore.getState().songTags)
   playContext([seed, ...more], 0, { type: "radio", id: seed.id, label: `${seed.metadata.title} radio` })
 }
 

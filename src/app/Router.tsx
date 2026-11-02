@@ -8,6 +8,7 @@ import ArtistPage from "@/pages/ArtistPage"
 import LikedPage from "@/pages/LikedPage"
 import HistoryPage from "@/pages/HistoryPage"
 import StatsPage from "@/pages/StatsPage"
+import TagPage from "@/pages/TagPage"
 import YoutubePage from "@/pages/YoutubePage"
 
 export default function Router() {
@@ -27,6 +28,8 @@ export default function Router() {
       return <ArtistPage key={route.artist} name={route.artist} />
     case "liked":
       return <LikedPage />
+    case "tag":
+      return <TagPage key={route.tag} tag={route.tag} />
     case "history":
       return <HistoryPage />
     case "youtube":

@@ -7,7 +7,9 @@ import { AlbumCard } from "@/components/cards/AlbumCard"
 import { ArtistCard } from "@/components/cards/ArtistCard"
 import { Button } from "@/components/ui/button"
 import { useLibraryStore } from "@/stores/useLibraryStore"
-import { buildArtistList, searchAlbums, searchArtists, searchSongs } from "@/lib/catalog"
+import { buildArtistList, buildTagList, searchAlbums, searchArtists, searchSongs } from "@/lib/catalog"
+import { useUserStore } from "@/stores/useUserStore"
+import { TagCard } from "@/components/cards/TagCard"
 import { navigate } from "@/stores/useAppStore"
 import { useYoutubeStore } from "@/components/youtube/searchStore"
 import { useYoutubeTab } from "@/components/youtube/tabStore"
@@ -19,6 +21,11 @@ export default function SearchPage({ q }: { q: string }) {
   const songHits = useMemo(() => searchSongs(songs, q), [songs, q])
   const albumHits = useMemo(() => searchAlbums(albums, q), [albums, q])
   const artistHits = useMemo(() => searchArtists(buildArtistList(songs), q), [songs, q])
+  const songTags = useUserStore((s) => s.songTags)
+  const tagHits = useMemo(() => {
+    const k = q.trim().toLowerCase()
+    return k ? buildTagList(songs, songTags).filter((t) => t.key.includes(k)).slice(0, 12) : []
+  }, [songs, songTags, q])
   const context = useMemo<QueueContext>(() => ({ type: "search", id: q, label: `Search: ${q}` }), [q])
 
   const searchYouTube = () => {
@@ -30,7 +37,7 @@ export default function SearchPage({ q }: { q: string }) {
   navigate({ name: "youtube" })
   }
 
-  const nothing = !songHits.length && !albumHits.length && !artistHits.length
+  const nothing = !songHits.length && !albumHits.length && !artistHits.length && !tagHits.length
   return (
     <Page>
       <PageHeader
@@ -47,6 +54,15 @@ export default function SearchPage({ q }: { q: string }) {
         }
       />
       {nothing && <EmptyState icon={Search} title={`No results for “${q}”`} hint="Try fewer or different words, or search YouTube." />}
+      {tagHits.length > 0 && (
+        <Section title="Tags">
+          <CardGrid>
+            {tagHits.map((t) => (
+              <TagCard key={t.key} name={t.name} count={t.count} own={t.own} thumbnail={t.thumbnail} />
+            ))}
+          </CardGrid>
+        </Section>
+      )}
       {artistHits.length > 0 && (
         <Section title="Artists">
           <CardGrid>

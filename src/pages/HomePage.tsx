@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
+import { useStatsStore } from "@/stores/useStatsStore"
 import { Download } from "lucide-react"
 import { Page, Section, CardGrid, EmptyState } from "@/components/base/Page"
 import { SongRow } from "@/components/song/SongRow"
@@ -15,6 +16,35 @@ import type { Song } from "@/types/DirectoryTypes"
 const DOWNLOADS: QueueContext = { type: "downloads", label: "Recently downloaded" }
 const RECENT: QueueContext = { type: "history", label: "Listen again" }
 const PICKS: QueueContext = { type: "list", id: "random-picks", label: "Random picks" }
+const FORGOTTEN: QueueContext = { type: "list", id: "forgotten-favorites", label: "Forgotten favorites" }
+
+const ago = (ts: number) => {
+  const days = Math.round((Date.now() - ts) / 86_400_000)
+  return days >= 60 ? `${Math.round(days / 30)} months ago` : `${days} days ago`
+}
+
+/** Songs you played more than 10 times but not in the last 30 days. */
+function ForgottenFavorites() {
+  const forgotten = useStatsStore((s) => s.forgotten)
+  const load = useStatsStore((s) => s.loadForgotten)
+  const byId = useLibraryStore((s) => s.songsById)
+  useEffect(() => {
+    load().catch(() => {})
+  }, [load])
+  const rows = useMemo(() => (forgotten ?? []).map((f) => ({ ...f, song: byId[f.songId] })).filter((f): f is typeof f & { song: Song } => Boolean(f.song)), [forgotten, byId])
+  const songs = useMemo(() => rows.map((r) => r.song), [rows])
+  if (!rows.length) return null
+  return (
+    <Section title="Forgotten favorites">
+      <p className="-mt-2 mb-3 text-sm text-muted-foreground">You played these a lot, but not in the last month.</p>
+      <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+        {rows.slice(0, 8).map((r) => (
+          <SongRow key={r.songId} song={r.song} variant="card" list={songs} queueContext={FORGOTTEN} badge={`${r.plays} plays · ${ago(r.lastPlayedAt)}`} />
+        ))}
+      </div>
+    </Section>
+  )
+}
 
 function SongCardGrid({ songs, context, initial = 8 }: { songs: Song[]; context: QueueContext; initial?: number }) {
   const [count, setCount] = useState(initial)
@@ -61,6 +91,7 @@ export default function HomePage() {
           <SongCardGrid songs={downloads} context={DOWNLOADS} />
         </Section>
       )}
+      <ForgottenFavorites />
       {listenAgain.length > 0 && (
         <Section title="Listen again" action={<Button variant="link" onClick={() => navigate({ name: "history" })}>See all</Button>}>
           <CardGrid className="md:grid-cols-5 xl:grid-cols-5">

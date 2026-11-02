@@ -145,7 +145,7 @@ export function appendRadio(count = RADIO_BATCH): boolean {
   const seed = lastId ? lib.songsById[lastId] : null
   if (!seed) return false
   const exclude = new Set(queue.items.map((i) => i.songId))
-  const more = radioFor(lib.songs, seed, exclude, count)
+  const more = radioFor(lib.songs, seed, exclude, count, Math.random, useUserStore.getState().songTags)
   if (!more.length) return false
   setQueue(Q.addToQueue(queue, more.map((s) => s.id), "radio"))
   return true
