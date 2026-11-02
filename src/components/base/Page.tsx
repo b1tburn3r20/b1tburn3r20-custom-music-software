@@ -30,17 +30,16 @@ type HeaderProps = {
 
 /** Hero header shared by playlist, album, artist, liked songs, search and history pages. */
 export function PageHeader({ eyebrow, title, meta, description, artwork, icon: Icon, colorKey, actions }: HeaderProps) {
-  // "r, g, b" -> "r g b" so it can be used as rgb(var(--art-rgb) / alpha)
-  const color = useColorCacheStore((s) => s.getColor(artwork ?? undefined, colorKey)).replace(/,\s*/g, " ")
+  const color = useColorCacheStore((s) => s.getColor(artwork ?? undefined, colorKey))
   return (
     <header className="relative" style={{ ["--art-rgb" as string]: color }}>
-      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-[rgb(var(--art-rgb)/0.55)] via-[rgb(var(--art-rgb)/0.2)] to-transparent" aria-hidden />
+      <div className="art-gradient absolute inset-0 -z-10 transition-[background-image] duration-slow" aria-hidden />
       <Container className="flex items-end gap-6 pt-10 pb-6">
         {artwork || !Icon ? (
           <Artwork src={artwork} size="lg" className="shadow-2xl" />
         ) : (
-          <div className="size-48 shrink-0 rounded-lg shadow-2xl bg-[rgb(var(--art-rgb)/0.25)] flex items-center justify-center">
-            <Icon className="size-20 text-[rgb(var(--art-rgb))]" aria-hidden />
+          <div className="art-tint flex size-art-lg shrink-0 items-center justify-center rounded-lg shadow-2xl">
+            <Icon className="art-text size-20" aria-hidden />
           </div>
         )}
         <div className="flex min-w-0 flex-1 flex-col gap-2 pb-2">

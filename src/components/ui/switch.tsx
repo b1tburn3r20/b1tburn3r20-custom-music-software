@@ -3,13 +3,13 @@ import * as SwitchPrimitive from "@radix-ui/react-switch"
 
 import { cn } from "@/lib/utils"
 
-type SwitchVariant = "default" | "red"
+type SwitchVariant = "default" | "destructive"
 
 const variantClasses: Record<SwitchVariant, string> = {
   default:
     "data-[state=checked]:bg-primary data-[state=unchecked]:bg-input dark:data-[state=unchecked]:bg-input/80",
-  red:
-    "data-[state=checked]:bg-red-500 data-[state=unchecked]:bg-muted dark:data-[state=unchecked]:bg-muted",
+  destructive:
+    "data-[state=checked]:bg-destructive data-[state=unchecked]:bg-muted dark:data-[state=unchecked]:bg-muted",
 }
 
 interface SwitchProps

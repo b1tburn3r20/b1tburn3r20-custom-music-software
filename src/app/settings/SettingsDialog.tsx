@@ -5,8 +5,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { IconButton } from "@/components/base/IconButton"
 import PlaybackSettings from "./PlaybackSettings"
 import LibrarySettings from "./LibrarySettings"
+import AppearanceSettings from "./AppearanceSettings"
 
 const TABS = [
+  { value: "appearance", label: "Appearance", Panel: AppearanceSettings },
   { value: "playback", label: "Playback", Panel: PlaybackSettings },
   { value: "library", label: "Library", Panel: LibrarySettings },
 ]

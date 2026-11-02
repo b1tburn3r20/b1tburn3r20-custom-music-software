@@ -52,9 +52,9 @@ const PlaylistSongItem = memo(({
   const setPaused = usePlayerStore((f) => f.setPaused)
 
   const getStyles = () => {
-    if (songSame && artistSame) return "text-emerald-500"
-    if (songSame) return "text-red-500"
-    if (artistSame) return "text-amber-500"
+    if (songSame && artistSame) return "text-success"
+    if (songSame) return "text-youtube"
+    if (artistSame) return "text-warning"
     return ""
   }
 
@@ -83,7 +83,7 @@ const PlaylistSongItem = memo(({
   return (
     <div className={`flex justify-between p-2 rounded-lg ${index % 2 === 0 ? "bg-muted/80" : ""}`}>
       <div className="flex items-center gap-4">
-        <div className="shrink-0 aspect-square bg-white/10 p-1 rounded-lg">
+        <div className="shrink-0 aspect-square bg-foreground/10 p-1 rounded-lg">
           <img className="shrink-0 w-10 h-10 object-cover rounded-lg" src={song.thumbnail} alt={song.title} />
         </div>
         <div className={getStyles()}>
@@ -106,7 +106,7 @@ const PlaylistSongItem = memo(({
           <Button
             disabled={isDownloaded || isDownloading}
             onClick={handleDownload}
-            variant="red"
+            variant="youtube"
             size="sm"
           >
             {isDownloading ? <Loader2 className="animate-spin" /> : isDownloaded ? <Check /> : <Download />}

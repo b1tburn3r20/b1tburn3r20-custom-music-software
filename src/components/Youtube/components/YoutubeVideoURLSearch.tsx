@@ -234,12 +234,12 @@ const YoutubeVideoURLSearch = () => {
       <div className="max-w-[300px] border-none  relative bg-muted/30 rounded-xl">
         <div
           onClick={handleSearch}
-          className="bg-red-500/20 p-1 rounded-full absolute text-muted-foreground left-1 top-1"
+          className="bg-youtube/20 p-1 rounded-full absolute text-muted-foreground left-1 top-1"
         >
           {loading ? (
             <Loader2 className="text-primary animate-spin" />
           ) : (
-            <Link2 className="text-red-500 h-4 " />
+            <Link2 className="text-youtube h-4 " />
           )}
         </div>
         <Input
@@ -255,17 +255,17 @@ const YoutubeVideoURLSearch = () => {
       </div>
 
       {error && (
-        <div className="relative flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-500">
+        <div className="relative flex items-center gap-2 p-3 bg-youtube/10 border border-youtube/20 rounded-lg text-youtube">
           <AlertCircle className="w-5 h-5 flex-shrink-0" />
           <span className="text-sm">{error}</span>
-          <button className='cursor-pointer absolute -top-0.5 -right-0.5 rounded-full h-3 w-3 border-white/40 border-[1px] bg-white/10 backdrop-blur-md items-center flex flex-col' onClick={() => reset()}><X className='text-white/40' size={10} /> </button>
+          <button className='cursor-pointer absolute -top-0.5 -right-0.5 rounded-full h-3 w-3 border-foreground/40 border-[1px] bg-foreground/10 backdrop-blur-md items-center flex flex-col' onClick={() => reset()}><X className='text-foreground/40' size={10} /> </button>
         </div>
       )}
 
       {videoResult && (
         <div className="relative flex justify-center p-4 bg-muted/50 rounded-lg">
           <YoutubeVideoResult result={videoResult} currentDir={currentDir} />
-          <button className='cursor-pointer absolute -top-0.5 -right-0.5 rounded-full h-3 w-3 border-white/40 border-[1px] bg-white/10 backdrop-blur-md items-center flex flex-col' onClick={() => reset()}><X className='text-white/40' size={10} /> </button>
+          <button className='cursor-pointer absolute -top-0.5 -right-0.5 rounded-full h-3 w-3 border-foreground/40 border-[1px] bg-foreground/10 backdrop-blur-md items-center flex flex-col' onClick={() => reset()}><X className='text-foreground/40' size={10} /> </button>
         </div>
       )}
 

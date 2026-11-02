@@ -12,7 +12,7 @@ const YoutubeTypeToggle = () => {
       <Tooltip>
         <TooltipTrigger asChild>
 
-          <Button onClick={() => setPlaylist(!playlist)} variant={playlist ? "red" : "ghost"}>
+          <Button onClick={() => setPlaylist(!playlist)} variant={playlist ? "youtube" : "ghost"}>
             <ListMusic className={`${playlist ? "fill-current" : ""}`} />
           </Button>
 

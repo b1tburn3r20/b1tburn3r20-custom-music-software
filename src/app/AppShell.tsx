@@ -8,6 +8,7 @@ import PlaylistFormDialog from "@/components/dialogs/PlaylistFormDialog"
 import DeletePlaylistDialog from "@/components/dialogs/DeletePlaylistDialog"
 import { useAppStore } from "@/stores/useAppStore"
 import { useEffect, useRef } from "react"
+import { useThemeSync } from "./theme"
 import Sidebar from "./Sidebar"
 import TopBar from "./TopBar"
 import Router from "./Router"
@@ -15,6 +16,7 @@ import Router from "./Router"
 export default function AppShell() {
   const route = useAppStore((s) => s.route)
   const scrollRef = useRef<HTMLDivElement>(null)
+  useThemeSync()
   // New page → start at the top.
   useEffect(() => {
     scrollRef.current?.querySelector("[data-radix-scroll-area-viewport]")?.scrollTo({ top: 0 })

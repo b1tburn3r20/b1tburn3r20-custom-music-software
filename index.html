@@ -1,11 +1,18 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en" data-theme="dark" data-mode="dark">
 
 <head>
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>b1tburn3r20's Music</title>
+  <script>
+    // Apply the last theme before first paint (the real setting arrives from the main process).
+    try {
+      var t = localStorage.getItem("b1t:theme");
+      if (t) { document.documentElement.dataset.theme = t; document.documentElement.dataset.mode = t === "light" ? "light" : "dark"; }
+    } catch (e) {}
+  </script>
 </head>
 
 <body>

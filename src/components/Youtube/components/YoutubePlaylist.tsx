@@ -72,7 +72,7 @@ const PlaylistItem = ({
       <AccordionTrigger className="w-full px-4 mb-4 bg-muted/50">
         <div className="flex justify-between items-center w-full">
           <div className="flex gap-2 items-center">
-            <div className="shrink-0 aspect-square bg-white/10 p-1 rounded-lg">
+            <div className="shrink-0 aspect-square bg-foreground/10 p-1 rounded-lg">
               <img className="shrink-0 w-14 h-14 object-cover rounded-lg" src={playlist.thumbnail} />
             </div>
             <div className="font-bold">

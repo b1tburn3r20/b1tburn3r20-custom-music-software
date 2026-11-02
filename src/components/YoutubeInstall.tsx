@@ -165,16 +165,16 @@ const YoutubeInstall = () => {
 
   return (
     <div className="max-w-[300px] border-none  relative bg-muted/30 rounded-xl">
-      <div onClick={() => handleButtonSearch()} className="bg-red-500/20 p-1 rounded-full absolute text-muted-foreground left-1 top-1">
+      <div onClick={() => handleButtonSearch()} className="bg-youtube/20 p-1 rounded-full absolute text-muted-foreground left-1 top-1">
         {loading ? (
-          <Loader className="text-red-500 h-4 animate-spin" />
+          <Loader className="text-youtube h-4 animate-spin" />
         ) : (
           <button
             disabled={!searchTerm}
             onClick={() => searchYoutube(searchTerm)}
             id="youtube-search-button"
             className="p-0 m-0 h-auto flex items-center justify-center">
-            <Search className="text-red-500 h-4 " />
+            <Search className="text-youtube h-4 " />
           </button>
 
         )}
@@ -182,7 +182,7 @@ const YoutubeInstall = () => {
       <Input
         ref={inputRef}
         disabled={loading}
-        className="w-full rounded-xl bg-transparent border-none pl-10 h-8 focus-visible:ring-red-500/50"
+        className="w-full rounded-xl bg-transparent border-none pl-10 h-8 focus-visible:ring-youtube/50"
         value={searchTerm}
         id="youtube-search"
         onChange={(e) => setSearchTerm(e.target.value)}

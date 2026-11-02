@@ -10,7 +10,7 @@ const YoutubeSearchContainer = () => {
   const playlist = useYoutubeStore((f) => f.playlists)
 
   return (
-    <div className="w-full h-full bg-black/50 overflow-hidden p-4">
+    <div className="w-full h-full bg-scrim overflow-hidden p-4">
 
       <div className="container mx-auto flex flex-col">
         <div className="w-full flex flex-row-reverse justify-between items-center flex-wrap">

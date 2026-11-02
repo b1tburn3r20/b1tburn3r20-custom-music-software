@@ -3,7 +3,6 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import { Toaster } from "@/components/ui/sonner"
-import { ThemeProvider } from './components/ui/theme-provider.tsx'
 import { bootstrapData } from './data/bootstrap.ts'
 import { initPlayer } from './player/controls.ts'
 import { installNavigationShortcuts } from './stores/useAppStore.ts'
@@ -14,15 +13,8 @@ void bootstrapData()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ThemeProvider
-      attribute="class"
-      defaultTheme="dark"
-      enableSystem
-      disableTransitionOnChange
-    >
-      <App />
-      <Toaster />
-    </ThemeProvider>
+    <App />
+    <Toaster />
   </StrictMode>,
 )
 

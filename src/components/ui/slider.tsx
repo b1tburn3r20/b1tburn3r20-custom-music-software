@@ -55,7 +55,7 @@ function Slider({
           data-slot="slider-thumb"
           key={index}
           className={cn(
-            "border-primary ring-ring/50 block size-6 shrink-0 rounded-full border bg-white shadow-sm transition-all hover:ring-4 focus-visible:ring-4 focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50",
+            "border-primary ring-ring/50 block size-6 shrink-0 rounded-full border bg-foreground shadow-sm transition-all hover:ring-4 focus-visible:ring-4 focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50",
             hideThumb && "opacity-0"
           )}
         />

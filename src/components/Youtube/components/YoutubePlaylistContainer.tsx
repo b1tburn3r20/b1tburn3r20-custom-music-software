@@ -12,7 +12,7 @@ const YoutubePlaylistContainer = () => {
   if (searching) {
     return (
       <div className="h-[76vh] rounded-3xl text-muted-foreground gap-4 flex flex-col items-center justify-center text-center bg-muted">
-        <Loader2 className="text-red-500 animate-pulse animate-spin" size={120} />
+        <Loader2 className="text-youtube animate-pulse animate-spin" size={120} />
       </div>
 
     )
@@ -27,7 +27,7 @@ const YoutubePlaylistContainer = () => {
       ) : (
         <div className="h-[76vh] text-muted-foreground gap-4 flex flex-col items-center justify-center text-center bg-muted">
           <p className="text-xl">Search playlists to get started</p>
-          <Youtube className="text-red-500 animate-pulse" size={120} />
+          <Youtube className="text-youtube animate-pulse" size={120} />
         </div>
 
       )}

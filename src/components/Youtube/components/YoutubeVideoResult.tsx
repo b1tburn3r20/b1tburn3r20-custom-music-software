@@ -61,11 +61,11 @@ const YoutubeVideoResult = ({
 
   const getStyles = () => {
     if (songSame && artistSame) {
-      return "text-emerald-500"
+      return "text-success"
     } else if (songSame) {
-      return "text-red-500"
+      return "text-youtube"
     } else if (artistSame) {
-      return "text-amber-500"
+      return "text-warning"
     } else {
       return ""
     }
@@ -200,7 +200,7 @@ const YoutubeVideoResult = ({
           </div>
         ) : (
           <div className='text-center w-full justify-center flex gap-1 items-center '>
-            <Youtube className="w-4 text-red-500 h-4" />
+            <Youtube className="w-4 text-youtube h-4" />
             <span className="">Get</span>
           </div>
 
@@ -255,9 +255,9 @@ const YoutubeVideoResult = ({
             {result.embeddable && (
               <button
                 onClick={() => setShowEmbed(true)}
-                className="absolute inset-0 flex items-center justify-center bg-black/40 hover:bg-black/50 rounded-t-3xl transition-colors group"
+                className="absolute inset-0 flex items-center justify-center bg-scrim hover:bg-scrim rounded-t-3xl transition-colors group"
               >
-                <div className="bg-red-500/80 rounded-full p-3 group-hover:scale-110 transition-transform">
+                <div className="bg-youtube/80 rounded-full p-3 group-hover:scale-110 transition-transform">
                   <Play className="w-8 h-8 text-muted" />
                 </div>
               </button>
@@ -270,7 +270,7 @@ const YoutubeVideoResult = ({
           {getButton()}
         </div>
         {error && (
-          <div className="mt-2 text-xs text-red-500">
+          <div className="mt-2 text-xs text-youtube">
             {error}
           </div>
         )}
