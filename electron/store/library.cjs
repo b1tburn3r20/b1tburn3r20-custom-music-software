@@ -54,6 +54,7 @@ function createLibraryStore({ userData, emit = () => { } }) {
     }
     if (data && data.version === LIBRARY_VERSION) {
       lib = data;
+      if (!lib.clearedSourceIds) await recoverClearedFromBackup();
       return report;
     }
     if (data && data.version === 5) {
@@ -86,6 +87,38 @@ function createLibraryStore({ userData, emit = () => { } }) {
     }
     return report;
   }
+
+  /**
+   * Libraries repaired (v5→v6) before clearedSourceIds existed: recover which songs
+   * had a title-guessed YouTube id from the pre-repair backup. Runs once.
+   */
+  async function recoverClearedFromBackup() {
+    lib.clearedSourceIds = {};
+    try {
+      const dir = path.join(userData, "backups");
+      const repairs = (await fs.readdir(dir)).filter((d) => d.endsWith("-library-v6")).sort();
+      if (repairs.length) {
+        const before = await readJson(path.join(dir, repairs[repairs.length - 1], "library.json"), null);
+        for (const old of Object.values((before && before.songs) || {})) {
+          const now = lib.songs[old.id];
+          if (old.sourceId && now && now.sourceId !== old.sourceId && !String(old.fileName || "").includes(`[${old.sourceId}]`)) lib.clearedSourceIds[old.sourceId] = old.id;
+        }
+      }
+    } catch (err) {
+      console.warn("[library] couldn't read the v6 repair backup:", err.message);
+    }
+    await writeJsonAtomic(file, lib);
+    console.info(`[library] recovered ${Object.keys(lib.clearedSourceIds).length} wrongly matched YouTube ids from the repair backup`);
+  }
+
+  /** Song that once wrongly held this YouTube id (see repairGuessedSourceIds), if not yet corrected. */
+  const clearedOwner = (sourceId) => (lib.clearedSourceIds && lib.clearedSourceIds[sourceId]) || null;
+  function resolveCleared(sourceId) {
+    if (!lib.clearedSourceIds || !lib.clearedSourceIds[sourceId]) return;
+    delete lib.clearedSourceIds[sourceId];
+    saver.schedule();
+  }
+  const clearedEntries = () => Object.entries(lib.clearedSourceIds || {});
 
   const visibleSongs = () => Object.values(lib.songs).filter((s) => !s.missing);
   const getSong = (id) => lib.songs[id] || null;
@@ -330,6 +363,9 @@ function createLibraryStore({ userData, emit = () => { } }) {
     addFile,
     removeSong,
     setSourceId,
+    clearedOwner,
+    resolveCleared,
+    clearedEntries,
     orphanReport,
     removeOrphanThumbnails,
     forgetMissing,

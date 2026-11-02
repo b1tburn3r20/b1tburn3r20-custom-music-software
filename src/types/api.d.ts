@@ -85,7 +85,7 @@ export type RawApi = {
     checkAuth(): Promise<IpcResult<{ ok: true; playlists: number } | { ok: false; code: string; message: string; at: number }>>
     myPlaylists(): Promise<IpcResult<MyYoutubePlaylist[]>>
     playlistItems(id: string): Promise<IpcResult<{ id: string; title: string; channel: string; videos: { id: string; title: string; channel: string; duration: number; thumbnail: string | null; unavailable: boolean }[] }>>
-    enqueue(videos: { videoId: string; title: string; channel?: string; duration?: number }[], opts?: { playlistId?: string; mirror?: { youtubeId: string; title: string } }): Promise<IpcResult<{ items: DownloadItem[]; playlistId: string | null }>>
+    enqueue(videos: { videoId: string; title: string; channel?: string; duration?: number; index?: number }[], opts?: { playlistId?: string; mirror?: { youtubeId: string; title: string } }): Promise<IpcResult<{ items: DownloadItem[]; playlistId: string | null }>>
     downloads(): Promise<IpcResult<DownloadItem[]>>
     cancel(videoId?: string): Promise<IpcResult<boolean>>
     clearFinished(): Promise<IpcResult<DownloadItem[]>>

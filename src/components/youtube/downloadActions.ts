@@ -5,9 +5,10 @@ import { useLibraryStore } from "@/stores/useLibraryStore"
 const AUTH_CODES = new Set(["AUTH_EXPIRED", "AUTH_INVALID", "AUTH_FILE_MISSING", "SIGN_IN_REQUIRED", "BROWSER_COOKIES_UNAVAILABLE"])
 export const isAuthError = (code?: string | null) => Boolean(code && AUTH_CODES.has(code))
 
-export type EnqueueVideo = { videoId: string; title: string; channel?: string; duration?: number }
+export type EnqueueVideo = { videoId: string; title: string; channel?: string; duration?: number; /** position in the YouTube playlist (keeps mirrored playlists in order) */ index?: number }
+export type EnqueueOpts = { playlistId?: string; mirror?: { youtubeId: string; title: string } }
 
-export async function enqueueVideos(videos: EnqueueVideo[], opts?: { playlistId?: string; mirror?: { youtubeId: string; title: string } }) {
+export async function enqueueVideos(videos: EnqueueVideo[], opts?: EnqueueOpts) {
   if (!useLibraryStore.getState().rootDir) {
     toast.error("Pick a music folder first", { description: "Settings → Library → Change folder" })
     return null

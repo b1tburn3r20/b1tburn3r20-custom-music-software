@@ -60,7 +60,7 @@ export function PlaylistPanel({ id, title, subtitle, thumbnail, videos: initial,
   const download = async (list: YtVideo[]) => {
     if (!list.length) return
     const res = await enqueueVideos(
-      list.map((v) => ({ videoId: v.id, title: v.title, channel: v.channel, duration: v.duration })),
+      list.map((v) => ({ videoId: v.id, title: v.title, channel: v.channel, duration: v.duration, index: (videos ?? []).indexOf(v) })),
       mirror ? { mirror: { youtubeId: id, title } } : undefined,
     )
     if (res) {
@@ -139,7 +139,7 @@ export function PlaylistPanel({ id, title, subtitle, thumbnail, videos: initial,
                         <p className="truncate text-muted-foreground">{v.unavailable ? "Unavailable (private or deleted)" : v.channel}</p>
                       </div>
                       <span className="shrink-0 text-sm tabular-nums text-muted-foreground">{formatDuration(v.duration)}</span>
-                      {!v.unavailable && <DownloadButton videoId={v.id} title={v.title} channel={v.channel} duration={v.duration} owned={Boolean(own)} />}
+                      {!v.unavailable && <DownloadButton videoId={v.id} title={v.title} channel={v.channel} duration={v.duration} index={i} opts={mirror ? { mirror: { youtubeId: id, title } } : undefined} owned={Boolean(own)} />}
                     </div>
                   )
                 })}

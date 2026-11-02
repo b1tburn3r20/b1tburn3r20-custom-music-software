@@ -18,7 +18,8 @@ function registerYoutubeIpc({ library, user, userData }) {
     let target = null;
     if (opts.mirror && opts.mirror.youtubeId) target = user.ensureMirrorPlaylist(String(opts.mirror.youtubeId), String(opts.mirror.title || ""));
     else if (opts.playlistId) target = { id: String(opts.playlistId) };
-    return { items: downloads.enqueue(videos || [], { target: target ? { id: target.id } : null }), playlistId: target ? target.id : null };
+    const mirror = Boolean(opts.mirror && opts.mirror.youtubeId);
+    return { items: downloads.enqueue(videos || [], { target: target ? { id: target.id, mirror } : null }), playlistId: target ? target.id : null };
   });
   handle("youtube:downloads", () => downloads.list());
   handle("youtube:cancel", (videoId) => (videoId ? downloads.cancel(videoId) : downloads.cancelAll()));

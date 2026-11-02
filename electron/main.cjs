@@ -52,6 +52,14 @@ async function initStores() {
   registerSyncHandlers();
   handleMediaProtocol(library);
   console.info("[main] stores ready", { userData, library: libReport, user: { migrated: userReport.migrated }, plays: playsReport });
+  // Fix playlist entries an earlier build added by a title-only match, where the right song is already here.
+  for (const [sourceId, wrongId] of library.clearedEntries()) {
+    const right = library.visibleSongs().find((s) => s.sourceId === sourceId);
+    if (!right) continue; // corrected later, when that video is downloaded
+    const n = user.replaceInMirrorPlaylists(wrongId, right.id, sourceId);
+    library.resolveCleared(sourceId);
+    if (n) console.info(`[main] replaced a wrongly matched song in ${n} mirrored playlist(s) (${sourceId})`);
+  }
   // Incremental rescan in the background: picks up files added/removed while the app was closed.
   if (library.rootDir) library.scan().catch((e) => console.error("[main] startup scan failed:", e.message));
 }

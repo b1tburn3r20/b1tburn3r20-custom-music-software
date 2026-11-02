@@ -111,6 +111,8 @@ function repairGuessedSourceIds(lib) {
   for (const s of Object.values(lib.songs)) {
     if (s.sourceId && !String(s.fileName || "").includes(`[${s.sourceId}]`)) {
       cleared.push({ id: s.id, title: s.metadata ? s.metadata.title : s.fileName, sourceId: s.sourceId });
+      // Remember which song wrongly held this id, so playlist entries can be corrected later.
+      lib.clearedSourceIds = { ...(lib.clearedSourceIds || {}), [s.sourceId]: s.id };
       s.sourceId = sourceIdFromFileName(s.fileName || "");
     }
   }

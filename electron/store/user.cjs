@@ -103,6 +103,51 @@ function createUserStore({ userData, library, emit = () => { } }) {
     return pl;
   }
 
+  /**
+   * Record that `videoId` (position `index` in the YouTube playlist) is `songId` in a
+   * mirrored playlist. Replaces a different song previously recorded for that video
+   * (e.g. a wrong same-title match) and keeps mirrored entries in YouTube order;
+   * songs you added by hand stay after them in their own order.
+   */
+  function setMirrorEntry(playlistId, videoId, songId, index) {
+    const pl = findPlaylist(playlistId);
+    if (!library.hasSong(songId)) return false;
+    pl.mirrorMap = pl.mirrorMap || {};
+    const prev = pl.mirrorMap[videoId];
+    pl.mirrorMap[videoId] = { songId, index: Number.isFinite(index) ? index : prev ? prev.index : Object.keys(pl.mirrorMap).length };
+    if (prev && prev.songId !== songId && !Object.values(pl.mirrorMap).some((e) => e.songId === prev.songId)) {
+      pl.songIds = pl.songIds.filter((id) => id !== prev.songId);
+    }
+    if (!pl.songIds.includes(songId)) pl.songIds.push(songId);
+    const mapped = Object.values(pl.mirrorMap)
+      .filter((e) => pl.songIds.includes(e.songId))
+      .sort((a, b) => a.index - b.index)
+      .map((e) => e.songId);
+    const mappedSet = new Set(mapped);
+    pl.songIds = [...new Set([...mapped, ...pl.songIds.filter((id) => !mappedSet.has(id))])];
+    pl.updated = Date.now();
+    commit();
+    return true;
+  }
+
+  /** Swap a wrongly matched song for the right one in YouTube-mirrored playlists (keeps its position). */
+  function replaceInMirrorPlaylists(wrongSongId, rightSongId, videoId) {
+    let changed = 0;
+    for (const pl of user.playlists) {
+      if (!pl.source || pl.source.type !== "youtube") continue;
+      const i = pl.songIds.indexOf(wrongSongId);
+      if (i === -1) continue;
+      if (pl.songIds.includes(rightSongId)) pl.songIds.splice(i, 1);
+      else pl.songIds[i] = rightSongId;
+      pl.mirrorMap = pl.mirrorMap || {};
+      pl.mirrorMap[videoId] = { songId: rightSongId, index: pl.mirrorMap[videoId]?.index ?? i };
+      pl.updated = Date.now();
+      changed++;
+    }
+    if (changed) commit();
+    return changed;
+  }
+
   /** Local playlist that mirrors a YouTube playlist (created on first download, reused after). */
   function ensureMirrorPlaylist(youtubeId, title) {
     const existing = user.playlists.find((p) => p.source && p.source.type === "youtube" && p.source.id === youtubeId);
@@ -170,6 +215,7 @@ function createUserStore({ userData, library, emit = () => { } }) {
     const pl = findPlaylist(id);
     const before = pl.songIds.length;
     pl.songIds = pl.songIds.filter((s) => s !== songId);
+    if (pl.mirrorMap) for (const [vid, e] of Object.entries(pl.mirrorMap)) if (e.songId === songId) delete pl.mirrorMap[vid];
     if (pl.songIds.length === before) throw new UserError("NOT_IN_PLAYLIST", "That song isn't in this playlist.");
     pl.updated = Date.now();
     commit();
@@ -232,6 +278,7 @@ function createUserStore({ userData, library, emit = () => { } }) {
     user.likes = user.likes.filter((l) => !ids.has(l.songId));
     user.recentlyPlayed = user.recentlyPlayed.filter((r) => !ids.has(r.songId));
     user.recentlyDownloaded = user.recentlyDownloaded.filter((s) => !ids.has(s));
+    for (const pl of user.playlists) if (pl.mirrorMap) for (const [vid, e] of Object.entries(pl.mirrorMap)) if (ids.has(e.songId)) delete pl.mirrorMap[vid];
     commit();
     return touched;
   }
@@ -295,6 +342,8 @@ function createUserStore({ userData, library, emit = () => { } }) {
     },
     createPlaylist,
     ensureMirrorPlaylist,
+    setMirrorEntry,
+    replaceInMirrorPlaylists,
     updatePlaylist,
     deletePlaylist,
     addSongs,

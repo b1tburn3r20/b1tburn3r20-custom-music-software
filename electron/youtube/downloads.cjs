@@ -79,9 +79,16 @@ function createDownloadManager({ library, user, youtube, emit }) {
   }
 
   function addToTarget(it, songId) {
+    // A song that once wrongly held this video's id: swap it for the right one in mirrored playlists.
+    const wrong = library.clearedOwner(it.videoId);
+    if (wrong && wrong !== songId) {
+      user.replaceInMirrorPlaylists(wrong, songId, it.videoId);
+      library.resolveCleared(it.videoId);
+    }
     if (!it.target) return;
     try {
-      user.addSongs(it.target.id, [songId]);
+      if (it.target.mirror) user.setMirrorEntry(it.target.id, it.videoId, songId, it.index);
+      else user.addSongs(it.target.id, [songId]);
     } catch (err) {
       console.warn("[downloads] couldn't add to playlist:", err.message);
     }
@@ -209,11 +216,14 @@ function createDownloadManager({ library, user, youtube, emit }) {
       if (!v || !VIDEO_ID_RE.test(String(v.videoId))) continue;
       const prev = items.get(v.videoId);
       if (prev && !prev.committed) {
-        if (target && !prev.target) prev.target = target;
+        if (target && !prev.target) {
+          prev.target = target;
+          if (Number.isFinite(v.index)) prev.index = v.index;
+        }
         out.push(publicItem(prev));
         continue;
       }
-      const it = { videoId: v.videoId, title: v.title || v.videoId, seq: ++seq, phase: "queued", status: "queued", percent: 0, error: null, songId: null, note: null, target, addedAt: Date.now(), abort: new AbortController(), committed: false };
+      const it = { videoId: v.videoId, title: v.title || v.videoId, index: Number.isFinite(v.index) ? v.index : undefined, seq: ++seq, phase: "queued", status: "queued", percent: 0, error: null, songId: null, note: null, target, addedAt: Date.now(), abort: new AbortController(), committed: false };
       items.set(v.videoId, it);
       const owned = ownedSong(v);
       if (owned) {
