@@ -10,6 +10,8 @@ import type { Song } from "@/types/DirectoryTypes"
 import * as Q from "./queue"
 import { advance, currentTime, getAudio, restartCurrent, startEngine, RADIO_BATCH } from "./engine"
 import { toast } from "sonner"
+import { useSelectionStore } from "@/stores/useSelectionStore"
+import { dialogs } from "@/stores/useDialogStore"
 
 const store = () => usePlayerStore.getState()
 
@@ -150,6 +152,18 @@ export function initPlayer() {
   if (useUserStore.getState().loaded) applySettings()
   startEngine({ next, prev, togglePlay })
   window.addEventListener("keydown", (e) => {
+    // T: tag the playing song (song rows and multi-selection handle their own T)
+    if (e.key.toLowerCase() === "t" && !e.ctrlKey && !e.metaKey && !e.altKey && !e.repeat) {
+      const t = e.target as HTMLElement | null
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable || t.closest("[role=dialog],[role=menu],[data-song-row]"))) return
+      if (useSelectionStore.getState().ids.size) return
+      const song = store().currentlyPlaying
+      if (song) {
+        e.preventDefault()
+        dialogs().openTags([song])
+      }
+      return
+    }
     if (e.code !== "Space" || e.repeat) return
     const t = e.target as HTMLElement | null
     if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable || t.closest("[role=dialog],[role=menu]"))) return

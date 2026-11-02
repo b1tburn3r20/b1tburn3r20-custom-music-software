@@ -5,14 +5,21 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { SongRow } from "@/components/song/SongRow"
-import { addSongsToPlaylist } from "@/lib/actions"
 import { searchSongs } from "@/lib/catalog"
 import { useLibraryStore } from "@/stores/useLibraryStore"
-import { useUserStore } from "@/stores/useUserStore"
 
-/** Pick songs from the library to add to a playlist (songs already in it are hidden). */
-export default function AddSongsDialog({ playlistId, open, onOpenChange }: { playlistId: string; open: boolean; onOpenChange: (o: boolean) => void }) {
-  const playlist = useUserStore((s) => s.playlists.find((p) => p.id === playlistId))
+type Props = {
+  open: boolean
+  onOpenChange: (o: boolean) => void
+  title?: string
+  description: string
+  /** Songs already in the target (hidden from the picker). */
+  excludeIds: readonly string[]
+  onAdd: (songIds: string[]) => Promise<unknown>
+}
+
+/** Pick songs from the library (search, click to select, Shift/Ctrl not needed) and add them to a playlist or tag. */
+export default function AddSongsDialog({ open, onOpenChange, title = "Add songs", description, excludeIds, onAdd }: Props) {
   const songs = useLibraryStore((s) => s.songs)
   const [query, setQuery] = useState("")
   const [q] = useDebounce(query, 200)
@@ -20,10 +27,10 @@ export default function AddSongsDialog({ playlistId, open, onOpenChange }: { pla
   const [saving, setSaving] = useState(false)
 
   const results = useMemo(() => {
-    const inPl = new Set(playlist?.songIds ?? [])
+    const inPl = new Set(excludeIds)
     const pool = songs.filter((s) => !inPl.has(s.id))
     return (q.trim() ? searchSongs(pool, q) : pool).slice(0, 100)
-  }, [songs, playlist?.songIds, q])
+  }, [songs, excludeIds, q])
 
   const close = (o: boolean) => {
     onOpenChange(o)
@@ -41,7 +48,7 @@ export default function AddSongsDialog({ playlistId, open, onOpenChange }: { pla
     })
   const save = async () => {
     setSaving(true)
-    const r = await addSongsToPlaylist(playlistId, [...selected])
+    const r = await onAdd([...selected])
     setSaving(false)
     if (r) close(false)
   }
@@ -50,8 +57,8 @@ export default function AddSongsDialog({ playlistId, open, onOpenChange }: { pla
     <Dialog open={open} onOpenChange={close}>
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>Add songs</DialogTitle>
-          <DialogDescription>Add songs to “{playlist?.name}”.</DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <Input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search your library…" aria-label="Search songs" />
         <ScrollArea className="h-96">

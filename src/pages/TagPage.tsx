@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react"
-import { Pencil, Tag, Trash2 } from "lucide-react"
+import { ListPlus, Pencil, Tag, Trash2 } from "lucide-react"
 import { Page, PageHeader, Section, EmptyState } from "@/components/base/Page"
-import { IconAction, PlayAllButton, ShuffleAllButton } from "@/components/base/HeaderActions"
+import { IconAction, PlayAllButton, ShuffleAllButton, TagAllButton } from "@/components/base/HeaderActions"
 import { SongList } from "@/components/song/SongRow"
 import { Modal } from "@/components/base/Modal"
 import { Button } from "@/components/ui/button"
@@ -10,7 +10,8 @@ import { useLibraryStore } from "@/stores/useLibraryStore"
 import { useUserStore } from "@/stores/useUserStore"
 import { navigate } from "@/stores/useAppStore"
 import { songsWithTag } from "@/lib/catalog"
-import { deleteTag, renameTag } from "@/lib/actions"
+import { addTagToSongs, deleteTag, renameTag } from "@/lib/actions"
+import AddSongsDialog from "@/components/dialogs/AddSongsDialog"
 import { errorMessage } from "@/lib/api"
 import { formatDuration } from "@/utils/textUtils"
 import type { QueueContext } from "@/player/queue"
@@ -23,6 +24,8 @@ export default function TagPage({ tag }: { tag: string }) {
   const own = useMemo(() => Object.values(songTags).some((l) => l.some((t) => t.toLowerCase() === tag.toLowerCase())), [songTags, tag])
   const context = useMemo<QueueContext>(() => ({ type: "list", id: `tag:${tag.toLowerCase()}`, label: `${tag} mix` }), [tag])
   const [renaming, setRenaming] = useState(false)
+  const [adding, setAdding] = useState(false)
+  const listIds = useMemo(() => list.map((s) => s.id), [list])
   const [name, setName] = useState(tag)
   const [error, setError] = useState<string | null>(null)
   const total = list.reduce((a, s) => a + (s.metadata.duration || 0), 0)
@@ -52,6 +55,8 @@ export default function TagPage({ tag }: { tag: string }) {
           <>
             <PlayAllButton songs={list} context={context} />
             <ShuffleAllButton songs={list} context={context} />
+            <TagAllButton songs={list} />
+            <IconAction icon={ListPlus} label={`Tag more songs “${tag}”`} onClick={() => setAdding(true)} />
             {own && <IconAction icon={Pencil} label="Rename tag" onClick={() => { setName(tag); setError(null); setRenaming(true) }} />}
             {own && <IconAction icon={Trash2} label="Remove this tag from all songs" onClick={async () => (await deleteTag(tag)) && navigate({ name: "library", tab: "tags" }, { replace: true })} />}
           </>
@@ -60,6 +65,7 @@ export default function TagPage({ tag }: { tag: string }) {
       <Section>
         <SongList songs={list} queueContext={context} />
       </Section>
+      <AddSongsDialog open={adding} onOpenChange={setAdding} title={`Tag songs “${tag}”`} description="Pick songs from your library to tag." excludeIds={listIds} onAdd={(ids) => addTagToSongs(ids, tag)} />
       <Modal
         open={renaming}
         onClose={() => setRenaming(false)}

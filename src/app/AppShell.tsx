@@ -7,6 +7,8 @@ import AddToPlaylistDialog from "@/components/dialogs/AddToPlaylistDialog"
 import PlaylistFormDialog from "@/components/dialogs/PlaylistFormDialog"
 import DeletePlaylistDialog from "@/components/dialogs/DeletePlaylistDialog"
 import TagsDialog from "@/components/dialogs/TagsDialog"
+import { SelectionBar } from "@/components/song/SelectionBar"
+import { useSelectionStore } from "@/stores/useSelectionStore"
 import { useAppStore } from "@/stores/useAppStore"
 import { useEffect, useRef, useState } from "react"
 import { ScrollParentContext } from "./scrollContext"
@@ -28,12 +30,13 @@ export default function AppShell() {
   // New page → start at the top.
   useEffect(() => {
     viewport?.scrollTo({ top: 0 })
+    useSelectionStore.getState().clear()
   }, [route, viewport])
   return (
     <div className="relative flex h-screen w-screen flex-col overflow-hidden">
       <div className="relative flex min-h-0 flex-1">
         <Sidebar />
-        <main className="flex min-w-0 w-full flex-col">
+        <main className="relative flex min-w-0 w-full flex-col">
           <TopBar />
           <ScrollArea ref={scrollRef} className="min-h-0 flex-1">
             <ScrollParentContext.Provider value={viewport}>
@@ -42,6 +45,7 @@ export default function AppShell() {
               </ErrorBoundary>
             </ScrollParentContext.Provider>
           </ScrollArea>
+          <SelectionBar />
         </main>
       </div>
       <div className="relative z-30 shrink-0">

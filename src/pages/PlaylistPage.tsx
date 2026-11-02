@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react"
 import { ListMusic, ListPlus, Pencil, Trash2 } from "lucide-react"
 import { Page, PageHeader, Section, EmptyState } from "@/components/base/Page"
-import { IconAction, PlayAllButton, ShuffleAllButton } from "@/components/base/HeaderActions"
+import { IconAction, PlayAllButton, ShuffleAllButton, TagAllButton } from "@/components/base/HeaderActions"
 import { SongList } from "@/components/song/SongRow"
 import { Button } from "@/components/ui/button"
 import { resolveSongs, useLibraryStore } from "@/stores/useLibraryStore"
@@ -9,6 +9,7 @@ import { useUserStore } from "@/stores/useUserStore"
 import { dialogs } from "@/stores/useDialogStore"
 import { formatDuration } from "@/utils/textUtils"
 import AddSongsDialog from "@/components/dialogs/AddSongsDialog"
+import { addSongsToPlaylist } from "@/lib/actions"
 import type { QueueContext } from "@/player/queue"
 
 export default function PlaylistPage({ id }: { id: string }) {
@@ -45,6 +46,7 @@ export default function PlaylistPage({ id }: { id: string }) {
           <>
             <PlayAllButton songs={songs} context={context} />
             <ShuffleAllButton songs={songs} context={context} />
+            <TagAllButton songs={songs} />
             <IconAction icon={ListPlus} label="Add songs" onClick={() => setAdding(true)} />
             <IconAction icon={Pencil} label="Edit details" onClick={() => dialogs().openPlaylistForm({ mode: "edit", playlistId: id })} />
             <IconAction icon={Trash2} label="Delete playlist" onClick={() => dialogs().confirmDeletePlaylist(id)} />
@@ -58,7 +60,7 @@ export default function PlaylistPage({ id }: { id: string }) {
           <EmptyState icon={ListMusic} title="This playlist is empty" hint="Add songs from your library, or right-click any song and choose Add to playlist." action={<Button onClick={() => setAdding(true)}><ListPlus /> Add songs</Button>} />
         )}
       </Section>
-      <AddSongsDialog playlistId={id} open={adding} onOpenChange={setAdding} />
+      <AddSongsDialog open={adding} onOpenChange={setAdding} description={`Add songs to “${playlist.name}”.`} excludeIds={playlist.songIds} onAdd={(ids) => addSongsToPlaylist(id, ids)} />
     </Page>
   )
 }

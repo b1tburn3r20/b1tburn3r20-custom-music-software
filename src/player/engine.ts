@@ -141,8 +141,9 @@ const RADIO_LOOKAHEAD = 2
 export function appendRadio(count = RADIO_BATCH): boolean {
   const { queue, setQueue } = usePlayerStore.getState()
   const lib = useLibraryStore.getState()
-  const lastId = Q.currentSongId(queue)
-  const seed = lastId ? lib.songsById[lastId] : null
+  // A radio keeps its original seed, so its tags keep leading the mix; autoplay after a list follows the last song.
+  const seedId = queue.context?.type === "radio" && queue.context.id ? queue.context.id : Q.currentSongId(queue)
+  const seed = (seedId && lib.songsById[seedId]) || lib.songsById[Q.currentSongId(queue) ?? ""] || null
   if (!seed) return false
   const exclude = new Set(queue.items.map((i) => i.songId))
   const more = radioFor(lib.songs, seed, exclude, count, Math.random, useUserStore.getState().songTags)

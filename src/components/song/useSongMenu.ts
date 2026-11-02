@@ -6,7 +6,7 @@ import { Disc3, FolderOpen, Heart, HeartOff, ListEnd, ListMusic, ListPlus, ListS
 import type { Song } from "@/types/DirectoryTypes"
 import type { QueueContext } from "@/player/queue"
 import { addToQueue, playFromList, playNext, playRadio, removeFromQueue } from "@/player/controls"
-import { addSongToPlaylists, removeSongFromPlaylist, setLiked } from "@/lib/actions"
+import { addSongToPlaylists, addTagToSongs, removeSongFromPlaylist, removeTagFromSongs, setLiked } from "@/lib/actions"
 import { useUserStore } from "@/stores/useUserStore"
 import { dialogs } from "@/stores/useDialogStore"
 import { openAlbumForSong, openArtist } from "@/utils/musicutils"
@@ -26,6 +26,7 @@ export type SongContext = {
 }
 
 const EMPTY: never[] = []
+const EMPTY_TAGS: Record<string, string[]> = {}
 
 export function playSongInContext(song: Song, ctx: SongContext) {
   if (ctx.list && ctx.list.length) playFromList(ctx.list, song, ctx.queueContext ?? null)
@@ -35,6 +36,13 @@ export function playSongInContext(song: Song, ctx: SongContext) {
 export function useSongMenu(song: Song, ctx: SongContext, enabled = true): MenuEntry[] {
   const playlists = useUserStore((s) => (enabled ? s.playlists : EMPTY))
   const liked = useUserStore((s) => s.likedIds.has(song.id))
+  const songTags = useUserStore((s) => (enabled ? s.songTags : EMPTY_TAGS))
+  // Your tags, most used first, for one-click toggling.
+  const allTags = useMemo(() => {
+    const counts = new Map<string, { name: string; n: number }>()
+    for (const list of Object.values(songTags)) for (const t of list) counts.set(t.toLowerCase(), { name: t, n: (counts.get(t.toLowerCase())?.n ?? 0) + 1 })
+    return [...counts.values()].sort((a, b) => b.n - a.n).slice(0, 20).map((c) => c.name)
+  }, [songTags])
 
   return useMemo(() => {
     if (!enabled) return []
@@ -68,7 +76,21 @@ export function useSongMenu(song: Song, ctx: SongContext, enabled = true): MenuE
       entries.push({ kind: "item", key: "rmq", label: "Remove from queue", icon: X, onSelect: () => removeFromQueue(uid) })
     }
     entries.push({ kind: "item", key: "like", label: liked ? "Remove from Liked Songs" : "Add to Liked Songs", icon: liked ? HeartOff : Heart, onSelect: () => void setLiked(song.id, !liked) })
-    entries.push({ kind: "item", key: "tags", label: "Tags…", icon: Tags, onSelect: () => dialogs().openTags([song]) })
+    const mine = new Set((songTags[song.id] ?? []).map((t) => t.toLowerCase()))
+    entries.push({
+      kind: "sub",
+      key: "tags",
+      label: mine.size ? `Tags (${[...(songTags[song.id] ?? [])].slice(0, 2).join(", ")}${mine.size > 2 ? "…" : ""})` : "Tag",
+      icon: Tags,
+      children: [
+        { kind: "item", key: "edit", label: "Edit tags…  (T)", icon: Plus, onSelect: () => dialogs().openTags([song]) },
+        ...(allTags.length ? [{ kind: "separator" as const, key: "ts" }] : []),
+        ...allTags.map((t): MenuEntry => {
+          const has = mine.has(t.toLowerCase())
+          return { kind: "item", key: `t:${t}`, label: t, checked: has, onSelect: () => void (has ? removeTagFromSongs([song.id], t) : addTagToSongs([song.id], t)) }
+        }),
+      ],
+    })
     entries.push({ kind: "separator", key: "s2" })
 
     const artists = songArtists(song)
@@ -92,5 +114,5 @@ export function useSongMenu(song: Song, ctx: SongContext, enabled = true): MenuE
     return entries
     // ctx is a fresh object per render; its fields are what matter
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, song, liked, playlists, ctx.list, ctx.queueContext, ctx.playlistId, ctx.queueUid])
+  }, [enabled, song, liked, playlists, songTags, allTags, ctx.list, ctx.queueContext, ctx.playlistId, ctx.queueUid])
 }

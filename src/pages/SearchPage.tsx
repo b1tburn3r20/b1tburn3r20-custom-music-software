@@ -1,7 +1,7 @@
 import { useMemo } from "react"
 import { Search } from "lucide-react"
 import { Page, PageHeader, Section, EmptyState, CardGrid } from "@/components/base/Page"
-import { PlayAllButton } from "@/components/base/HeaderActions"
+import { PlayAllButton, TagAllButton } from "@/components/base/HeaderActions"
 import { SongList } from "@/components/song/SongRow"
 import { AlbumCard } from "@/components/cards/AlbumCard"
 import { ArtistCard } from "@/components/cards/ArtistCard"
@@ -49,6 +49,7 @@ export default function SearchPage({ q }: { q: string }) {
         actions={
           <>
             <PlayAllButton songs={songHits} context={context} />
+            <TagAllButton songs={songHits} />
             <Button variant="secondary" onClick={searchYouTube}>Search YouTube for “{q}”</Button>
           </>
         }

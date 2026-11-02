@@ -5,7 +5,8 @@ import type { QueueContext } from "@/player/queue"
 import { usePlayerStore } from "@/stores/usePlayerStore"
 import type { Song } from "@/types/DirectoryTypes"
 import type { LucideIcon } from "lucide-react"
-import { Pause, Play, Shuffle } from "lucide-react"
+import { Pause, Play, Shuffle, Tags } from "lucide-react"
+import { dialogs } from "@/stores/useDialogStore"
 
 const sameContext = (a: QueueContext | null, b: QueueContext) => Boolean(a && a.type === b.type && a.id === b.id && (a.id !== undefined || a.label === b.label))
 
@@ -32,4 +33,9 @@ export function IconAction({ icon: Icon, label, onClick, disabled, className }: 
       <Icon className="size-5" />
     </Button>
   )
+}
+
+/** Tag every song in a list at once (adds/removes tags without touching others). */
+export function TagAllButton({ songs }: { songs: readonly Song[] }) {
+  return <IconAction icon={Tags} label={`Tag all ${songs.length} songs`} disabled={!songs.length} onClick={() => dialogs().openTags([...songs])} />
 }

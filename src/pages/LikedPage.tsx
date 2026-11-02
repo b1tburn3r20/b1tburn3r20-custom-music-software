@@ -1,7 +1,7 @@
 import { useMemo } from "react"
 import { Heart, X } from "lucide-react"
 import { Page, PageHeader, Section, EmptyState } from "@/components/base/Page"
-import { PlayAllButton, ShuffleAllButton } from "@/components/base/HeaderActions"
+import { PlayAllButton, ShuffleAllButton, TagAllButton } from "@/components/base/HeaderActions"
 import { SongList } from "@/components/song/SongRow"
 import { Button } from "@/components/ui/button"
 import { resolveSongs, useLibraryStore } from "@/stores/useLibraryStore"
@@ -29,6 +29,7 @@ export default function LikedPage() {
           <>
             <PlayAllButton songs={songs} context={CONTEXT} />
             <ShuffleAllButton songs={songs} context={CONTEXT} />
+            <TagAllButton songs={songs} />
           </>
         }
       />

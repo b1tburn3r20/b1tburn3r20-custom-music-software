@@ -205,19 +205,6 @@ export function buildTagList(songs: Song[], userTags: TagMap): { key: string; na
 
 export const songsWithTag = (songs: Song[], tag: string, userTags: TagMap) => songs.filter((s) => tagsOf(s, userTags).some((t) => lc(t) === lc(tag)))
 
-/** How strongly a candidate relates to the seed: shared tags weigh most, then shared artists, then file genre. */
-export function radioWeight(seed: Song, cand: Song, userTags: TagMap = {}): number {
-  const seedOwn = new Set((userTags[seed.id] ?? []).map(lc))
-  const candOwn = (userTags[cand.id] ?? []).map(lc)
-  const sharedTags = candOwn.filter((t) => seedOwn.has(t)).length
-  const seedArtists = new Set(songArtists(seed).map(lc))
-  const sharedArtist = songArtists(cand).some((a) => seedArtists.has(lc(a)))
-  const g1 = realGenre(seed)
-  const g2 = realGenre(cand)
-  const sameGenre = Boolean(g1 && g2 && lc(g1) === lc(g2))
-  return sharedTags * 4 + (sharedArtist ? 3 : 0) + (sameGenre ? 1.5 : 0)
-}
-
 /** Weighted random sample without replacement (Efraimidis–Spirakis). */
 function weightedSample<T>(items: { v: T; w: number }[], n: number, rand: () => number): T[] {
   return items
@@ -227,34 +214,39 @@ function weightedSample<T>(items: { v: T; w: number }[], n: number, rand: () => 
     .map((x) => x.v)
 }
 
-/** Share of each radio batch taken from songs related to the seed (shared tags/artists/genre). */
-export const RADIO_RELATED_SHARE = 0.7
+
+
+/** How many of your tags a candidate shares with the seed. */
+export function sharedTagCount(seed: Song, cand: Song, userTags: TagMap = {}): number {
+  const seedTags = new Set(tagsOf(seed, userTags).map(lc))
+  if (!seedTags.size) return 0
+  return tagsOf(cand, userTags).filter((t) => seedTags.has(lc(t))).length
+}
 
 /**
- * Radio suggestions. About 70% of each batch comes from songs related to the
- * seed — sharing your tags (weighted most), an artist, or a real genre — drawn
- * by weight, so a "somber" seed mixes in other "somber" songs across artists.
- * The rest is random variety, interleaved so related songs are spread out.
+ * Radio suggestions, in strict tiers:
+ *  1. songs sharing tags with the seed — always first, most shared tags first
+ *     (random order among equals), so a "somber" seed plays every other
+ *     "somber" song before anything untagged;
+ *  2. then songs sharing an artist (weighted random);
+ *  3. then everything else (random), for variety once related songs run out.
  */
 export function radioFor(songs: Song[], seed: Song, exclude: Set<string>, count = 15, rand: () => number = Math.random, userTags: TagMap = {}): Song[] {
-  const related: { v: Song; w: number }[] = []
-  const others: { v: Song; w: number }[] = []
+  const tagged: { s: Song; n: number; r: number }[] = []
+  const artistRelated: { v: Song; w: number }[] = []
+  const rest: { v: Song; w: number }[] = []
+  const seedArtists = new Set(songArtists(seed).map(lc))
   for (const s of songs) {
     if (s.id === seed.id || exclude.has(s.id)) continue
-    const w = radioWeight(seed, s, userTags)
-    ;(w > 0 ? related : others).push({ v: s, w: w || 1 })
+    const n = sharedTagCount(seed, s, userTags)
+    if (n > 0) tagged.push({ s, n, r: rand() })
+    else if (songArtists(s).some((a) => seedArtists.has(lc(a)))) artistRelated.push({ v: s, w: 1 })
+    else rest.push({ v: s, w: 1 })
   }
-  const wantRelated = Math.min(related.length, Math.max(1, Math.round(count * RADIO_RELATED_SHARE)))
-  const pickedRelated = weightedSample(related, wantRelated, rand)
-  const pickedOthers = weightedSample(others, count - pickedRelated.length, rand)
-  // interleave: related, related, other, related, …
-  const out: Song[] = []
-  let r = 0
-  let o = 0
-  while (out.length < count && (r < pickedRelated.length || o < pickedOthers.length)) {
-    const takeRelated = r < pickedRelated.length && (o >= pickedOthers.length || (out.length % 3) !== 2)
-    out.push(takeRelated ? pickedRelated[r++] : pickedOthers[o++])
-  }
+  tagged.sort((a, b) => b.n - a.n || a.r - b.r)
+  const out = tagged.slice(0, count).map((t) => t.s)
+  if (out.length < count) out.push(...weightedSample(artistRelated, count - out.length, rand))
+  if (out.length < count) out.push(...weightedSample(rest, count - out.length, rand))
   return out
 }
 

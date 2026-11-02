@@ -8,6 +8,8 @@ import type { Song } from "@/types/DirectoryTypes"
 import { usePlayerStore } from "@/stores/usePlayerStore"
 import { useLibraryStore } from "@/stores/useLibraryStore"
 import { useUserStore } from "@/stores/useUserStore"
+import { useSelectionStore } from "@/stores/useSelectionStore"
+import { dialogs } from "@/stores/useDialogStore"
 import { navigate } from "@/stores/useAppStore"
 import { togglePlay } from "@/player/controls"
 import { songArtists } from "@/lib/catalog"
@@ -115,8 +117,13 @@ export const SongRow = memo(function SongRow(props: SongRowProps) {
   const selectable = Boolean(onToggleSelect)
   const entries = useSongMenu(song, ctx, menuUsed || menuOpen)
 
-  const activate = () => {
+  const isSelected = useSelectionStore((s) => s.ids.has(song.id) && (!ctx.list || s.list === ctx.list))
+  const activate = (e?: React.MouseEvent | React.KeyboardEvent) => {
     if (selectable) return onToggleSelect?.()
+    // Ctrl/Cmd-click toggles, Shift-click selects a range (multi-select for tagging etc.)
+    if (e && ctx.list && index !== undefined && (e.ctrlKey || e.metaKey)) return useSelectionStore.getState().toggle(ctx.list, index)
+    if (e && ctx.list && index !== undefined && e.shiftKey) return useSelectionStore.getState().range(ctx.list, index)
+    if (useSelectionStore.getState().ids.size) useSelectionStore.getState().clear()
     if (onActivate) return onActivate()
     if (isCurrent) return togglePlay()
     playSongInContext(song, ctx)
@@ -125,7 +132,12 @@ export const SongRow = memo(function SongRow(props: SongRowProps) {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault()
       e.stopPropagation()
-      activate()
+      activate(e)
+    } else if (e.key.toLowerCase() === "t" && !e.ctrlKey && !e.metaKey && !e.altKey && !selectable && !useSelectionStore.getState().ids.size) {
+      // T on a focused song: edit its tags
+      e.preventDefault()
+      e.stopPropagation()
+      dialogs().openTags([song])
     }
   }
 
@@ -260,16 +272,17 @@ export const SongRow = memo(function SongRow(props: SongRowProps) {
       role={selectable ? "checkbox" : "button"}
       aria-checked={selectable ? Boolean(selected) : undefined}
       aria-current={isCurrent ? "true" : undefined}
+      data-song-row
       aria-label={`${meta.title} by ${meta.artist}`}
       tabIndex={0}
-      onClick={activate}
+      onClick={(e) => activate(e)}
       onKeyDown={onKeyDown}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       className={cn(
         "group relative select-none cursor-pointer rounded-lg outline-none transition-colors hover:bg-accent/40 focus-visible:ring-2 focus-visible:ring-ring",
         isCurrent && "bg-accent/20",
-        selected && "bg-accent/30",
+        (selected || isSelected) && "bg-primary/15 ring-1 ring-primary/40",
         dimmed && "opacity-50",
         className,
       )}

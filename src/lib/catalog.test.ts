@@ -52,10 +52,55 @@ describe("tags and radio", () => {
     expect(tagsOf(real, {})).toEqual(["Shoegaze"])
   })
 
-  it("keeps variety: unrelated songs still make up part of each batch", async () => {
+  it("fills with unrelated songs once tag-related ones are used up", async () => {
     const { radioFor } = await import("./catalog")
     const batch = radioFor(lib2, civilian, new Set(), 5, Math.random, tags)
-    expect(batch.filter((s) => s.id.startsWith("f")).length).toBeGreaterThanOrEqual(3)
+    expect(batch[0].id).toBe("p")
+    expect(batch.slice(1).every((s) => s.id.startsWith("f"))).toBe(true)
+  })
+
+  it("lists tags (case-insensitive) and finds songs by tag", async () => {
+    const { buildTagList, songsWithTag, tagsOf } = await import("./catalog")
+    expect(tagsOf(party, tags)).toEqual(["Somber", "indie"])
+    const list = buildTagList(lib2, tags)
+    expect(list[0]).toMatchObject({ key: "somber", count: 2, own: true })
+    expect(songsWithTag(lib2, "SOMBER", tags).map((s) => s.id)).toEqual(["c", "p"])
+  })
+
+  it("radio returns every tag-related song before anything outside the tags, most shared tags first", async () => {
+    const { radioFor } = await import("./catalog")
+    const t2 = { ...tags, f1: ["somber", "indie"], f2: ["indie"], f3: ["somber"] }
+    for (let i = 0; i < 50; i++) {
+      const q = radioFor(lib2, party, new Set(), 6, Math.random, t2).map((s) => s.id)
+      // Party has [somber, indie]: f1 shares both → first; then c, f2, f3 (one each, any order); then the rest
+      expect(q[0]).toBe("f1")
+      expect(new Set(q.slice(1, 4))).toEqual(new Set(["c", "f2", "f3"]))
+      expect(q.slice(4).every((id) => !["c", "f1", "f2", "f3"].includes(id))).toBe(true)
+    }
+  })
+
+  it("same-artist songs come before unrelated ones when no tags match", async () => {
+    const { radioFor } = await import("./catalog")
+    const sameArtist = song("w2", "Other Wye Oak song", "Wye Oak", null)
+    const q = radioFor([civilian, sameArtist, ...filler], civilian, new Set(), 3, Math.random, {})
+    expect(q[0].id).toBe("w2")
+  })
+
+  it("ignores YouTube categories written into the genre tag", async () => {
+    const { tagsOf } = await import("./catalog")
+    const yt = song("y", "Yt", "Someone", null)
+    yt.metadata.genre = "Music"
+    const real = song("r", "Real", "Someone", null)
+    real.metadata.genre = "Shoegaze"
+    expect(tagsOf(yt, {})).toEqual([])
+    expect(tagsOf(real, {})).toEqual(["Shoegaze"])
+  })
+
+  it("fills with unrelated songs once tag-related ones are used up", async () => {
+    const { radioFor } = await import("./catalog")
+    const batch = radioFor(lib2, civilian, new Set(), 5, Math.random, tags)
+    expect(batch[0].id).toBe("p")
+    expect(batch.slice(1).every((s) => s.id.startsWith("f"))).toBe(true)
   })
 
   it("lists tags (case-insensitive) and finds songs by tag", async () => {

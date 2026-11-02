@@ -1,7 +1,7 @@
 import { useMemo } from "react"
 import { Mic2 } from "lucide-react"
 import { Page, PageHeader, Section, EmptyState, CardGrid } from "@/components/base/Page"
-import { PlayAllButton, ShuffleAllButton } from "@/components/base/HeaderActions"
+import { PlayAllButton, ShuffleAllButton, TagAllButton } from "@/components/base/HeaderActions"
 import { SongList } from "@/components/song/SongRow"
 import { AlbumCard } from "@/components/cards/AlbumCard"
 import { useLibraryStore } from "@/stores/useLibraryStore"
@@ -31,6 +31,7 @@ export default function ArtistPage({ name }: { name: string }) {
           <>
             <PlayAllButton songs={artist.artist_songs} context={context} />
             <ShuffleAllButton songs={artist.artist_songs} context={context} />
+            <TagAllButton songs={artist.artist_songs} />
           </>
         }
       />

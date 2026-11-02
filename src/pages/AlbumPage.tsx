@@ -1,7 +1,7 @@
 import { useMemo } from "react"
 import { Disc3 } from "lucide-react"
 import { Page, PageHeader, Section, EmptyState } from "@/components/base/Page"
-import { PlayAllButton, ShuffleAllButton } from "@/components/base/HeaderActions"
+import { PlayAllButton, ShuffleAllButton, TagAllButton } from "@/components/base/HeaderActions"
 import { SongList } from "@/components/song/SongRow"
 import { useLibraryStore } from "@/stores/useLibraryStore"
 import { navigate } from "@/stores/useAppStore"
@@ -47,6 +47,7 @@ export default function AlbumPage({ albumKey }: { albumKey: string }) {
           <>
             <PlayAllButton songs={songs} context={context} />
             <ShuffleAllButton songs={songs} context={context} />
+            <TagAllButton songs={songs} />
           </>
         }
       />
