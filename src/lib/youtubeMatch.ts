@@ -1,19 +1,19 @@
-import type { CacheSongType } from "@/stores/useMusicStore"
-import { useLibraryStore } from "@/stores/useLibraryStore"
+import type { Song } from "@/types/DirectoryTypes"
 
 /**
  * Finds the library song for a YouTube video. Exact match is by YouTube video id
  * (recorded for every download since the overhaul). Older downloads have no id,
- * so fall back to a case-insensitive title match and report it as "likely".
+ * so fall back to a case-insensitive title match ("likely").
  */
-export function findDownloaded(videoId: string, title: string, cache: CacheSongType[]): { song: CacheSongType; exact: boolean } | null {
-  const lib = useLibraryStore.getState().songs
-  const exact = lib.find((s) => s.sourceId === videoId)
-  if (exact) {
-    const c = cache.find((s) => s.id === exact.id)
-    if (c) return { song: c, exact: true }
-  }
+export function findDownloaded(videoId: string, title: string, songs: readonly Song[]): { song: Song; exact: boolean } | null {
+  const exact = songs.find((s) => s.sourceId === videoId)
+  if (exact) return { song: exact, exact: true }
   const t = title.trim().toLowerCase()
-  const byTitle = cache.find((s) => s.title.trim().toLowerCase() === t)
+  const byTitle = songs.find((s) => s.metadata.title.trim().toLowerCase() === t)
   return byTitle ? { song: byTitle, exact: false } : null
+}
+
+export function artistMatches(channel: string, songs: readonly Song[]): boolean {
+  const c = channel.toLowerCase()
+  return songs.some((s) => s.metadata.artist && s.metadata.artist !== "Unknown Artist" && c.includes(s.metadata.artist.toLowerCase()))
 }

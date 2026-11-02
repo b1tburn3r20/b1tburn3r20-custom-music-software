@@ -1,13 +1,13 @@
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Separator } from "@/components/ui/separator"
-import { useMusicStore } from "@/stores/useMusicStore"
+import { useLibraryStore } from "@/stores/useLibraryStore"
 import { usePlayerStore } from "@/stores/usePlayerStore"
 import type { Song } from "@/types/DirectoryTypes"
 import type { YoutubeDetailsResult, YoutubePlaylistResultType } from "@/types/YoutubeTypes"
 import { useState, useRef } from "react"
 import { toast } from "sonner"
 import PlaylistSongItem from "./PlaylistSongItem"
-import { findDownloaded } from "@/lib/youtubeMatch"
+import { artistMatches, findDownloaded } from "@/lib/youtubeMatch"
 import { ApiError, call, errorMessage } from "@/lib/api"
 
 interface YoutubePlaylistProps {
@@ -34,7 +34,7 @@ const PlaylistItem = ({
 }: PlaylistItemProps) => {
   const [playlistError, setPlaylistError] = useState(false)
   const cancelRef = useRef(false)
-  const songCache = useMusicStore((f) => f.songCache)
+  const songCache = useLibraryStore((s) => s.songs)
   const playing = usePlayerStore((f) => f.currentlyPlaying)
   const paused = usePlayerStore((f) => f.paused)
 
@@ -104,7 +104,7 @@ const PlaylistItem = ({
         <div className="flex flex-col gap-2">
           {playlist.videos.map((song, indx) => {
             const songSame = findDownloaded(song.id, song.title, songCache)?.song
-            const artistSame = songCache.some((s) => s.artist && song.channel.toLowerCase().includes(s.artist.toLowerCase()))
+            const artistSame = artistMatches(song.channel, songCache)
             const isPlaying = Boolean(songSame && songSame.id === playing?.id)
 
             return (

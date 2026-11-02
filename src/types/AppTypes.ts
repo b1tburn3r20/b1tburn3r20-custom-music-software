@@ -1,16 +1,5 @@
 import type { Song } from "./DirectoryTypes"
 
-/** A playlist with its songs resolved from the library (renderer view model). */
-export type PlaylistType = {
-  created: number
-  description: string
-  id: string
-  name: string
-  songIds: string[]
-  songs: Song[]
-  updated: number
-}
-
 export type AlbumType = {
   /** Stable key: album name + main artist, so same-named albums by different artists stay separate. */
   key: string

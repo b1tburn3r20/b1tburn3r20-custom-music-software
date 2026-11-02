@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button"
 import { usePlayerStore } from "@/stores/usePlayerStore"
 import { getSong } from "@/stores/useLibraryStore"
-import type { CacheSongType } from "@/stores/useMusicStore"
 import type { Song } from "@/types/DirectoryTypes"
 import type { YoutubeDetailsResult } from "@/types/YoutubeTypes"
 import { startNewQueue } from "@/utils/musicutils"
@@ -10,7 +9,7 @@ import { Check, Download, Loader2, Pause, Play } from "lucide-react"
 import { memo } from "react"
 import { toast } from "sonner"
 
-type CachedSong = CacheSongType
+type CachedSong = Song
 
 interface PlaylistSongItemProps {
   song: YoutubeDetailsResult

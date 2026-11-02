@@ -1,12 +1,12 @@
 import { useYoutubeStore } from "../useYoutubeStore"
-import { useDirectoryStore } from "@/stores/useDirectoryStore"
+import { useLibraryStore } from "@/stores/useLibraryStore"
 import { Loader2, Youtube } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import YoutubePlaylists from "./YoutubePlaylist"
 
 const YoutubePlaylistContainer = () => {
   const results = useYoutubeStore((f) => f.youtubePlaylistResults)
-  const currentDir = useDirectoryStore((f) => f.rootDir)
+  const currentDir = useLibraryStore((s) => s.rootDir)
   const searching = useYoutubeStore((f) => f.searchingYoutube)
 
   if (searching) {

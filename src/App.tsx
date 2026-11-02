@@ -1,8 +1,5 @@
-import { SecondVersion } from "./versions/SecondVersion";
+import AppShell from "./app/AppShell"
 
 export default function App() {
-  return (
-    <div><SecondVersion />
-    </div>
-  )
+  return <AppShell />
 }

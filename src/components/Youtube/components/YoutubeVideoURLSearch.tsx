@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { Input } from "@/components/ui/input";
 import { Loader2, Link2, AlertCircle, X } from "lucide-react";
-import { useDirectoryStore } from "@/stores/useDirectoryStore";
+import { useLibraryStore } from "@/stores/useLibraryStore";
 import YoutubeVideoResult from "./YoutubeVideoResult";
 import type { YoutubeDetailsResult } from '@/types/YoutubeTypes';
 import { useYoutubeStore } from '../useYoutubeStore';
@@ -12,7 +12,7 @@ const YoutubeVideoURLSearch = () => {
   const [error, setError] = useState<string | null>(null);
   const [videoResult, setVideoResult] = useState<YoutubeDetailsResult | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const currentDir = useDirectoryStore((f) => f.rootDir);
+  const currentDir = useLibraryStore((s) => s.rootDir);
   const setPlaylists = useYoutubeStore((f) => f.setPlaylists)
   const setYoutubePlaylistResults = useYoutubeStore((f) => f.setYoutubePlaylistResults);
 

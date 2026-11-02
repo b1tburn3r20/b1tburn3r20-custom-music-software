@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Check, Play, Youtube, Pause } from 'lucide-react';
 import type { YoutubeDetailsResult } from '@/types/YoutubeTypes';
-import { findDownloaded } from '@/lib/youtubeMatch';
+import { artistMatches, findDownloaded } from '@/lib/youtubeMatch';
 import { call, errorMessage } from '@/lib/api';
 import { getSong } from '@/stores/useLibraryStore';
-import { useMusicStore, type CacheSongType } from '@/stores/useMusicStore';
+import { useLibraryStore } from '@/stores/useLibraryStore';
+import type { Song } from '@/types/DirectoryTypes';
 import { usePlayerStore } from '@/stores/usePlayerStore';
 
 import { startNewQueue } from "@/utils/musicutils"
@@ -20,14 +21,12 @@ const YoutubeVideoResult = ({
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [showEmbed, setShowEmbed] = useState(false);
-  const songCache = useMusicStore((f) => f.songCache)
+  const songCache = useLibraryStore((s) => s.songs)
   const setPaused = usePlayerStore((f) => f.setPaused)
   const playing = usePlayerStore((f) => f.currentlyPlaying)
   const paused = usePlayerStore((f) => f.paused)
   const songSame = findDownloaded(result.id, result.title, songCache)?.song
-  const artistSame = songCache.some((s) =>
-    s.artist && result.channel.toLowerCase().includes(s.artist.toLowerCase())
-  );
+  const artistSame = artistMatches(result.channel, songCache);
 
 
 
@@ -100,7 +99,7 @@ const YoutubeVideoResult = ({
 
   }
 
-  const handlePlay = (song: CacheSongType) => {
+  const handlePlay = (song: Song) => {
     if (isPlaying) {
       setPaused(!paused)
       return

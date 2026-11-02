@@ -1,13 +1,13 @@
 import { type YoutubeDetailsResult } from "@/types/YoutubeTypes"
 import { useYoutubeStore } from "../useYoutubeStore"
 import YoutubeVideoResult from "./YoutubeVideoResult"
-import { useDirectoryStore } from "@/stores/useDirectoryStore"
+import { useLibraryStore } from "@/stores/useLibraryStore"
 import { Loader2, Youtube } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 const YoutubeSeachResults = () => {
 
   const results = useYoutubeStore((f) => f.results)
-  const currentDir = useDirectoryStore((f) => f.rootDir)
+  const currentDir = useLibraryStore((s) => s.rootDir)
   const searching = useYoutubeStore((f) => f.searchingYoutube)
 
 

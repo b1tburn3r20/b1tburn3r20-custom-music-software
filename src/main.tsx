@@ -5,10 +5,10 @@ import App from './App.tsx'
 import { Toaster } from "@/components/ui/sonner"
 import { ThemeProvider } from './components/ui/theme-provider.tsx'
 import { bootstrapData } from './data/bootstrap.ts'
-import { installLegacyBridge } from './data/legacyBridge.ts'
 import { initPlayer } from './player/controls.ts'
+import { installNavigationShortcuts } from './stores/useAppStore.ts'
 
-installLegacyBridge()
+installNavigationShortcuts()
 initPlayer()
 void bootstrapData()
 
@@ -28,9 +28,9 @@ createRoot(document.getElementById('root')!).render(
 
 if (import.meta.env.DEV) {
   // Dev-only handle for debugging from DevTools; tree-shaken out of production builds.
-  void Promise.all([import("./stores/useLibraryStore"), import("./stores/useUserStore"), import("./stores/usePlayerStore"), import("./stores/useMusicStore")]).then(
-    ([l, u, p, m]) => {
-      ;(window as unknown as Record<string, unknown>).__b1t = { library: l.useLibraryStore, user: u.useUserStore, player: p.usePlayerStore, music: m.useMusicStore }
+  void Promise.all([import("./stores/useLibraryStore"), import("./stores/useUserStore"), import("./stores/usePlayerStore"), import("./stores/useAppStore")]).then(
+    ([l, u, p, a]) => {
+      ;(window as unknown as Record<string, unknown>).__b1t = { library: l.useLibraryStore, user: u.useUserStore, player: p.usePlayerStore, app: a.useAppStore }
     },
   )
 }

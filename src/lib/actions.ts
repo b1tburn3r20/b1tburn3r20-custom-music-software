@@ -6,6 +6,7 @@ import { call, errorMessage } from "@/lib/api"
 import type { Playlist, Settings } from "@/types/api"
 import { useUserStore } from "@/stores/useUserStore"
 import { getSong } from "@/stores/useLibraryStore"
+import { useAppStore } from "@/stores/useAppStore"
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
 
@@ -51,7 +52,11 @@ export async function updatePlaylist(id: string, patch: { name?: string; descrip
 export async function deletePlaylist(id: string) {
   const pl = useUserStore.getState().playlists.find((p) => p.id === id)
   const ok = await attempt("Couldn't delete playlist", () => call(window.api.user.deletePlaylist(id)))
-  if (ok) toast.info(`Deleted "${pl?.name ?? "playlist"}"`)
+  if (ok) {
+    toast.info(`Deleted "${pl?.name ?? "playlist"}"`)
+    const { route, navigate } = useAppStore.getState()
+    if (route.name === "playlist" && route.id === id) navigate({ name: "home" }, { replace: true })
+  }
   return Boolean(ok)
 }
 

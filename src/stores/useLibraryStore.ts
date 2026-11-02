@@ -11,13 +11,20 @@ type LibraryState = {
   /** All songs, newest first. Recomputed only when the library changes. */
   songs: Song[]
   albums: AlbumType[]
+  /** lower-cased title -> number of songs with that title (to disambiguate same-named songs) */
+  titleCounts: Map<string, number>
   setSnapshot: (snap: LibrarySnapshot) => void
   applyDelta: (delta: LibraryDelta) => void
 }
 
 function derive(songsById: Record<string, Song>) {
   const songs = Object.values(songsById).sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0) || a.metadata.title.localeCompare(b.metadata.title))
-  return { songsById, songs, albums: buildAlbums(songs) }
+  const titleCounts = new Map<string, number>()
+  for (const s of songs) {
+    const k = s.metadata.title.trim().toLowerCase()
+    titleCounts.set(k, (titleCounts.get(k) ?? 0) + 1)
+  }
+  return { songsById, songs, albums: buildAlbums(songs), titleCounts }
 }
 
 export const useLibraryStore = create<LibraryState>((set, get) => ({
@@ -26,6 +33,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   songsById: {},
   songs: [],
   albums: [],
+  titleCounts: new Map(),
   setSnapshot: (snap) => {
     const byId: Record<string, Song> = {}
     for (const s of snap.songs) byId[s.id] = s

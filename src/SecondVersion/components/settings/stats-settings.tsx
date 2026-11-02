@@ -1,16 +1,17 @@
 import ChangeRootDir from "@/components/Folders/ChangeRootDir"
 import { Label } from "@/components/ui/label"
-import { useMusicStore } from "@/stores/useMusicStore"
+import { useLibraryStore } from "@/stores/useLibraryStore"
 
 const StatsSettings = () => {
-
-  const songCache = useMusicStore((f) => f.songCache)
-
+  const count = useLibraryStore((s) => s.songs.length)
   return (
-    <div className="w-full">
+    <div className="flex w-full flex-col gap-4">
       <div>
-        <Label>Downloaded Songs</Label>
-        <p>{songCache?.length}</p>
+        <Label>Songs in library</Label>
+        <p className="text-2xl font-bold">{count}</p>
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label>Music folder</Label>
         <ChangeRootDir />
       </div>
     </div>
