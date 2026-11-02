@@ -58,4 +58,22 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Tailwind v4 resets buttons to the default cursor; everything clickable gets a pointer. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="link"],
+  [role="tab"],
+  [role="radio"],
+  [role="checkbox"],
+  [role="option"],
+  [role="menuitem"]:not([data-disabled]),
+  [role="menuitemcheckbox"],
+  [role="switch"],
+  [role="slider"],
+  summary,
+  select,
+  label[for] {
+    cursor: pointer;
+  }
 }

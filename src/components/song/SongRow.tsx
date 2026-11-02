@@ -158,8 +158,9 @@ export const SongRow = memo(function SongRow(props: SongRowProps) {
       <div className="flex flex-col gap-2 p-3">
         <div className="relative">
           <Artwork src={meta.thumbnail} size="fill" />
-          <div className={cn("absolute inset-0 flex items-center justify-center rounded-lg bg-background/40 transition-opacity", hovered || isCurrent ? "opacity-100" : "opacity-0")}>
-            <span className="rounded-full bg-primary p-3 text-primary-foreground shadow-lg">
+          <div className={cn("absolute inset-0 flex items-center justify-center rounded-lg transition-[opacity,background-color] duration-normal", hovered ? "bg-background/40 opacity-100" : isCurrent ? "opacity-100" : "opacity-0")}>
+            {/* While playing (not hovered) only a faint tint behind the animation; the solid button appears on hover. */}
+            <span className={cn("flex size-12 items-center justify-center rounded-full transition-colors duration-normal [&>div]:size-8", hovered ? "bg-primary text-primary-foreground shadow-lg" : "bg-primary/5 text-primary")}>
               <PlayStateIcon current={isCurrent} playing={isPlaying} hovered={hovered} />
             </span>
           </div>
