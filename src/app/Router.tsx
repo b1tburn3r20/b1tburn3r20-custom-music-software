@@ -7,6 +7,7 @@ import AlbumPage from "@/pages/AlbumPage"
 import ArtistPage from "@/pages/ArtistPage"
 import LikedPage from "@/pages/LikedPage"
 import HistoryPage from "@/pages/HistoryPage"
+import StatsPage from "@/pages/StatsPage"
 import YoutubePage from "@/pages/YoutubePage"
 
 export default function Router() {
@@ -31,6 +32,6 @@ export default function Router() {
     case "youtube":
       return <YoutubePage />
     case "stats":
-      return <HistoryPage />
+      return <StatsPage />
   }
 }

@@ -92,6 +92,12 @@ export type RawApi = {
     download(input: { videoId: string; title: string }): Promise<IpcResult<{ songId: string; alreadyHad: boolean }>>
     onDownloadUpdate(cb: (item: DownloadItem) => void): Unsubscribe
   }
+  stats: {
+    recordPlay(event: { songId: string; startedAt: number; endedAt: number; listenedMs: number; durationMs: number; counted: boolean; context?: { type: string; id?: string } | null }): Promise<IpcResult<boolean>>
+    get(range: StatsRange): Promise<IpcResult<StatsSummary>>
+    history(opts?: { limit?: number; before?: number }): Promise<IpcResult<PlayEvent[]>>
+    onChanged(cb: (p: { at: number }) => void): Unsubscribe
+  }
   sync: {
     toPhone(data: { rootPath: string }): Promise<SyncResult>
     checkAdb(): Promise<{ success: boolean; error?: string; deviceId?: string; message?: string; needsAdb?: boolean; needsDevice?: boolean; needsAuth?: boolean }>
@@ -111,6 +117,20 @@ export type YoutubeAuthStatus = {
 }
 export type MyYoutubePlaylist = { id: string; title: string; count: number | null; thumbnail: string | null; system?: boolean }
 export type OrphanReport = { orphanThumbnails: number; orphanThumbnailBytes: number; missing: { id: string; title: string; path: string }[]; danglingReferences: number }
+
+export type StatsRange = "week" | "month" | "all"
+export type StatsSummary = {
+  range: StatsRange
+  since: number | null
+  totalMs: number
+  plays: number
+  uniqueSongs: number
+  uniqueArtists: number
+  topSongs: { songId: string; plays: number; ms: number; lastPlayedAt: number }[]
+  topArtists: { name: string; plays: number; ms: number; songCount: number }[]
+  daily: { day: string; ms: number }[]
+}
+export type PlayEvent = { id: string; songId: string; endedAt: number; listenedMs: number; counted: boolean }
 
 export type SyncResult = {
   success: boolean

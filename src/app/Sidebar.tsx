@@ -1,4 +1,4 @@
-import { Heart, Home, Library, ListMusic, ListPlus, Pencil, Play, Shuffle, Trash2, Youtube, History } from "lucide-react"
+import { BarChart3, Heart, Home, Library, ListMusic, ListPlus, Pencil, Play, Shuffle, Trash2, Youtube, History } from "lucide-react"
 import { memo } from "react"
 import type { LucideIcon } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -94,6 +94,7 @@ export default function Sidebar() {
           <NavButton icon={Library} label="Library" route={{ name: "library" }} active={route.name === "library"} />
           <NavButton icon={Youtube} label="YouTube" route={{ name: "youtube" }} active={route.name === "youtube"} />
           <NavButton icon={History} label="History" route={{ name: "history" }} active={route.name === "history"} />
+          <NavButton icon={BarChart3} label="Stats" route={{ name: "stats" }} active={route.name === "stats"} />
         </div>
         <Separator className="my-4" />
         <div className="flex flex-col gap-2">

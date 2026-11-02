@@ -3,8 +3,10 @@ const path = require("path");
 const { configureUserData, copyLegacyUserData } = require("./store/paths.cjs");
 const { createLibraryStore } = require("./store/library.cjs");
 const { createUserStore } = require("./store/user.cjs");
+const { createPlaysStore } = require("./store/plays.cjs");
+const { splitArtists } = require("./lib/artists.cjs");
 const { registerMediaScheme, handleMediaProtocol } = require("./media-protocol.cjs");
-const { registerLibraryIpc, broadcast } = require("./ipc.cjs");
+const { registerLibraryIpc, registerStatsIpc, broadcast } = require("./ipc.cjs");
 const { registerYoutubeIpc } = require("./youtube/ipc.cjs");
 const { registerSyncHandlers } = require("../handlers/sysHandlers.cjs");
 
@@ -21,16 +23,32 @@ let stores = null;
 
 async function initStores() {
   await copyLegacyUserData(app);
-  const library = createLibraryStore({ userData, emit: (delta) => broadcast("library:changed", delta) });
+  const library = createLibraryStore({
+    userData,
+    emit: (delta) => {
+      broadcast("library:changed", delta);
+      stores?.plays?.invalidate(); // artist attribution / deleted songs affect stats
+    },
+  });
   const libReport = await library.load();
   const user = createUserStore({ userData, library, emit: (snap) => broadcast("user:changed", snap) });
   const userReport = await user.load();
-  stores = { library, user };
-  registerLibraryIpc({ library, user, userData });
+  const plays = createPlaysStore({
+    userData,
+    songInfo: (id) => {
+      const s = library.getSong(id);
+      if (!s || s.missing || !s.metadata) return null;
+      return { artists: s.metadata.artists && s.metadata.artists.length ? s.metadata.artists : splitArtists(s.metadata.artist) };
+    },
+  });
+  const playsReport = await plays.load();
+  stores = { library, user, plays };
+  registerLibraryIpc({ library, user, plays, userData });
+  registerStatsIpc({ plays });
   registerYoutubeIpc({ library, user, userData });
   registerSyncHandlers();
   handleMediaProtocol(library);
-  console.info("[main] stores ready", { userData, library: libReport, user: { migrated: userReport.migrated } });
+  console.info("[main] stores ready", { userData, library: libReport, user: { migrated: userReport.migrated }, plays: playsReport });
   // Incremental rescan in the background: picks up files added/removed while the app was closed.
   if (library.rootDir) library.scan().catch((e) => console.error("[main] startup scan failed:", e.message));
 }

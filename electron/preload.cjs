@@ -51,6 +51,12 @@ contextBridge.exposeInMainWorld("api", {
     download: (input) => invoke("youtube:download", input),
     onDownloadUpdate: on("youtube:download-update"),
   },
+  stats: {
+    recordPlay: (event) => invoke("stats:record-play", event),
+    get: (range) => invoke("stats:get", range),
+    history: (opts) => invoke("stats:history", opts),
+    onChanged: on("stats:changed"),
+  },
   sync: {
     toPhone: (data) => invoke("sync-to-phone", data),
     checkAdb: () => invoke("check-adb-connection"),

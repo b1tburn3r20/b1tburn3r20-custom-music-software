@@ -8,8 +8,10 @@ import { useUserStore } from "@/stores/useUserStore"
 import { recordRecentlyPlayed } from "@/lib/actions"
 import { radioFor } from "@/lib/catalog"
 import * as Q from "./queue"
+import { ListenTracker } from "./listenTracker"
 
 let audio: HTMLAudioElement | null = null
+const tracker = new ListenTracker()
 let loadedSongId: string | null = null
 let consecutiveErrors = 0
 let lastClock = 0
@@ -36,9 +38,20 @@ function safePlay() {
   })
 }
 
+/** Send a finished listening session to main (stats/history). */
+function report(session: ReturnType<ListenTracker["finish"]>) {
+  if (!session || session.listenedMs < 1000) return
+  const ctx = usePlayerStore.getState().queue.context
+  window.api.stats
+    .recordPlay({ songId: session.songId, startedAt: session.startedAt, endedAt: session.endedAt, listenedMs: session.listenedMs, durationMs: Math.round(session.durationSec * 1000), counted: session.counted, context: ctx ? { type: ctx.type, id: ctx.id } : null })
+    .catch((e: unknown) => console.warn("[engine] couldn't record play", e))
+}
+
 function load(songId: string | null) {
   if (!audio) return
   loadedSongId = songId
+  if (songId) report(tracker.start(songId, usePlayerStore.getState().currentlyPlaying?.metadata.duration || 0))
+  else report(tracker.finish())
   if (!songId) {
     audio.removeAttribute("src")
     audio.load()
@@ -80,6 +93,7 @@ export function advance({ auto }: { auto: boolean }) {
     return
   }
   if (r.ended) {
+    report(tracker.finish())
     // End of queue: stop at the start of the last song.
     store.setPaused(true)
     if (audio) audio.currentTime = 0
@@ -91,6 +105,7 @@ export function advance({ auto }: { auto: boolean }) {
 
 export function restartCurrent() {
   if (!audio) return
+  report(tracker.restart())
   audio.currentTime = 0
   setClockNow()
   if (!usePlayerStore.getState().paused) safePlay()
@@ -132,12 +147,21 @@ export function startEngine(controls: { next: () => void; prev: () => void; togg
   audio.volume = usePlayerStore.getState().volume / 100
 
   audio.addEventListener("timeupdate", () => {
+    if (audio && !audio.paused && !audio.seeking) {
+      // Replaying after the queue ended: begin a fresh session for the same song.
+      if (!tracker.current && loadedSongId) tracker.start(loadedSongId, Number.isFinite(audio.duration) ? audio.duration : 0)
+      tracker.sample(audio.currentTime)
+    }
     const now = performance.now()
     if (now - lastClock < 250) return
     lastClock = now
     setClockNow()
   })
-  audio.addEventListener("loadedmetadata", setClockNow)
+  audio.addEventListener("loadedmetadata", () => {
+    if (audio && Number.isFinite(audio.duration)) tracker.setDuration(audio.duration)
+    setClockNow()
+  })
+  audio.addEventListener("seeking", () => tracker.break())
   audio.addEventListener("seeked", setClockNow)
   audio.addEventListener("playing", () => {
     consecutiveErrors = 0
@@ -148,12 +172,16 @@ export function startEngine(controls: { next: () => void; prev: () => void; togg
   })
   // Keep store in sync if the OS/media keys pause playback.
   audio.addEventListener("pause", () => {
+    tracker.break()
     if (performance.now() < ignorePauseUntil || audio?.ended) return
     if (!usePlayerStore.getState().paused) usePlayerStore.getState().setPaused(true)
   })
   audio.addEventListener("play", () => {
     if (usePlayerStore.getState().paused) usePlayerStore.getState().setPaused(false)
   })
+
+  // Don't lose the current listening session when the window closes.
+  window.addEventListener("beforeunload", () => report(tracker.finish()))
 
   usePlayerStore.subscribe((s, p) => {
     if (s.currentSongId !== loadedSongId || (s.currentUid !== p.currentUid && s.currentSongId === loadedSongId && s.currentUid !== null)) {

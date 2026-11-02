@@ -64,6 +64,7 @@ function registerLibraryIpc({ library, user, plays, userData }) {
     await library.removeSong(songId);
     user.purgeSongs([songId]);
     if (plays) await plays.purgeSongs([songId]);
+    broadcast("stats:changed", { at: Date.now() });
     return { deleted: songId, how };
   });
   handle("library:orphan-report", async () => {
@@ -115,4 +116,13 @@ function registerLibraryIpc({ library, user, plays, userData }) {
   });
 }
 
-module.exports = { registerLibraryIpc, broadcast, handle, AppError };
+function registerStatsIpc({ plays }) {
+  handle("stats:record-play", (event) => plays.record(event).then((e) => {
+    if (e) broadcast("stats:changed", { at: Date.now() });
+    return Boolean(e);
+  }));
+  handle("stats:get", (range) => plays.stats(["week", "month", "all"].includes(range) ? range : "all"));
+  handle("stats:history", (opts) => plays.history(opts || {}));
+}
+
+module.exports = { registerLibraryIpc, registerStatsIpc, broadcast, handle, AppError };
