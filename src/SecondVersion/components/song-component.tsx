@@ -1,10 +1,10 @@
 import LottieViewer from "@/components/helpers/lottie-viewer"
+import { playNext } from "@/player/controls"
 import { Button } from "@/components/ui/button"
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu"
 import { useDirectoryStore } from "@/stores/useDirectoryStore"
 import { useMusicStore } from "@/stores/useMusicStore"
 import { openAlbumForSong, openArtist } from "@/utils/musicutils"
-import { usePlayerStore } from "@/stores/usePlayerStore"
 import type { Song } from "@/types/DirectoryTypes"
 import { Play, Trash2, Pause, Loader2, ListPlus, } from "lucide-react"
 import { useState } from "react"
@@ -26,27 +26,9 @@ const SongComponent = ({ song, isPlaying, onPlay, onPause, onResume, isPaused, d
   const deleting = useDirectoryStore((f) => f.songToDelete?.id === song.id)
   const [hovered, setHovered] = useState(false)
 
-  const currentlyPlayingSong = usePlayerStore((s) => s.currentlyPlaying)
 
-  const handlePlayNext = () => {
-    if (isPlaying) return
-    const { queue, setQueue } = useMusicStore.getState()
-    const updatedQueue = [...queue]
-    const existingIndex = updatedQueue.findIndex(
-      (s) => s.id === song.id
-    )
-    if (existingIndex !== -1) {
-      updatedQueue.splice(existingIndex, 1)
-    }
-    const currentIndex = updatedQueue.findIndex(
-      (s) => s.id === currentlyPlayingSong?.id
-    )
-    const insertIndex = currentIndex === -1
-      ? 0
-      : currentIndex + 1
-    updatedQueue.splice(insertIndex, 0, song)
-    setQueue(updatedQueue)
-  }
+  const handlePlayNext = () => playNext([song])
+
   const handleClick = () => {
         if (isPlaying) {
       if (isPaused) {

@@ -5,7 +5,7 @@ import RecentlyPlayedPlaylistComponent from "./RecentlyPlayedPlaylistComponent"
 
 const RecentlyPlayedPlaylists = () => {
   const recentlyPlayedPlaylists = useMusicStore((f) => f.recentlyPlayedPlaylists)
-  const playingPlaylist = usePlayerStore((f) => f.playingPlaylist)
+  const playingPlaylistId = usePlayerStore((s) => (s.queue.context?.type === "playlist" ? s.queue.context.id : null))
   const paused = usePlayerStore((f) => f.paused)
   const setPaused = usePlayerStore((f) => f.setPaused)
 
@@ -32,7 +32,7 @@ const RecentlyPlayedPlaylists = () => {
                 onResume={handleResume}
                 isPaused={paused}
                 playlist={res}
-                isPlaying={playingPlaylist?.id === res.id && !paused}
+                isPlaying={playingPlaylistId === res.id && !paused}
               />
             </div>
           )
@@ -48,7 +48,7 @@ const RecentlyPlayedPlaylists = () => {
                 onResume={handleResume}
                 isPaused={paused}
                 playlist={res}
-                isPlaying={playingPlaylist?.id === res.id && !paused}
+                isPlaying={playingPlaylistId === res.id && !paused}
               />
             </div>
           )

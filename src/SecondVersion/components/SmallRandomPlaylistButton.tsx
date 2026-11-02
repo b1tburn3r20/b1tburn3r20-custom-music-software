@@ -1,6 +1,6 @@
 
 import { useMusicStore } from "@/stores/useMusicStore"
-import { usePlayerStore } from "@/stores/usePlayerStore"
+import { playContext } from "@/player/controls"
 import { Dice3, Dice4, Dice5, Dice2, Dice1, Dice6 } from "lucide-react"
 import { useState } from "react"
 
@@ -10,10 +10,6 @@ const SmallRandomPlaylistButton = () => {
   const [isRolling, setIsRolling] = useState(false)
   const diceComponents = [Dice1, Dice2, Dice3, Dice4, Dice5, Dice6]
   const playlists = useMusicStore((f) => f.playlists)
-  const setPlayingPlaylist = usePlayerStore((f) => f.setPlayingPlaylist)
-  const setQueue = useMusicStore((f) => f.setQueue)
-  const startPlaying = usePlayerStore((f) => f.setCurrentlyPlaying)
-  const setPaused = usePlayerStore((f) => f.setPaused)
 
 
   const getRandomSong = () => {
@@ -28,10 +24,7 @@ const SmallRandomPlaylistButton = () => {
       setDiceIndex(newDiceIndex)
       setIsRolling(false)
       const randomPlaylist = playlists[randomPlaylistIndex]
-      setQueue(randomPlaylist.songs)
-      startPlaying(randomPlaylist.songs[0])
-      setPaused(false)
-      setPlayingPlaylist(randomPlaylist)
+      if (randomPlaylist?.songs.length) playContext(randomPlaylist.songs, 0, { type: "playlist", id: randomPlaylist.id, label: randomPlaylist.name })
     }, 75)
   }
 

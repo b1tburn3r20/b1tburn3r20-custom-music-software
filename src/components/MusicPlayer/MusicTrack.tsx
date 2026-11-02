@@ -1,27 +1,27 @@
-
-import { usePlayerStore } from "@/stores/usePlayerStore"
 import { Slider } from "@/components/ui/slider"
 import { useState } from "react"
 import { useAppStore } from "@/stores/useAppStore"
-
+import { usePlaybackClock } from "@/stores/usePlayerStore"
+import { seek } from "@/player/controls"
 
 const MusicTrack = () => {
-  const progress = usePlayerStore((f) => f.musicProgress)
-  const seek = usePlayerStore((f) => f.seek)
+  const time = usePlaybackClock((s) => s.time)
+  const duration = usePlaybackClock((s) => s.duration)
   const [hovered, setHovered] = useState(false)
   const idle = useAppStore((f) => f.idle)
+  const progress = duration > 0 ? (time / duration) * 100 : 0
   return (
     <div className="z-[9]" onMouseOver={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
       <Slider
+        aria-label="Seek"
         expand={hovered}
         value={[progress]}
-        onValueChange={(value) => seek(value[0])}
+        onValueChange={(value) => seek((value[0] / 100) * duration)}
         max={100}
-        step={1}
+        step={0.1}
         className="w-full rounded-none"
         hidden={idle}
       />
-
     </div>
   )
 }

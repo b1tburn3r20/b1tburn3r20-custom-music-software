@@ -1,9 +1,8 @@
 import LottieViewer from "@/components/helpers/lottie-viewer"
+import { playContext } from "@/player/controls"
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem } from "@/components/ui/context-menu"
 import { useAppStore } from "@/stores/useAppStore"
 import { useColorCacheStore } from "@/stores/useColorCacheStore"
-import { useMusicStore } from "@/stores/useMusicStore"
-import { usePlayerStore } from "@/stores/usePlayerStore"
 import type { PlaylistType } from "@/types/AppTypes"
 import { formatDuration } from "@/utils/textUtils"
 import { Dot, Music, Play, Trash2 } from "lucide-react"
@@ -19,10 +18,6 @@ interface RecentlyPlayedPlaylistComponentProps {
 
 const RecentlyPlayedPlaylistComponent = ({ playlist, isPlaying, onPause, onResume, isPaused }: RecentlyPlayedPlaylistComponentProps) => {
   const setPlaylistToDelete = useAppStore((f) => f.setPlaylistForDelete)
-  const setPlayingPlaylist = usePlayerStore((f) => f.setPlayingPlaylist)
-  const setQueue = useMusicStore((f) => f.setQueue)
-  const startPlaying = usePlayerStore((f) => f.setCurrentlyPlaying)
-  const setPaused = usePlayerStore((f) => f.setPaused)
 
   const thumbnail = playlist?.songs[0]?.metadata?.thumbnail
   const handleClick = () => {
@@ -34,10 +29,7 @@ const RecentlyPlayedPlaylistComponent = ({ playlist, isPlaying, onPause, onResum
       }
     } else {
       if (playlist?.songs?.length) {
-        setQueue(playlist.songs)
-        startPlaying(playlist.songs[0])
-        setPaused(false)
-        setPlayingPlaylist(playlist)
+        playContext(playlist.songs, 0, { type: "playlist", id: playlist.id, label: playlist.name })
 
 
       }

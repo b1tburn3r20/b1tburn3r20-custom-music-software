@@ -17,8 +17,8 @@ const MusicPlayer = () => {
 
 
 
-  const handleDoubleClick = (e: any) => {
-    const tag = e.target?.tagName;
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    const tag = (e.target as HTMLElement)?.tagName;
     if (!["SPAN", "BUTTON", "INPUT"].includes(tag)) {
       setExpanded(!expanded)
     }

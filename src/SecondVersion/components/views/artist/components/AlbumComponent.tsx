@@ -1,11 +1,11 @@
 
 import LottieViewer from "@/components/helpers/lottie-viewer"
+import { playContext } from "@/player/controls"
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem } from "@/components/ui/context-menu"
 import { useAppStore } from "@/stores/useAppStore"
 import { useColorCacheStore } from "@/stores/useColorCacheStore"
 import { useMusicStore } from "@/stores/useMusicStore"
-import { usePlayerStore } from "@/stores/usePlayerStore"
-import type { AlbumType, PlaylistType } from "@/types/AppTypes"
+import type { AlbumType } from "@/types/AppTypes"
 import { formatDuration } from "@/utils/textUtils"
 import { Dot, Music, Play } from "lucide-react"
 
@@ -19,9 +19,6 @@ interface AlbumComponentProps {
 
 
 const AlbumComponent = ({ album, isPlaying, onPause, onResume, isPaused }: AlbumComponentProps) => {
-  const setQueue = useMusicStore((f) => f.setQueue)
-  const startPlaying = usePlayerStore((f) => f.setCurrentlyPlaying)
-  const setPaused = usePlayerStore((f) => f.setPaused)
   const setActiveAlbum = useMusicStore((f) => f.setActiveAlbum)
   const setView = useAppStore((f) => f.setView)
 
@@ -36,10 +33,7 @@ const AlbumComponent = ({ album, isPlaying, onPause, onResume, isPaused }: Album
       }
     } else {
       if (album?.album_songs?.length) {
-        setQueue(album.album_songs)
-        startPlaying(album.album_songs[0])
-        setPaused(false)
-        // setPlayingPlaylist(playlist)
+        playContext(album.album_songs, 0, { type: "album", id: album.key, label: album.album_name })
       }
     }
   }

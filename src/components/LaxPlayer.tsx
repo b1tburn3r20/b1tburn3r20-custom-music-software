@@ -5,13 +5,11 @@ import { Music } from "lucide-react"
 import MusicQueue from "@/SecondVersion/components/MusicQueue"
 import { useAppStore } from "@/stores/useAppStore"
 import MusicPlayerTimeRunning from "./MusicPlayer/components/MusicPlayerTimeRunning"
-import { toast } from "sonner"
+import { togglePlay } from "@/player/controls"
 
 const LaxPlayer = () => {
   const expanded = useSettingsStore((f) => f.playerExpanded)
   const activeSong = usePlayerStore((f) => f.currentlyPlaying)
-  const setPaused = usePlayerStore((f) => f.setPaused)
-  const paused = usePlayerStore((f) => f.paused)
   const isIdle = useAppStore((f) => f.idle)
   const setIsIdle = useAppStore((f) => f.setIdle)
   const setExpanded = useSettingsStore((f) => f.setPlayerExpanded)
@@ -31,7 +29,7 @@ const LaxPlayer = () => {
     if (!zenEnabled) {
       return
     }
-    let timeout: any;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
     const handleMouseMove = () => {
       setIsIdle(false)
       clearTimeout(timeout)
@@ -53,34 +51,23 @@ const LaxPlayer = () => {
       clearTimeout(timeout)
       document.removeEventListener('mousemove', handleMouseMove)
     }
-  }, [expanded, zenEnabled])
+  }, [expanded, zenEnabled, zenTimeout, setIsIdle])
   useEffect(() => {
-    const handleKeyPress = (e: any) => {
-      if (e.key === "Escape") {
-        toast.info("UHG")
-        if (expanded) {
-          setExpanded(false)
-        }
-      }
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && expanded && !document.querySelector("[role=dialog],[role=menu]")) setExpanded(false)
     }
-
-    window.addEventListener("keypress", handleKeyPress)
-    return () => window.removeEventListener("keypress", handleKeyPress)
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
   }, [expanded, setExpanded])
 
 
 
 
 
-  const handlePause = () => {
-    if (paused) {
-      setPaused(false)
-    } else {
-      setPaused(true)
-    }
-  }
-  const handleDoubleClick = (e: any) => {
-    const tag = e.target?.tagName;
+  const handlePause = togglePlay
+
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    const tag = (e.target as HTMLElement)?.tagName;
     if ((e.target as HTMLElement)?.closest('[data-queue]')) return
     if (!["SPAN", "BUTTON", "IMG"].includes(tag)) {
       setExpanded(!expanded)

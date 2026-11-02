@@ -1,8 +1,7 @@
 
-import { addRecentlyPlayed } from "@/components/helpers/utilities"
+import { playContext } from "@/player/controls"
 import { Button } from "@/components/ui/button"
 import { useMusicStore } from "@/stores/useMusicStore"
-import { usePlayerStore } from "@/stores/usePlayerStore"
 import type { Song } from "@/types/DirectoryTypes"
 import { Play } from "lucide-react"
 
@@ -13,16 +12,11 @@ interface AlbumPlayButtonProps {
 }
 
 const AlbumPlayButton = ({ songs }: AlbumPlayButtonProps) => {
-  const setQueue = useMusicStore((f) => f.setQueue)
   const activeAlbum = useMusicStore((f) => f.activeAlbum)
-  const setPlayingAlbum = useMusicStore((f) => f.setPlayingAlbum)
-  const setCurrentlyPlaying = usePlayerStore((f) => f.setCurrentlyPlaying)
   const handlePlay = () => {
-    setPlayingAlbum(activeAlbum)
-    setQueue(songs)
-    setCurrentlyPlaying(songs[0])
-    addRecentlyPlayed(songs[0])
+    playContext(songs, 0, activeAlbum ? { type: "album", id: activeAlbum.key, label: activeAlbum.album_name } : null)
   }
+
 
 
 

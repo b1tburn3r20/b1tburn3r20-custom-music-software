@@ -6,8 +6,10 @@ import { Toaster } from "@/components/ui/sonner"
 import { ThemeProvider } from './components/ui/theme-provider.tsx'
 import { bootstrapData } from './data/bootstrap.ts'
 import { installLegacyBridge } from './data/legacyBridge.ts'
+import { initPlayer } from './player/controls.ts'
 
 installLegacyBridge()
+initPlayer()
 void bootstrapData()
 
 createRoot(document.getElementById('root')!).render(

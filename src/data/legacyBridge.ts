@@ -8,12 +8,9 @@ import { useUserStore } from "@/stores/useUserStore"
 import { useMusicStore } from "@/stores/useMusicStore"
 import { useDirectoryStore } from "@/stores/useDirectoryStore"
 import { useAppStore } from "@/stores/useAppStore"
-import { usePlayerStore } from "@/stores/usePlayerStore"
 import { useSettingsStore } from "@/stores/useSettingsStore"
 import type { PlaylistType } from "@/types/AppTypes"
 import type { Playlist } from "@/types/api"
-
-const REPEAT_TO_LOOPING = { all: "loopPlaylist", one: "loopSong", off: "off" } as const
 
 function resolvePlaylist(p: Playlist, byId: ReturnType<typeof useLibraryStore.getState>["songsById"]): PlaylistType {
   return { id: p.id, name: p.name, description: p.description, created: p.created, updated: p.updated, songIds: p.songIds, songs: resolveSongs(p.songIds, byId) }
@@ -35,8 +32,6 @@ function recompute() {
     recentlyPlayedPlaylists: user.recentPlaylists.map((id) => plById.get(id)).filter((p): p is PlaylistType => Boolean(p)),
     allAlbums: lib.albums,
     randomMusic: prev.randomMusic.length && prev.randomMusic.every((s) => byId[s.id]) ? prev.randomMusic.map((s) => byId[s.id]) : shuffled(lib.songs).slice(0, 48),
-    // keep the queue's song objects fresh and drop deleted songs
-    queue: prev.queue.filter((s) => byId[s.id]).map((s) => byId[s.id]),
   })
   // Keep the open playlist in sync instead of a stale copy.
   const app = useAppStore.getState()
@@ -45,15 +40,11 @@ function recompute() {
     app.setCurrentPlaylist(fresh)
     if (!fresh && app.view === "playlist") app.setView("home")
   }
-  const player = usePlayerStore.getState()
-  if (player.currentlyPlaying && !byId[player.currentlyPlaying.id]) player.setCurrentlyPlaying(null)
-  if (player.playingPlaylist) player.setPlayingPlaylist(plById.get(player.playingPlaylist.id) ?? null)
   useDirectoryStore.getState().setRootDir(lib.rootDir)
 }
 
 function applySettings() {
   const s = useUserStore.getState().settings
-  usePlayerStore.setState({ musicVolume: s.volume, looping: REPEAT_TO_LOOPING[s.repeat] ?? "loopPlaylist" })
   useSettingsStore.setState({ expandOnPlay: s.expandOnPlay, laxPlayerAutoHide: s.zenMode, zenModeTimeout: s.zenTimeout })
 }
 

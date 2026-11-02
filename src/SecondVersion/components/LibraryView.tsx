@@ -1,6 +1,5 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAppStore } from "@/stores/useAppStore";
-import { useDirectoryStore } from "@/stores/useDirectoryStore";
 import { useMusicStore } from "@/stores/useMusicStore";
 import { useMemo } from "react";
 import { usePlayerStore } from "@/stores/usePlayerStore";
@@ -8,7 +7,6 @@ import LowAlbumProps from "./views/artist/components/LowAlbumComponent";
 
 const LibraryView = () => {
   const view = useAppStore((f) => f.view);
-  const rootDir = useDirectoryStore((f) => f.rootDir);
   const setPaused = usePlayerStore((f) => f.setPaused);
   const paused = usePlayerStore((f) => f.paused);
   //

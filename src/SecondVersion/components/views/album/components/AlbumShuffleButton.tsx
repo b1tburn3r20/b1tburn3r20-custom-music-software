@@ -1,23 +1,18 @@
 
-import { shuffleArray } from "@/components/helpers/utilities"
 import { Button } from "@/components/ui/button"
 import { useMusicStore } from "@/stores/useMusicStore"
-import { startNewQueueFromArray } from "@/utils/musicutils"
+import { playShuffled } from "@/player/controls"
 import { Shuffle } from "lucide-react"
 
 
 
 const AlbumSuffleButton = () => {
   const currentAlbum = useMusicStore((f) => f.activeAlbum)
-  const setPlayingAlbum = useMusicStore((f) => f.setPlayingAlbum)
 
   const shufflePlaylist = () => {
-    if (currentAlbum?.album_songs) {
-      const shuffled = shuffleArray(currentAlbum?.album_songs)
-      startNewQueueFromArray(shuffled, undefined, currentAlbum)
-      setPlayingAlbum(currentAlbum);
-    }
+    if (currentAlbum) playShuffled(currentAlbum.album_songs, { type: "album", id: currentAlbum.key, label: currentAlbum.album_name })
   }
+
 
 
   return (

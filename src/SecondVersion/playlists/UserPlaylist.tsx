@@ -18,7 +18,7 @@ const UserPlaylist = ({ playlist }: { playlist: PlaylistType }) => {
   const setCurrentPlaylist = useAppStore((f) => f.setCurrentPlaylist);
   const thumbnail = playlist?.songs?.[0]?.metadata?.thumbnail;
   const playlistId = playlist?.id || playlist?.name || "";
-  const playingPlaylist = usePlayerStore((f) => f.playingPlaylist);
+  const playingPlaylistId = usePlayerStore((s) => (s.queue.context?.type === "playlist" ? s.queue.context.id : null))
 
   const dominantColor = useColorCacheStore((state) =>
     state.getColor(thumbnail as string | undefined, playlistId)
@@ -55,7 +55,7 @@ const UserPlaylist = ({ playlist }: { playlist: PlaylistType }) => {
   }, [playlist]);
 
   const playlistLength = playlist?.songs?.length || 0;
-  const isPlaying = playingPlaylist?.id === playlistId;
+  const isPlaying = playingPlaylistId === playlistId;
 
   return (
     <TooltipProvider delayDuration={0}>

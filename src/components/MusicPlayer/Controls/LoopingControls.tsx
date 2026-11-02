@@ -1,57 +1,21 @@
-"use client"
-
+import { cycleRepeat } from "@/player/controls"
 import { usePlayerStore } from "@/stores/usePlayerStore"
 import { Repeat, Repeat1 } from "lucide-react"
-import { updateSettings } from "@/lib/actions"
 
+const LABELS = { off: "Repeat: off", all: "Repeat: all", one: "Repeat: one" } as const
 
 const LoopingControls = () => {
-  const loopingState = usePlayerStore((f) => f.looping)
-  const setLoopingState = usePlayerStore((f) => f.setLooping)
-
-
-
-
-
-  const handleClick = (val: string) => {
-    setLoopingState(val)
-    void updateSettings({ repeat: val === "loopPlaylist" ? "all" : val === "loopSong" ? "one" : "off" })
-
-  }
-
-  if (loopingState === "off") {
-    return (
-      <button
-        onClick={() => handleClick("loopPlaylist")}
-        className="rounded-full flex justify-center items-center p-4 cursor-pointer hover:bg-secondary hover:text-primary"
-      >
-        <Repeat className="text-muted-foreground" />
-      </button>
-    )
-  }
-
-  if (loopingState === "loopPlaylist") {
-    return (
-      <button
-
-        onClick={() => handleClick("loopSong")}
-        className=" rounded-full flex justify-center items-center p-4 cursor-pointer hover:bg-secondary/50 hover:text-primary"
-      >
-        <Repeat className="text-primary" />
-      </button>
-    )
-  }
-
-
+  const repeat = usePlayerStore((s) => s.queue.repeat)
   return (
     <button
-      onClick={() => handleClick("off")}
+      aria-label={LABELS[repeat]}
+      title={LABELS[repeat]}
+      aria-pressed={repeat !== "off"}
+      onClick={cycleRepeat}
       className="rounded-full flex justify-center items-center p-4 cursor-pointer hover:bg-secondary/50 hover:text-primary"
     >
-      <Repeat1 className="text-primary" />
+      {repeat === "one" ? <Repeat1 className="text-primary" /> : <Repeat className={repeat === "all" ? "text-primary" : "text-muted-foreground"} />}
     </button>
-
-
   )
 }
 

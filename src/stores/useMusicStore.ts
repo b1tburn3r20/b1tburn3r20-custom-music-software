@@ -29,8 +29,6 @@ type MusicStore = {
   // UI state
   musicResults: Song[]
   setMusicResults: (data: Song[]) => void
-  queue: Song[]
-  setQueue: (data: Song[]) => void
   isPlaylistModalOpen: boolean
   setIsPlaylistModalOpen: (data: boolean) => void
   playlistUpdateData: Song | null
@@ -43,8 +41,6 @@ type MusicStore = {
   setActiveAlbum: (data: AlbumType | null) => void
   activeArtist: ArtistType | null
   setActiveArtist: (data: ArtistType | null) => void
-  playingAlbum: AlbumType | null
-  setPlayingAlbum: (data: AlbumType | null) => void
 }
 
 export const useMusicStore = create<MusicStore>((set) => ({
@@ -59,8 +55,6 @@ export const useMusicStore = create<MusicStore>((set) => ({
 
   musicResults: [],
   setMusicResults: (musicResults) => set({ musicResults }),
-  queue: [],
-  setQueue: (queue) => set({ queue }),
   isPlaylistModalOpen: false,
   setIsPlaylistModalOpen: (isPlaylistModalOpen) => set({ isPlaylistModalOpen }),
   playlistUpdateData: null,
@@ -73,6 +67,4 @@ export const useMusicStore = create<MusicStore>((set) => ({
   setActiveAlbum: (activeAlbum) => set({ activeAlbum }),
   activeArtist: null,
   setActiveArtist: (activeArtist) => set({ activeArtist }),
-  playingAlbum: null,
-  setPlayingAlbum: (playingAlbum) => set({ playingAlbum }),
 }))

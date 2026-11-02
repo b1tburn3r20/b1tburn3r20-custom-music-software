@@ -1,24 +1,18 @@
-import { shuffleArray } from "@/components/helpers/utilities"
 import { Button } from "@/components/ui/button"
 import { useAppStore } from "@/stores/useAppStore"
-import { usePlayerStore } from "@/stores/usePlayerStore"
-import { startNewQueueFromArray } from "@/utils/musicutils"
+import { playShuffled } from "@/player/controls"
 import { Shuffle } from "lucide-react"
 
 
 
 const PlaylistShufflePlaylistButton = () => {
   const currentPlaylist = useAppStore((f) => f.currentPlaylist)
-  const setPlayingPlaylist = usePlayerStore((f) => f.setPlayingPlaylist)
 
 
   const shufflePlaylist = () => {
-    if (currentPlaylist?.songs) {
-      const shuffled = shuffleArray(currentPlaylist?.songs)
-      startNewQueueFromArray(shuffled, currentPlaylist)
-      setPlayingPlaylist(currentPlaylist);
-    }
+    if (currentPlaylist) playShuffled(currentPlaylist.songs, { type: "playlist", id: currentPlaylist.id, label: currentPlaylist.name })
   }
+
 
 
   return (
