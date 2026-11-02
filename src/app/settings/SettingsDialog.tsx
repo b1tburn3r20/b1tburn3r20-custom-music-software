@@ -1,22 +1,24 @@
 import { Settings as SettingsIcon } from "lucide-react"
-import { useState } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { IconButton } from "@/components/base/IconButton"
 import PlaybackSettings from "./PlaybackSettings"
 import LibrarySettings from "./LibrarySettings"
 import AppearanceSettings from "./AppearanceSettings"
+import YoutubeSettings from "./YoutubeSettings"
+import { useSettingsDialog } from "./settingsStore"
 
 const TABS = [
   { value: "appearance", label: "Appearance", Panel: AppearanceSettings },
   { value: "playback", label: "Playback", Panel: PlaybackSettings },
   { value: "library", label: "Library", Panel: LibrarySettings },
+  { value: "youtube", label: "YouTube", Panel: YoutubeSettings },
 ]
 
 export default function SettingsDialog() {
-  const [tab, setTab] = useState(TABS[0].value)
+  const { open, tab, setOpen, setTab } = useSettingsDialog()
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <IconButton icon={SettingsIcon} label="Settings" size="md" className="bg-muted/60" />
       </DialogTrigger>
@@ -31,7 +33,7 @@ export default function SettingsDialog() {
               </TabsTrigger>
             ))}
           </TabsList>
-          <div className="min-w-0">
+          <div className="max-h-[70vh] min-w-0 overflow-y-auto pr-1">
             {TABS.map(({ value, Panel }) => (
               <TabsContent key={value} value={value} className="mt-0">
                 <Panel />

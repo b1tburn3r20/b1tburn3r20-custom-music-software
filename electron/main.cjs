@@ -5,7 +5,7 @@ const { createLibraryStore } = require("./store/library.cjs");
 const { createUserStore } = require("./store/user.cjs");
 const { registerMediaScheme, handleMediaProtocol } = require("./media-protocol.cjs");
 const { registerLibraryIpc, broadcast } = require("./ipc.cjs");
-const { registerDownloadHandlers } = require("../handlers/downloadHandlers.cjs");
+const { registerYoutubeIpc } = require("./youtube/ipc.cjs");
 const { registerSyncHandlers } = require("../handlers/sysHandlers.cjs");
 
 const isDev = !app.isPackaged && !process.env.B1T_LOAD_DIST;
@@ -27,7 +27,7 @@ async function initStores() {
   const userReport = await user.load();
   stores = { library, user };
   registerLibraryIpc({ library, user, userData });
-  registerDownloadHandlers({ library, user });
+  registerYoutubeIpc({ library, user, userData });
   registerSyncHandlers();
   handleMediaProtocol(library);
   console.info("[main] stores ready", { userData, library: libReport, user: { migrated: userReport.migrated } });

@@ -258,6 +258,55 @@ function createLibraryStore({ userData, emit = () => { } }) {
     return true;
   }
 
+  /** What a cleanup would remove. Nothing is deleted here. */
+  async function orphanReport() {
+    const referenced = new Set(Object.values(lib.songs).map((s) => s.thumbnailFile).filter(Boolean));
+    let orphanThumbs = [];
+    try {
+      orphanThumbs = (await fs.readdir(thumbsDir)).filter((f) => !referenced.has(f));
+    } catch (e) {
+      if (e.code !== "ENOENT") throw e;
+    }
+    let bytes = 0;
+    for (const f of orphanThumbs) bytes += (await fs.stat(path.join(thumbsDir, f)).catch(() => ({ size: 0 }))).size;
+    const missing = Object.values(lib.songs)
+      .filter((s) => s.missing)
+      .map((s) => ({ id: s.id, title: s.metadata ? s.metadata.title : s.fileName, path: s.path }));
+    return { orphanThumbnails: orphanThumbs.length, orphanThumbnailBytes: bytes, missing };
+  }
+
+  async function removeOrphanThumbnails() {
+    const referenced = new Set(Object.values(lib.songs).map((s) => s.thumbnailFile).filter(Boolean));
+    let removed = 0;
+    for (const f of await fs.readdir(thumbsDir).catch(() => [])) {
+      if (referenced.has(f) || f.startsWith(".")) continue;
+      await fs.unlink(path.join(thumbsDir, f)).then(() => removed++, (e) => console.warn("[library] could not remove", f, e.message));
+    }
+    return removed;
+  }
+
+  /** Forget library entries whose files are gone (only the ids the user confirmed). */
+  async function forgetMissing(ids) {
+    const gone = [];
+    for (const id of ids) {
+      const s = lib.songs[id];
+      if (s && s.missing) {
+        delete lib.songs[id];
+        gone.push(id);
+      }
+    }
+    if (gone.length) await saver.schedule();
+    return gone;
+  }
+
+  function setSourceId(id, sourceId) {
+    const s = lib.songs[id];
+    if (!s || s.sourceId === sourceId) return;
+    s.sourceId = sourceId;
+    saver.schedule();
+    emit({ type: "upsert", songs: [toPublic(s)] });
+  }
+
   async function thumbnailFor(id) {
     const s = lib.songs[id];
     const p = s && songThumbPath(s);
@@ -270,6 +319,10 @@ function createLibraryStore({ userData, emit = () => { } }) {
     snapshot,
     addFile,
     removeSong,
+    setSourceId,
+    orphanReport,
+    removeOrphanThumbnails,
+    forgetMissing,
     getSong,
     hasSong,
     pathToId,

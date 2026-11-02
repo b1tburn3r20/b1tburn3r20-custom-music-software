@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button"
 import { useLibraryStore } from "@/stores/useLibraryStore"
 import { buildArtistList, searchSongs } from "@/lib/catalog"
 import { navigate } from "@/stores/useAppStore"
-import { useYoutubeStore } from "@/components/Youtube/useYoutubeStore"
+import { useYoutubeStore } from "@/components/youtube/searchStore"
+import { useYoutubeTab } from "@/components/youtube/tabStore"
 import type { QueueContext } from "@/player/queue"
 
 const lc = (s: string) => s.toLowerCase()
@@ -26,10 +27,10 @@ export default function SearchPage({ q }: { q: string }) {
   const searchYouTube = () => {
     const yt = useYoutubeStore.getState()
     yt.setSearchTerm(q)
-    yt.setResults([])
     yt.setPlaylists(false)
     yt.incrementTriggerSearchKey()
-    navigate({ name: "youtube" })
+    useYoutubeTab.getState().setTab("search")
+  navigate({ name: "youtube" })
   }
 
   const nothing = !songHits.length && !albumHits.length && !artistHits.length

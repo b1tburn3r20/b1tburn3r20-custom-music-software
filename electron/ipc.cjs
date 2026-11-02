@@ -66,6 +66,20 @@ function registerLibraryIpc({ library, user, plays, userData }) {
     if (plays) await plays.purgeSongs([songId]);
     return { deleted: songId, how };
   });
+  handle("library:orphan-report", async () => {
+    const lib = await library.orphanReport();
+    const dangling = user.danglingReferences();
+    const danglingCount = new Set([...dangling.playlists.flatMap((p) => p.songIds), ...dangling.likes, ...dangling.recentlyPlayed, ...dangling.recentlyDownloaded]).size;
+    return { ...lib, danglingReferences: danglingCount };
+  });
+  handle("library:orphan-cleanup", async ({ thumbnails = false, dangling = false, missingIds = [] } = {}) => {
+    const forgotten = missingIds.length ? await library.forgetMissing(missingIds) : [];
+    const thumbsRemoved = thumbnails ? await library.removeOrphanThumbnails() : 0;
+    // forgetting missing songs creates dangling references, so clean those afterwards
+    const refsRemoved = dangling || forgotten.length ? user.removeDangling() : 0;
+    if (plays && forgotten.length) await plays.purgeSongs(forgotten);
+    return { thumbsRemoved, refsRemoved, forgotten: forgotten.length };
+  });
   handle("library:show-in-folder", (songId) => {
     const song = library.getSong(songId);
     if (song) shell.showItemInFolder(song.path);

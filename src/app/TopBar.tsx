@@ -7,7 +7,8 @@ import { SongRow } from "@/components/song/SongRow"
 import { useLibraryStore } from "@/stores/useLibraryStore"
 import { navigate, useAppStore } from "@/stores/useAppStore"
 import { useSettingsStore } from "@/stores/useSettingsStore"
-import { useYoutubeStore } from "@/components/Youtube/useYoutubeStore"
+import { useYoutubeStore } from "@/components/youtube/searchStore"
+import { useYoutubeTab } from "@/components/youtube/tabStore"
 import { searchSongs, shuffled } from "@/lib/catalog"
 import { playRadio } from "@/player/controls"
 import { cn } from "@/lib/utils"
@@ -25,10 +26,9 @@ function openYTMPopup(url: string) {
 function searchYouTubeApi(q: string, playlists: boolean) {
   const yt = useYoutubeStore.getState()
   yt.setSearchTerm(q)
-  if (playlists) yt.setYoutubePlaylistResults([])
-  else yt.setResults([])
   yt.setPlaylists(playlists)
   yt.incrementTriggerSearchKey()
+  useYoutubeTab.getState().setTab("search")
   navigate({ name: "youtube" })
 }
 

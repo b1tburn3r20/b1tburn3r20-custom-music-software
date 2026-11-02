@@ -2,6 +2,7 @@ import { call } from "@/lib/api"
 import { useLibraryStore } from "@/stores/useLibraryStore"
 import { useUserStore } from "@/stores/useUserStore"
 import { useSettingsStore } from "@/stores/useSettingsStore"
+import { startDownloadSync } from "@/stores/useDownloadStore"
 import { toast } from "sonner"
 
 // Mirror the persisted UI settings into the (non-persisted) settings store used by the views.
@@ -77,6 +78,7 @@ export async function bootstrapData() {
     return
   }
   try {
+    startDownloadSync()
     await importLegacyLocalStorage()
   } catch (err) {
     toast.error("Couldn't import old likes/history", { description: `${(err as Error).message}. Nothing was deleted; it will retry next launch.` })

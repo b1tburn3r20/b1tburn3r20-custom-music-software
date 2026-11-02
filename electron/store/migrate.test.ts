@@ -24,15 +24,16 @@ describe("migrateLegacyLibrary", () => {
     n = 0
     const { library, report } = m.migrateLegacyLibrary(legacyCache, { newId })
     expect(report.songs).toBe(3)
-    const songs = Object.values(library.songs) as any[]
+    type S = { id: string; path: string; fileName: string; sourceId: string | null; thumbnailFile: string | null; metadata: { title: string; artists: string[]; album: string | null } }
+    const songs = Object.values(library.songs) as S[]
     expect(new Set(songs.map((s) => s.id)).size).toBe(3)
     expect(songs.filter((s) => s.metadata.title === "Same")).toHaveLength(2)
     expect(library.rootDir).toBe("/music")
-    const a = songs.find((s) => s.path === "/music/A.mp3")
+    const a = songs.find((s) => s.path === "/music/A.mp3")!
     expect(a.metadata.artists).toEqual(["X", "Y"])
     expect(a.thumbnailFile).toBe("aaa.jpg")
-    expect(songs.find((s) => s.path === "/music/B.mp3").metadata.album).toBeNull()
-    expect(songs.find((s) => s.fileName.startsWith("C")).sourceId).toBe("dQw4w9WgXcQ")
+    expect(songs.find((s) => s.path === "/music/B.mp3")!.metadata.album).toBeNull()
+    expect(songs.find((s) => s.fileName.startsWith("C"))!.sourceId).toBe("dQw4w9WgXcQ")
   })
 })
 
@@ -79,7 +80,7 @@ describe("importRendererLegacy", () => {
     }
     const ctx = { origin: "http://localhost:5173", pathToId: idx, playlistIds: new Set(["p1"]), now: 1 }
     const { user: u1, report } = m.importRendererLegacy(user, dump, ctx)
-    expect(u1.likes.map((l: any) => l.songId)).toEqual([idx.get("/music/A.mp3")])
+    expect(u1.likes.map((l: { songId: string }) => l.songId)).toEqual([idx.get("/music/A.mp3")])
     expect(u1.recentlyPlayed).toHaveLength(1)
     expect(u1.recentlyDownloaded).toHaveLength(1)
     expect(u1.recentPlaylists).toEqual(["p1"])

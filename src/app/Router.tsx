@@ -7,7 +7,7 @@ import AlbumPage from "@/pages/AlbumPage"
 import ArtistPage from "@/pages/ArtistPage"
 import LikedPage from "@/pages/LikedPage"
 import HistoryPage from "@/pages/HistoryPage"
-import YoutubeView from "@/SecondVersion/components/YoutubeView"
+import YoutubePage from "@/pages/YoutubePage"
 
 export default function Router() {
   const route = useAppStore((s) => s.route)
@@ -29,7 +29,7 @@ export default function Router() {
     case "history":
       return <HistoryPage />
     case "youtube":
-      return <YoutubeView />
+      return <YoutubePage />
     case "stats":
       return <HistoryPage />
   }

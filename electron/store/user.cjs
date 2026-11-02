@@ -86,7 +86,7 @@ function createUserStore({ userData, library, emit = () => { } }) {
     return trimmed;
   }
 
-  function createPlaylist({ name, description = "", songIds = [] }) {
+  function createPlaylist({ name, description = "", songIds = [], source = null }) {
     const now = Date.now();
     const pl = {
       id: `playlist-${crypto.randomUUID()}`,
@@ -95,11 +95,23 @@ function createUserStore({ userData, library, emit = () => { } }) {
       created: now,
       updated: now,
       songIds: [],
+      ...(source ? { source } : {}),
     };
     user.playlists.push(pl);
     if (songIds.length) addSongs(pl.id, songIds, { silent: true });
     commit();
     return pl;
+  }
+
+  /** Local playlist that mirrors a YouTube playlist (created on first download, reused after). */
+  function ensureMirrorPlaylist(youtubeId, title) {
+    const existing = user.playlists.find((p) => p.source && p.source.type === "youtube" && p.source.id === youtubeId);
+    if (existing) return existing;
+    const taken = new Set(user.playlists.map((p) => p.name.toLowerCase()));
+    const base = String(title || "YouTube playlist").trim().slice(0, LIMITS.nameLength - 16) || "YouTube playlist";
+    let name = base;
+    for (let n = 1; taken.has(name.toLowerCase()); n++) name = n === 1 ? `${base} (YouTube)` : `${base} (YouTube ${n})`;
+    return createPlaylist({ name, description: "Downloaded from YouTube", source: { type: "youtube", id: youtubeId } });
   }
 
   function updatePlaylist(id, { name, description }) {
@@ -266,13 +278,23 @@ function createUserStore({ userData, library, emit = () => { } }) {
     };
   }
 
+  /** Remove references to songs that no longer exist in the library. */
+  function removeDangling() {
+    const d = danglingReferences();
+    const ids = new Set([...d.playlists.flatMap((p) => p.songIds), ...d.likes, ...d.recentlyPlayed, ...d.recentlyDownloaded]);
+    if (ids.size) purgeSongs([...ids]);
+    return ids.size;
+  }
+
   return {
     load,
     snapshot,
+    removeDangling,
     get settings() {
       return user.settings;
     },
     createPlaylist,
+    ensureMirrorPlaylist,
     updatePlaylist,
     deletePlaylist,
     addSongs,
