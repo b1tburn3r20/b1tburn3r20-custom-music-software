@@ -88,7 +88,7 @@ export type RawApi = {
     setAuth(patch: Partial<Settings["youtubeAuth"]>): Promise<IpcResult<YoutubeAuthStatus>>
     importCookies(): Promise<IpcResult<{ imported: string } | null>>
     removeCookies(): Promise<IpcResult<YoutubeAuthStatus>>
-    checkAuth(): Promise<IpcResult<{ ok: true; playlists: number } | { ok: false; code: string; message: string; at: number }>>
+    checkAuth(): Promise<IpcResult<{ ok: true; playlists: number; downloadIssue: string | null } | { ok: false; code: string; message: string; at: number }>>
     myPlaylists(): Promise<IpcResult<MyYoutubePlaylist[]>>
     playlistItems(id: string): Promise<IpcResult<{ id: string; title: string; channel: string; videos: { id: string; title: string; channel: string; duration: number; thumbnail: string | null; unavailable: boolean }[] }>>
     enqueue(videos: { videoId: string; title: string; channel?: string; duration?: number; index?: number }[], opts?: { playlistId?: string; mirror?: { youtubeId: string; title: string } }): Promise<IpcResult<{ items: DownloadItem[]; playlistId: string | null }>>

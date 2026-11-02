@@ -2,7 +2,7 @@ import { toast } from "sonner"
 import { call, errorMessage } from "@/lib/api"
 import { useLibraryStore } from "@/stores/useLibraryStore"
 
-const AUTH_CODES = new Set(["AUTH_EXPIRED", "AUTH_INVALID", "AUTH_FILE_MISSING", "SIGN_IN_REQUIRED", "BROWSER_COOKIES_UNAVAILABLE"])
+const AUTH_CODES = new Set(["AUTH_EXPIRED", "AUTH_INVALID", "AUTH_FILE_MISSING", "SIGN_IN_REQUIRED", "BROWSER_COOKIES_UNAVAILABLE", "YTDLP_JS_CHALLENGE"])
 export const isAuthError = (code?: string | null) => Boolean(code && AUTH_CODES.has(code))
 
 export type EnqueueVideo = { videoId: string; title: string; channel?: string; duration?: number; /** position in the YouTube playlist (keeps mirrored playlists in order) */ index?: number }

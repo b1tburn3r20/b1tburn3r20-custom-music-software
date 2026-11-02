@@ -11,11 +11,13 @@ export function DownloadsList() {
   const byId = useDownloadStore((s) => s.byId)
   const items = useMemo(() => Object.values(byId).sort((a, b) => b.addedAt - a.addedAt), [byId])
   const authError = items.find((i) => i.status === "error" && isAuthError(i.error?.code))
+  const fellBack = !authError && items.some((i) => i.note?.includes("without sign-in"))
   const active = items.filter(isActive).length
   if (!items.length) return <EmptyState icon={Download} title="No downloads yet" hint="Downloads from search results and playlists show up here." />
   return (
     <div className="flex flex-col gap-3">
       {authError?.error && <AuthBanner code={authError.error.code} message={authError.error.message} />}
+      {fellBack && <AuthBanner code="YTDLP_JS_CHALLENGE" message="Some songs were downloaded without your YouTube sign-in, because yt-dlp couldn't solve YouTube's JavaScript challenge." />}
       <div className="flex items-center gap-2">
         <p className="flex-1 text-sm text-muted-foreground">{active ? `${active} in progress` : "All done"}</p>
         {active > 0 && (
@@ -44,7 +46,7 @@ export function DownloadsList() {
               <p className="truncate text-xs text-muted-foreground">
                 {i.status === "downloading" && (i.note === "finishing…" ? "Finishing — waiting for earlier downloads to keep the order" : `${Math.round(i.percent)}%`)}
                 {i.status === "queued" && "Waiting…"}
-                {i.status === "done" && "Saved to your library"}
+                {i.status === "done" && (i.note === "downloaded without sign-in" ? "Saved to your library (downloaded without sign-in — see the notice above)" : "Saved to your library")}
                 {i.status === "skipped" && (i.note === "matched title, artist and length" ? "Already in your library (matched title, artist and length)" : "Already in your library")}
                 {i.status === "cancelled" && "Cancelled"}
                 {i.status === "error" && i.error?.message}

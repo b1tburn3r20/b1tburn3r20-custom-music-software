@@ -33,6 +33,16 @@ describe("classifyError", () => {
   })
 })
 
+describe("JS challenge failures", () => {
+  it("explains an outdated yt-dlp-ejs solver instead of 'no formats'", () => {
+    const stderr = "WARNING: [youtube] [jsc:deno] Challenge solver lib script version 0.5.0 is not supported (source: python package, variant: ScriptVariant.MINIFIED, supported version: 0.8.0)\nWARNING: [youtube] x: n challenge solving failed: Some formats may be missing.\nERROR: [youtube] x: No video formats found!"
+    const e = y.classifyError(stderr, { authMode: "file" })
+    expect(e.code).toBe("YTDLP_JS_CHALLENGE")
+    expect(e.message).toMatch(/0\.5\.0.*0\.8\.0/)
+    expect(e.message).toMatch(/pacman -Syu/)
+  })
+})
+
 describe("authArgs / redactArgs", () => {
   it("builds browser args with an optional profile", () => {
     expect(y.authArgs({ mode: "browser", browser: "brave", profile: "" }, "/x")).toEqual(["--cookies-from-browser", "brave"])

@@ -62,6 +62,19 @@ function classifyError(stderr, { authMode = "none" } = {}) {
   const text = String(stderr || "");
   const signedIn = authMode !== "none";
   const lastError = (text.split("\n").filter((l) => /ERROR/.test(l)).pop() || "").replace(/^.*?ERROR:\s*/, "").trim();
+  // yt-dlp couldn't solve YouTube's JavaScript challenge, so the signed-in (web)
+  // clients expose no audio formats. Usually an outdated yt-dlp-ejs package.
+  const solver = /Challenge solver lib script version ([\d.]+) is not supported.*?supported version: ([\d.]+)/i.exec(text);
+  if (solver || /n challenge solving failed|Remote components challenge solver script .* were skipped|Ensure you have a supported JavaScript runtime/i.test(text)) {
+    const detail = solver
+      ? `Your yt-dlp-ejs challenge solver is version ${solver[1]}, but this yt-dlp needs ${solver[2]}.`
+      : "yt-dlp couldn't solve YouTube's JavaScript challenge (no supported JS runtime or challenge solver found).";
+    return new YtError(
+      "YTDLP_JS_CHALLENGE",
+      `${detail} Update your system so yt-dlp and yt-dlp-ejs match (on Arch: sudo pacman -Syu). Signed-in downloads need this; public videos fall back to the app's unsigned download.`,
+      lastError,
+    );
+  }
   const rules = [
     [/cookies are no longer valid|cookies have (likely )?been rotated|cookies? (has|have) expired/i, "AUTH_EXPIRED", "Your YouTube sign-in has expired. Sign in to YouTube in your browser again (or export a fresh cookies file), then retry."],
     [/could not (find|copy|decrypt|open|read).{0,40}cookie|cookie database|database is locked|failed to decrypt|no (such )?(file|profile).{0,40}(cookie|profile)/i, "BROWSER_COOKIES_UNAVAILABLE", "Couldn't read your browser's YouTube cookies. Close the browser (it locks its cookie database), check the profile name, or use an exported cookies file instead."],
@@ -138,4 +151,38 @@ function runYtDlp(args, { onLine, signal, authMode = "none", bin = process.env.B
   });
 }
 
-module.exports = { BROWSERS, detectBrowsers, authArgs, redactArgs, classifyError, runYtDlp, YtError, cookieFilePath, credentialsDir };
+let jsDiagnosis = null;
+/**
+ * yt-dlp only explains JS-challenge problems (e.g. an outdated yt-dlp-ejs) in
+ * verbose output. Once per session, repeat the failing request verbosely
+ * (simulate only, same sign-in args, no cache) and classify it. The verbose
+ * output is only parsed here, never logged. Resolves to a
+ * YtError("YTDLP_JS_CHALLENGE") or null.
+ */
+function diagnoseJsChallenge(videoId, extraArgs = []) {
+  if (!jsDiagnosis) {
+    jsDiagnosis = new Promise((resolve) => {
+      let stderr = "";
+      let proc;
+      try {
+        proc = spawn(process.env.B1T_YTDLP || "yt-dlp", [...extraArgs, "-v", "--no-cache-dir", "--simulate", "--no-playlist", "-f", "bestaudio/best", "--print", "id", `https://www.youtube.com/watch?v=${videoId}`], { stdio: ["ignore", "ignore", "pipe"] });
+      } catch {
+        return resolve(null);
+      }
+      proc.stderr.on("data", (b) => {
+        stderr += b.toString();
+        if (stderr.length > 200000) stderr = stderr.slice(-200000);
+      });
+      const timer = setTimeout(() => proc.kill("SIGTERM"), 60000);
+      proc.on("error", () => resolve(null));
+      proc.on("close", () => {
+        clearTimeout(timer);
+        const err = classifyError(stderr, { authMode: "file" });
+        resolve(err.code === "YTDLP_JS_CHALLENGE" ? err : null);
+      });
+    });
+  }
+  return jsDiagnosis;
+}
+
+module.exports = { diagnoseJsChallenge, BROWSERS, detectBrowsers, authArgs, redactArgs, classifyError, runYtDlp, YtError, cookieFilePath, credentialsDir };

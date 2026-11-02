@@ -20,7 +20,7 @@ const MODES: { id: YoutubeAuthStatus["mode"]; label: string; hint: string }[] = 
 export default function YoutubeSettings() {
   const [status, setStatus] = useState<YoutubeAuthStatus | null>(null)
   const [checking, setChecking] = useState(false)
-  const [check, setCheck] = useState<{ ok: boolean; code?: string; message?: string; playlists?: number } | null>(null)
+  const [check, setCheck] = useState<{ ok: boolean; code?: string; message?: string; playlists?: number; downloadIssue?: string | null } | null>(null)
   const [profile, setProfile] = useState("")
 
   const refresh = useCallback(async () => {
@@ -145,6 +145,7 @@ export default function YoutubeSettings() {
             </Button>
             {check?.ok && <p className="text-sm text-success">Signed in — found {check.playlists} playlists.</p>}
           </div>
+          {check?.ok && check.downloadIssue && <AuthBanner code="YTDLP_JS_CHALLENGE" message={check.downloadIssue} />}
           {check && !check.ok && check.code && <AuthBanner code={check.code} message={check.message ?? "Sign-in failed."} />}
         </div>
       )}

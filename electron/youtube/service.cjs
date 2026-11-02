@@ -3,7 +3,7 @@
 const { dialog } = require("electron");
 const fs = require("fs").promises;
 const path = require("path");
-const { authArgs, cookieFilePath, credentialsDir, detectBrowsers, runYtDlp, YtError } = require("./ytdlp.cjs");
+const { authArgs, cookieFilePath, credentialsDir, detectBrowsers, runYtDlp, YtError, diagnoseJsChallenge } = require("./ytdlp.cjs");
 
 const PLAYLIST_ID_RE = /^[A-Za-z0-9_-]{2,64}$/;
 const UNAVAILABLE_TITLES = new Set(["[Private video]", "[Deleted video]", "[Unavailable video]"]);
@@ -113,7 +113,9 @@ function createYoutubeService({ user, userData }) {
   async function checkAuth() {
     try {
       const pls = await myPlaylists();
-      return { ok: true, playlists: pls.length };
+      // Listing playlists works without solving YouTube's JS challenge; downloading doesn't. Check that too.
+      const diag = await diagnoseJsChallenge("jNQXAC9IVRw", args());
+      return { ok: true, playlists: pls.length, downloadIssue: diag ? diag.message : null };
     } catch (err) {
       lastCheck = { ok: false, at: Date.now(), code: err.code || "ERROR", message: err.message };
       return lastCheck;

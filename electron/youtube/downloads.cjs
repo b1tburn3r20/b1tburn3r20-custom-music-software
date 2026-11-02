@@ -11,7 +11,7 @@
 //   that run's partial files. Never touches Likes.
 const fs = require("fs").promises;
 const path = require("path");
-const { runYtDlp, YtError } = require("./ytdlp.cjs");
+const { runYtDlp, YtError, diagnoseJsChallenge } = require("./ytdlp.cjs");
 const { findOwnedSong } = require("../../shared/songMatch.mjs");
 
 const VIDEO_ID_RE = /^[A-Za-z0-9_-]{11}$/;
@@ -111,13 +111,13 @@ function createDownloadManager({ library, user, youtube, emit }) {
     const template = target.replace(/\.mp3$/, ".%(ext)s");
     const stem = path.basename(template).replace(/\.%\(ext\)s$/, "");
     const before = new Set(await fs.readdir(root).catch(() => []));
-    const mode = youtube.authMode();
+    const mode = it.unsigned ? "none" : youtube.authMode();
     const args = [
-      ...youtube.authArgs(),
-      // The android client avoids some throttling but can't use cookies.
+      ...(mode === "none" ? [] : youtube.authArgs()),
+      // The android client avoids some throttling and needs no JS challenge solving, but can't use cookies.
       ...(mode === "none" ? ["--extractor-args", "youtube:player_client=android"] : []),
       "--force-ipv4",
-      "--no-warnings",
+      // keep warnings: they carry the real cause (e.g. an outdated JS challenge solver)
       "--no-playlist",
       "-x", "--audio-format", "mp3", "--audio-quality", "0",
       "--embed-thumbnail", "--add-metadata",
@@ -162,7 +162,7 @@ function createDownloadManager({ library, user, youtube, emit }) {
               user.addRecentlyDownloaded(song.id);
               addToTarget(it, song.id);
               it.committed = true;
-              update(it, { status: "done", percent: 100, songId: song.id, note: null });
+              update(it, { status: "done", percent: 100, songId: song.id, note: it.unsigned ? "downloaded without sign-in" : null });
             } catch (err) {
               it.committed = true;
               update(it, { status: "error", error: { code: "DOWNLOAD_FAILED", message: `Downloaded, but couldn't add it to the library: ${err.message}` } });
@@ -188,10 +188,28 @@ function createDownloadManager({ library, user, youtube, emit }) {
       next.phase = "downloading";
       update(next, { status: "downloading", percent: 0 });
       download(next)
+        .catch((err) => {
+          // Signed-in clients need yt-dlp's JS challenge solver; if that's broken, public
+          // videos still download fine without sign-in (android client). Retry once.
+          const challenge = err.code === "YTDLP_JS_CHALLENGE" || err.code === "FORMAT_UNAVAILABLE";
+          if (!challenge || youtube.authMode() === "none" || next.unsigned) throw err;
+          // Signed in and YouTube offered no audio: almost always yt-dlp's JS challenge solver.
+          // Find the precise cause (once), and retry without sign-in either way.
+          return diagnoseJsChallenge(next.videoId, youtube.authArgs()).then((diag) => {
+            const cause = diag || (err.code === "YTDLP_JS_CHALLENGE" ? err : new YtError("YTDLP_JS_CHALLENGE", "Signed in, YouTube offered no downloadable audio — usually yt-dlp can't solve YouTube's JavaScript challenge. Update your system so yt-dlp and yt-dlp-ejs match (on Arch: sudo pacman -Syu). Public videos fall back to downloading without sign-in.", err.detail));
+            next.fallbackCause = cause;
+            next.unsigned = true;
+            update(next, { percent: 0, note: "retrying without sign-in" });
+            return download(next).catch((e2) => {
+              // Still failing (e.g. age-restricted): report the real cause, not the fallback's error.
+              throw e2.code === "SIGN_IN_REQUIRED" || e2.code === "FORMAT_UNAVAILABLE" ? cause : e2;
+            });
+          });
+        })
         .then((file) => {
           next.phase = "downloaded";
           next.file = file;
-          update(next, { percent: 100, note: "finishing…" });
+          update(next, { percent: 100, note: next.unsigned ? "finishing… (downloaded without sign-in)" : "finishing…" });
         })
         .catch((err) => {
           next.phase = "failed";

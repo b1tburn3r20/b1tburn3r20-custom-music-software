@@ -9,6 +9,7 @@ const FIX: Record<string, string> = {
   AUTH_INVALID: "Check the sign-in settings (browser name and profile).",
   SIGN_IN_REQUIRED: "Set up YouTube sign-in to download age-restricted videos and see your own playlists.",
   BROWSER_COOKIES_UNAVAILABLE: "Close the browser completely and retry (it locks its cookie database), check the profile name, or import a cookies file instead.",
+  YTDLP_JS_CHALLENGE: "This is a yt-dlp installation problem, not your sign-in: run a full system update (sudo pacman -Syu) so yt-dlp-ejs matches yt-dlp, then retry. Public videos keep downloading meanwhile without sign-in.",
 }
 
 /** Clear, actionable message for sign-in problems, with a shortcut to the YouTube settings. */
