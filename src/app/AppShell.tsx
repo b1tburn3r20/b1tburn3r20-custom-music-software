@@ -9,6 +9,8 @@ import DeletePlaylistDialog from "@/components/dialogs/DeletePlaylistDialog"
 import { useAppStore } from "@/stores/useAppStore"
 import { useEffect, useRef, useState } from "react"
 import { ScrollParentContext } from "./scrollContext"
+import { ErrorBoundary } from "./ErrorBoundary"
+import { navigate } from "@/stores/useAppStore"
 import { useThemeSync } from "./theme"
 import Sidebar from "./Sidebar"
 import TopBar from "./TopBar"
@@ -34,15 +36,21 @@ export default function AppShell() {
           <TopBar />
           <ScrollArea ref={scrollRef} className="min-h-0 flex-1">
             <ScrollParentContext.Provider value={viewport}>
-              <Router />
+              <ErrorBoundary key={JSON.stringify(route)} label="page" onHome={() => navigate({ name: "home" })}>
+                <Router />
+              </ErrorBoundary>
             </ScrollParentContext.Provider>
           </ScrollArea>
         </main>
       </div>
       <div className="relative z-30 shrink-0">
-        <MusicPlayer />
+        <ErrorBoundary label="player">
+          <MusicPlayer />
+        </ErrorBoundary>
       </div>
-      <LaxPlayer />
+      <ErrorBoundary label="zen player">
+        <LaxPlayer />
+      </ErrorBoundary>
       <LaxPlayerNextUp />
       <DeleteSongDialog />
       <AddToPlaylistDialog />
