@@ -1,12 +1,11 @@
 import LottieViewer from "@/components/helpers/lottie-viewer"
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem } from "@/components/ui/context-menu"
-import { useAppStore } from "@/stores/useAppStore"
 import { useDirectoryStore } from "@/stores/useDirectoryStore"
 import { useMusicStore } from "@/stores/useMusicStore"
+import { openAlbumForSong, openArtist } from "@/utils/musicutils"
 import type { Song } from "@/types/DirectoryTypes"
 import { ListPlus, Pause, Play, Trash2 } from "lucide-react"
 import { useState } from "react"
-import { toast } from "sonner"
 
 interface SongComponentProps {
   song: Song
@@ -19,22 +18,14 @@ interface SongComponentProps {
 
 
 const RecentlyPlayedSongComponent = ({ song, isPlaying, onPlay, onPause, onResume, isPaused }: SongComponentProps) => {
-  const removeSong = useMusicStore((f) => f.removeSong)
   const [hovered, setHovered] = useState(false)
-  const [deleting, setDeleting] = useState(false)
   const setPlaylistUpdateData = useMusicStore((f) => f.setPlaylistUpdateData)
   const setIsPlaylistModalOpen = useMusicStore((f) => f.setIsPlaylistModalOpen)
-  const setView = useAppStore((f) => f.setView)
-  const rootDir = useDirectoryStore((f) => f.rootDir)
-  const setActiveAlbum = useMusicStore((f) => f.setActiveAlbum)
-  const setActiveArtist = useMusicStore((f) => f.setActiveArtist)
+  const requestDeleteSong = useDirectoryStore((f) => f.requestDeleteSong)
 
 
   const handleClick = () => {
-    if (deleting) {
-      return
-    }
-    if (isPlaying) {
+        if (isPlaying) {
       if (isPaused) {
         onResume()
       } else {
@@ -44,57 +35,24 @@ const RecentlyPlayedSongComponent = ({ song, isPlaying, onPlay, onPause, onResum
       onPlay(song)
     }
   }
-  const handleAlbumClick = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    try {
-      const result = await (window as any).electron.getAlbum({
-        rootDir,
-        path: song.path
-      });
-
-      if (result.success) {
-        setView("album")
-        setActiveAlbum(result)
-      } else {
-      }
-    } catch (err) {
-      console.error('error', err);
-    }
+  const handleAlbumClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    openAlbumForSong(song.id)
   }
 
-  const handleViewArtist = async (e: React.MouseEvent, artist: string) => {
-    e.stopPropagation();
-    try {
-      const result = await (window as any).electron.getArtistByName({
-        rootDir,
-        artistName: artist,
-      });
-      if (result.success) {
-        setView("artist")
-        setActiveArtist(result)
-      } else {
-        toast.error("idk how did this")
 
-
-      }
-    } catch (err) {
-      console.error("heres the error", err)
-    }
+  const handleViewArtist = (e: React.MouseEvent, artist: string) => {
+    e.stopPropagation()
+    openArtist(artist.trim())
   }
 
 
 
-  const handleDelete = async () => {
-    setDeleting(true);
-    try {
-      await (window as any).electron.deleteSong(song.path);
-      removeSong(song)
-    } catch (err) {
-    } finally {
-      setDeleting(false);
 
-    }
-  };
+  const handleDelete = () => {
+    requestDeleteSong(song)
+  }
+
   const handleSetPlaylistAdd = () => {
     setPlaylistUpdateData(song)
     setTimeout(() => {
@@ -144,7 +102,7 @@ const RecentlyPlayedSongComponent = ({ song, isPlaying, onPlay, onPause, onResum
               {song.metadata.title}
             </p>
             <div className={`flex items-center gap-2 text-xs md:text-sm text-muted-foreground truncate ${isPlaying ? "text-primary/70" : ""}`}>
-              {song?.metadata.artist?.split(",").map((artist, index) => <p className="hover:underline cursor-pointer" onClick={(e) => handleViewArtist(e, artist)}>{artist}{index + 1 < song?.metadata?.artist?.split(",")?.length && (<span>,</span>)}</p>)}
+              {song?.metadata.artist?.split(",").map((artist, index) => <p key={index} className="hover:underline cursor-pointer" onClick={(e) => handleViewArtist(e, artist)}>{artist}{index + 1 < song?.metadata?.artist?.split(",")?.length && (<span>,</span>)}</p>)}
 
             </div>
             {song?.metadata?.album && song?.metadata?.album !== "Unknown Album" ? (

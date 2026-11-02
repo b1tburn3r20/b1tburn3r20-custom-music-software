@@ -3,7 +3,7 @@ import { formatDuration } from "@/utils/textUtils";
 import { Heart, Music } from "lucide-react";
 import { usePlayerStore } from "@/stores/usePlayerStore";
 import { addRecentlyPlayed } from "@/components/helpers/utilities";
-import { startNewQueue } from "@/utils/musicutils";
+import { startNewQueueFromArray } from "@/utils/musicutils";
 import type { Song } from "@/types/DirectoryTypes";
 import { useColorCacheStore } from "@/stores/useColorCacheStore";
 import PlaylistSongComponent from "../PlaylistSongComponent";
@@ -26,10 +26,11 @@ const LikedSongsView = () => {
   );
 
   const handlePlay = (song: Song) => {
-    setPaused(false);
-    addRecentlyPlayed(song);
-    startNewQueue(song.path);
-  };
+    const list = songs ?? []
+    addRecentlyPlayed(song)
+    startNewQueueFromArray(list, undefined, undefined, Math.max(0, list.findIndex((s) => s.id === song.id)))
+  }
+
 
   const handlePause = () => {
     setPaused(true);
@@ -101,15 +102,13 @@ const LikedSongsView = () => {
         <div className="px-8 py-4">
           {songs?.map((song, index) => (
             <PlaylistSongComponent
-              key={song.metadata.title}
+              key={song.id}
               index={index}
               song={song}
               onPlay={handlePlay}
               onPause={handlePause}
               onResume={handleResume}
-              isPlaying={
-                currentlyPlaying?.metadata.title === song.metadata.title
-              }
+              isPlaying={currentlyPlaying?.id === song.id}
               isPaused={paused}
             />
           ))}

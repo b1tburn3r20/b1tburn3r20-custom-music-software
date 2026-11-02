@@ -4,7 +4,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
 import PlaylistSelectItem from "./PlaylistSelect"
-import { toast } from "sonner"
+import { addSongToPlaylists } from "@/lib/actions"
 
 const PlaylistUpdateModal = () => {
   const open = useMusicStore((f) => f.isPlaylistModalOpen)
@@ -12,23 +12,22 @@ const PlaylistUpdateModal = () => {
   const updateData = useMusicStore((f) => f.playlistUpdateData)
   const setUpdateData = useMusicStore((f) => f.setPlaylistUpdateData)
   const playlists = useMusicStore((f) => f.playlists)
-  const replacePlaylist = useMusicStore((f) => f.replacePlaylist)
 
   const [selectedPlaylists, setSelectedPlaylists] = useState<Set<string>>(new Set())
   const [isAdding, setIsAdding] = useState(false)
 
-  const handleOpenChange = () => {
-    if (open) {
-      toast.info("Hello")
-      setOpen(false)
-      setTimeout(() => {
-        setUpdateData(null)
-        setSelectedPlaylists(new Set())
-      }, 300)
-    } else {
-      setOpen(true)
-    }
+  const reset = () => {
+    setOpen(false)
+    setTimeout(() => {
+      setUpdateData(null)
+      setSelectedPlaylists(new Set())
+    }, 300)
   }
+  const handleOpenChange = (next?: boolean) => {
+    if (next === true) setOpen(true)
+    else reset()
+  }
+
 
   const handlePlaylistToggle = (playlistId: string) => {
     setSelectedPlaylists((prev) => {
@@ -43,33 +42,13 @@ const PlaylistUpdateModal = () => {
   }
 
   const handleAddToPlaylists = async () => {
-    if (selectedPlaylists.size === 0) return
-
+    if (selectedPlaylists.size === 0 || !updateData) return
     setIsAdding(true)
-    try {
-      const promises = Array.from(selectedPlaylists).map((playlistId) =>
-        (window as any).electron.addSongToPlaylist(playlistId, updateData?.path)
-      )
-
-      const responses = await Promise.all(promises)
-
-      responses.forEach((response: any) => {
-        if (response?.success) {
-          replacePlaylist(response.playlist)
-        }
-      })
-
-      setOpen(false)
-      setTimeout(() => {
-        setUpdateData(null)
-        setSelectedPlaylists(new Set())
-      }, 300)
-    } catch (error) {
-      console.error("Failed to add song to playlists:", error)
-    } finally {
-      setIsAdding(false)
-    }
+    const res = await addSongToPlaylists(updateData.id, Array.from(selectedPlaylists))
+    setIsAdding(false)
+    if (res) reset()
   }
+
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -101,7 +80,7 @@ const PlaylistUpdateModal = () => {
         </ScrollArea>
 
         <div className="flex justify-end gap-2 pt-4">
-          <Button variant="outline" onClick={handleOpenChange}  >
+          <Button variant="outline" onClick={() => handleOpenChange(false)}>
             Cancel
           </Button>
           <Button

@@ -1,82 +1,54 @@
-
-"use client"
-
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogHeader, DialogTitle, DialogContent, DialogDescription } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { deleteSongFromLibrary } from "@/lib/actions"
 import { useDirectoryStore } from "@/stores/useDirectoryStore"
-import { usePlayerStore } from "@/stores/usePlayerStore"
-import { Loader2 } from "lucide-react"
+import { useUserStore } from "@/stores/useUserStore"
+import { Loader2, Trash2 } from "lucide-react"
 import { useState } from "react"
-import { toast } from "sonner"
 
-
-
+/** Confirmation dialog for deleting a song from the library (and disk). */
 const DeleteSong = () => {
-  const songToDelete = useDirectoryStore((f) => f.songToDelete)
-  const songToDeleteModalOpen = useDirectoryStore((f) => f.songToDeleteModalOpen)
-  const setSongToDelete = useDirectoryStore((f) => f.setSongToDelete)
-  const setSongToDeleteModalOpen = useDirectoryStore((f) => f.setSongToDeleteModalOpen)
+  const song = useDirectoryStore((s) => s.songToDelete)
+  const requestDeleteSong = useDirectoryStore((s) => s.requestDeleteSong)
+  const playlists = useUserStore((s) => s.playlists)
+  const liked = useUserStore((s) => (song ? s.likedIds.has(song.id) : false))
   const [deleting, setDeleting] = useState(false)
-  const currentDir = useDirectoryStore((f) => f.currentDir)
-  const currentlyPlaying = usePlayerStore((f) => f.currentlyPlaying)
-  const setCurrentlyPlaying = usePlayerStore((f) => f.setCurrentlyPlaying)
-  const handleOpenChange = (open: boolean) => {
-    setSongToDeleteModalOpen(open)
-    if (!open) {
-      setTimeout(() => {
-        setSongToDelete(null)
-      }, 500)
-    }
-  }
-  const handleClose = () => {
-    handleOpenChange(false)
+  const inPlaylists = song ? playlists.filter((p) => p.songIds.includes(song.id)).length : 0
+
+  const close = () => {
+    if (!deleting) requestDeleteSong(null)
   }
 
-  const confirmDeleteSong = async () => {
+  const confirm = async () => {
+    if (!song) return
     setDeleting(true)
-    try {
-      const deleted: any = await (window as any).electron.deleteFile(songToDelete?.path);
-      if (deleted?.success) {
-        handleOpenChange(false)
-        handleDelete()
-      }
-    } catch (error) {
-      console.error(error)
-    } finally {
-      setDeleting(false)
-    }
-  }
-
-  const handleDelete = () => {
-    if (songToDelete?.path === currentlyPlaying?.path) {
-      setCurrentlyPlaying(null)
-    }
-    toast.success(<div className="cursor-pointer" onClick={() => toast.dismiss()}>Removed <span className="text-primary">{songToDelete?.metadata?.title}</span> from {currentDir?.playlistName}</div>, {
-      position: "top-center",
-      dismissible: true,
-    })
+    const ok = await deleteSongFromLibrary(song.id)
+    setDeleting(false)
+    if (ok) requestDeleteSong(null)
   }
 
   return (
-    <Dialog open={songToDeleteModalOpen} onOpenChange={handleOpenChange}>
+    <Dialog open={Boolean(song)} onOpenChange={(open) => !open && close()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>
-            Removed <span className="text-primary font-semibold">{songToDelete?.metadata?.title} </span> from {currentDir?.playlistName}?
-          </DialogTitle>
+          <DialogTitle>Delete “{song?.metadata.title}”?</DialogTitle>
           <DialogDescription>
-            This just removes the song from the playlist, you can add it back by downloading it again
+            The file is moved to your system trash and removed from your library
+            {inPlaylists ? `, ${inPlaylists} playlist${inPlaylists === 1 ? "" : "s"}` : ""}
+            {liked ? ", your likes" : ""} and your listening history.
           </DialogDescription>
         </DialogHeader>
-        <div className="p-2 grid grid-cols-2 gap-4 h-14">
-          <Button autoFocus onClick={() => handleClose()} className="w-full h-full cursor-pointer rounded-2xl" variant="secondary">Nah</Button>
-          <Button onClick={() => confirmDeleteSong()} className="cursor-pointer w-full h-full rounded-2xl" variant="destructive">{deleting ? <Loader2 className="animate-spin" /> : <span>BOOM!</span>}</Button>
-        </div>
+        <DialogFooter>
+          <Button variant="secondary" autoFocus onClick={close} disabled={deleting}>
+            Cancel
+          </Button>
+          <Button variant="destructive" onClick={confirm} disabled={deleting}>
+            {deleting ? <Loader2 className="animate-spin" /> : <Trash2 />} Delete
+          </Button>
+        </DialogFooter>
       </DialogContent>
-    </Dialog >
-
-
+    </Dialog>
   )
 }
 
-export default DeleteSong 
+export default DeleteSong

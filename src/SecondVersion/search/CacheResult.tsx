@@ -1,8 +1,9 @@
 import { Button } from "@/components/ui/button"
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem } from "@/components/ui/context-menu"
-import { useMusicStore, type CacheSongType } from "@/stores/useMusicStore"
+import { type CacheSongType } from "@/stores/useMusicStore"
+import { useDirectoryStore } from "@/stores/useDirectoryStore"
+import { getSong } from "@/stores/useLibraryStore"
 import { Play, Trash2, Pause, Loader2 } from "lucide-react"
-import { useState } from "react"
 interface CacheResultProps {
   song: CacheSongType
   isPlaying: boolean
@@ -16,8 +17,8 @@ interface CacheResultProps {
 
 
 const CacheResult = ({ song, isPlaying, onPlay, onPause, onResume, isPaused, darker }: CacheResultProps) => {
-  const removeSong = useMusicStore((f) => f.removeSong)
-  const [deleting, setDeleting] = useState(false)
+  const requestDeleteSong = useDirectoryStore((f) => f.requestDeleteSong)
+  const deleting = useDirectoryStore((f) => f.songToDelete?.id === song.id)
   const handleClick = () => {
     if (deleting) {
       return
@@ -34,17 +35,11 @@ const CacheResult = ({ song, isPlaying, onPlay, onPause, onResume, isPaused, dar
   }
 
 
-  const handleDelete = async () => {
-    setDeleting(true);
-    try {
-      await (window as any).electron.deleteSong(song.path);
-      removeSong(song as any)
-    } catch (err) {
-    } finally {
-      setDeleting(false);
+  const handleDelete = () => {
+    const full = getSong(song.id)
+    if (full) requestDeleteSong(full)
+  }
 
-    }
-  };
 
 
   const showPauseIcon = isPlaying && !isPaused

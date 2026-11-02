@@ -1,5 +1,7 @@
 import { Button } from "@/components/ui/button"
 import { usePlayerStore } from "@/stores/usePlayerStore"
+import { getSong } from "@/stores/useLibraryStore"
+import type { CacheSongType } from "@/stores/useMusicStore"
 import type { Song } from "@/types/DirectoryTypes"
 import type { YoutubeDetailsResult } from "@/types/YoutubeTypes"
 import { startNewQueue } from "@/utils/musicutils"
@@ -8,12 +10,7 @@ import { Check, Download, Loader2, Pause, Play } from "lucide-react"
 import { memo } from "react"
 import { toast } from "sonner"
 
-type CachedSong = {
-  title: string
-  artist: string
-  path: string
-  thumbnail: string
-}
+type CachedSong = CacheSongType
 
 interface PlaylistSongItemProps {
   song: YoutubeDetailsResult
@@ -53,7 +50,6 @@ const PlaylistSongItem = memo(({
   onDownloadSong,
   onDownloadComplete,
 }: PlaylistSongItemProps) => {
-  const setPlaying = usePlayerStore((f) => f.setCurrentlyPlaying)
   const setPaused = usePlayerStore((f) => f.setPaused)
 
   const getStyles = () => {
@@ -63,29 +59,16 @@ const PlaylistSongItem = memo(({
     return ""
   }
 
-  const handlePlay = async () => {
+  const handlePlay = () => {
     if (!songSame) return
-
-    if (isPlaying && !isPaused) {
-      setPaused(true)
-      return
-    } else if (isPlaying && isPaused) {
-      setPaused(false)
+    if (isPlaying) {
+      setPaused(!isPaused)
       return
     }
-
-    const response: any = await (window as any).electron.getSongByPath({
-      rootDir: currentDir,
-      path: songSame.path,
-      forceRefresh: false,
-    })
-
-    if (response.song) {
-      setPlaying(response.song)
-      startNewQueue(response.song.path)
-      setPaused(false)
-    }
+    const full = getSong(songSame.id)
+    if (full) startNewQueue(full)
   }
+
 
   const handleDownload = async () => {
     if (!currentDir) {

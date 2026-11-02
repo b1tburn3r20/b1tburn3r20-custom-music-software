@@ -7,6 +7,8 @@ import { useState, useCallback } from "react"
 import { useMusicStore } from "@/stores/useMusicStore"
 import { useAppStore } from "@/stores/useAppStore"
 import { useColorCacheStore } from "@/stores/useColorCacheStore"
+import { createPlaylist } from "@/lib/actions"
+import { errorMessage } from "@/lib/api"
 
 const NewPlaylist = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -15,7 +17,6 @@ const NewPlaylist = () => {
   const setView = useAppStore((f) => f.setView)
 
   const setCurrentPlaylist = useAppStore((f) => f.setCurrentPlaylist)
-  const addPlaylist = useMusicStore((f) => f.addPlaylist)
 
   const playlistNameSuggestions = ["Rock", "Rap", "Pop", "Indie Pop", "Japanese", "Hip-Hop", "Old School", "Breakcore", "Japanese Pop", "Korean"]
 
@@ -26,22 +27,26 @@ const NewPlaylist = () => {
   )
 
 
+  const [error, setError] = useState<string | null>(null)
   const handleCreatePlaylist = useCallback(async () => {
     if (!playlistName.trim()) return
-
-    const result = await (window as any).electron.createPlaylist(playlistName.trim(), playlistDescription.trim())
-    if (result.success) {
+    try {
+      const created = await createPlaylist(playlistName, playlistDescription)
       setIsDialogOpen(false)
       setPlaylistName("")
       setPlaylistDescription("")
-      addPlaylist(result?.playlist)
-      setCurrentPlaylist(result?.playlist)
+      setError(null)
+      const resolved = useMusicStore.getState().playlists.find((p) => p.id === created.id)
+      setCurrentPlaylist(resolved ?? { ...created, songs: [] })
       setView("playlist")
+    } catch (err) {
+      setError(errorMessage(err))
     }
-  }, [playlistName, playlistDescription])
+  }, [playlistName, playlistDescription, setCurrentPlaylist, setView])
+
 
   return (
-    <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+    <Dialog open={isDialogOpen} onOpenChange={(o) => { setIsDialogOpen(o); if (!o) setError(null) }}>
       <DialogTrigger asChild>
         <div className="h-12 w-12 shrink-0 p-1 rounded-sm cursor-pointer"
 
@@ -71,7 +76,8 @@ const NewPlaylist = () => {
             <Input
               id="name"
               value={playlistName}
-              onChange={(e) => setPlaylistName(e.target.value)}
+              onChange={(e) => { setPlaylistName(e.target.value); setError(null) }}
+              aria-invalid={Boolean(error)}
               placeholder={`${sugg}..?`}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
@@ -83,6 +89,7 @@ const NewPlaylist = () => {
               }}
             />
           </div>
+          {error && <p role="alert" className="text-sm text-destructive -mt-2">{error}</p>}
           <div className="flex flex-col gap-2">
             <Label htmlFor="description">Description (Optional)</Label>
             <Input

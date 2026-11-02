@@ -26,7 +26,7 @@ const MusicRefsAndTitle = () => {
       audioRef.current.currentTime = 0;
     }
 
-    const fileUrl = `file://${currentlyPlaying.path}`;
+    const fileUrl = `media://song/${encodeURIComponent(currentlyPlaying.id)}`;
     const audioEl = new Audio(fileUrl);
     audioEl.volume = volume / 100;
 
@@ -44,7 +44,8 @@ const MusicRefsAndTitle = () => {
       audioEl.currentTime = 0;
       setAudioRef(null);
     };
-  }, [currentlyPlaying, setAudioRef]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- restart only when the song changes
+  }, [currentlyPlaying?.id, setAudioRef]);
 
   useEffect(() => {
     const audioEl = audioRef.current;
@@ -86,7 +87,7 @@ const MusicRefsAndTitle = () => {
     if (!audioEl) return;
     const handleEnded = () => {
       if (queue && currentlyPlaying) {
-        const currentIndex = queue.indexOf(currentlyPlaying);
+        const currentIndex = queue.findIndex((s) => s.id === currentlyPlaying.id);
         const nextSong = queue[currentIndex + 1];
 
         if (nextSong && looping !== "loopSong") {

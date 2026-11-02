@@ -2,51 +2,27 @@
 
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useAppStore } from "@/stores/useAppStore"
-import { removePlaylist } from "@/utils/musicutils"
+import { deletePlaylist } from "@/lib/actions"
 import { ArrowLeft, Trash2 } from "lucide-react"
-import { useEffect, useState } from "react"
-import { toast } from "sonner"
 
 const DeletePlaylistModal = () => {
   const deleteData = useAppStore((f) => f.playlistForDelete)
   const setDeleteData = useAppStore((f) => f.setPlaylistForDelete)
-  const [open, setOpen] = useState(false)
+  const open = Boolean(deleteData)
   const confirmDelete = async () => {
-    if (!deleteData) {
-      return
-    }
-    setOpen(false)
-    const delId = deleteData.id
-    const response = await (window as any).electron.deletePlaylist(delId)
-    removePlaylist(deleteData?.id)
-    if (response?.success) {
-      removePlaylist(delId)
-    }
-    toast.info("Playlist Deleted.", {
-      closeButton: true,
-      position: "top-right"
-    })
-
+    if (!deleteData) return
+    const ok = await deletePlaylist(deleteData.id)
+    if (ok) setDeleteData(null)
   }
+
   const cancel = () => {
     setDeleteData(null)
   }
 
-  const handleOpenChange = () => {
-    if (open) {
-      setOpen(false)
-    } else {
-      setOpen(true)
-    }
+  const handleOpenChange = (next: boolean) => {
+    if (!next) setDeleteData(null)
   }
 
-  useEffect(() => {
-    if (deleteData?.id) {
-      setOpen(true)
-    } else {
-      setOpen(false)
-    }
-  }, [deleteData?.id])
 
   return (
     <div>
@@ -54,7 +30,7 @@ const DeletePlaylistModal = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete Playlist</DialogTitle>
-            <DialogDescription>Are you sure? It's your world boss, i'm just makin sure you're sure lol, if you're sure, i'm sure and we can delete it <span className="italic">for sure.</span></DialogDescription>
+            <DialogDescription>The playlist is removed. The songs stay in your library.</DialogDescription>
           </DialogHeader>
           <div>
             <div className="px-3 py-2 border-white/5 bg-white/5 rounded-xl">

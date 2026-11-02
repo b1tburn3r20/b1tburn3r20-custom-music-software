@@ -2,11 +2,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAppStore } from "@/stores/useAppStore";
 import { useDirectoryStore } from "@/stores/useDirectoryStore";
 import { useMusicStore } from "@/stores/useMusicStore";
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { usePlayerStore } from "@/stores/usePlayerStore";
-import { addRecentlyPlayed } from "@/components/helpers/utilities";
-import { startNewQueue } from "@/utils/musicutils";
-import type { Song } from "@/types/DirectoryTypes";
 import LowAlbumProps from "./views/artist/components/LowAlbumComponent";
 
 const LibraryView = () => {
@@ -16,40 +13,8 @@ const LibraryView = () => {
   const paused = usePlayerStore((f) => f.paused);
   //
   const allAlbums = useMusicStore((f) => f.allAlbums);
-  const setAllAlbums = useMusicStore((f) => f.setAllAlbums);
-  const setAllArtists = useMusicStore((f) => f.setAllArtists);
-  //
 
-  const fetchArtists = async () => {
-    try {
-      const result: any = await (window as any).electron.getArtists({
-        rootDir,
-      });
-      if (result.success) {
-        setAllArtists(result.artists);
-      }
-    } catch (err) {
-      console.error("heres the error", err);
-    }
-  };
-  const fetchAlbums = async () => {
-    try {
-      const result = await (window as any).electron.getAlbums({
-        rootDir,
-      });
-      if (result.success) {
-        setAllAlbums(result.albums);
-      } else {
-      }
-    } catch (err) {
-      console.error("heres the error", err);
-    }
-  };
-  const handlePlay = (song: Song) => {
-    setPaused(false);
-    addRecentlyPlayed(song);
-    startNewQueue(song.path);
-  };
+
 
   const handlePause = () => {
     setPaused(true);
@@ -59,13 +24,9 @@ const LibraryView = () => {
     setPaused(false);
   };
 
-  useEffect(() => {
-    fetchArtists();
-    fetchAlbums();
-  }, []);
 
   const sortedAlbums = useMemo(() => {
-    return allAlbums?.sort((a, b) => a.album_name?.localeCompare(b.album_name));
+    return [...(allAlbums ?? [])].sort((a, b) => a.album_name.localeCompare(b.album_name));
   }, [allAlbums]);
   if (view !== "library") {
     return null;
@@ -83,15 +44,14 @@ const LibraryView = () => {
                 onPause={handlePause}
                 onResume={handleResume}
                 album={album}
-                key={index}
+                key={album.key}
               />
             ))}
           </div>
         </ScrollArea>
       ) : (
-        "no albums"
+        <p className="p-8 text-muted-foreground">No albums in your library yet.</p>
       )}
-      hi
     </div>
   );
 };

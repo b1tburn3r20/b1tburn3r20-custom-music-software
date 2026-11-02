@@ -1,54 +1,48 @@
-const { contextBridge, ipcRenderer } = require('electron');
+// Typed bridge exposed as window.api (see src/types/api.d.ts).
+const { contextBridge, ipcRenderer } = require("electron");
 
-contextBridge.exposeInMainWorld('electron', {
-  selectFolder: () => ipcRenderer.invoke('select-folder'),
-  readFolder: (path) => ipcRenderer.invoke('read-folder', path),
-  getAllSongs: (params) => ipcRenderer.invoke('get-all-songs', params),
-  searchSongs: (params) => ipcRenderer.invoke('search-songs', params),
-  getSongAudio: (filePath) => ipcRenderer.invoke('get-song-audio', filePath),
-  deleteSong: (path) => ipcRenderer.invoke('delete-file', path),
-  deleteFile: (path) => ipcRenderer.invoke('delete-file', path),
+const invoke = (channel, ...args) => ipcRenderer.invoke(channel, ...args);
+const on = (channel) => (callback) => {
+  const handler = (_event, data) => callback(data);
+  ipcRenderer.on(channel, handler);
+  return () => ipcRenderer.removeListener(channel, handler);
+};
 
-  rebuildCache: (params) => ipcRenderer.invoke('rebuild-cache', params),
-  getCacheStats: () => ipcRenderer.invoke('get-cache-stats'),
-  addSongToCache: (params) => ipcRenderer.invoke('add-song-to-cache', params),
-  updateSongInCache: (params) => ipcRenderer.invoke('update-song-in-cache', params),
-  downloadYoutube: (data) => ipcRenderer.invoke('download-youtube', data),
-  onDownloadProgress: (callback) => {
-    const handler = (event, data) => callback(data);
-    ipcRenderer.on('download-progress', handler);
-    return () => ipcRenderer.removeListener('download-progress', handler);
+contextBridge.exposeInMainWorld("api", {
+  library: {
+    get: () => invoke("library:get"),
+    rescan: () => invoke("library:rescan"),
+    selectFolder: () => invoke("library:select-folder"),
+    deleteSong: (songId) => invoke("library:delete-song", songId),
+    showInFolder: (songId) => invoke("library:show-in-folder", songId),
+    onChanged: on("library:changed"),
   },
-  onDownloadComplete: (callback) => {
-    const handler = (event, data) => callback(data);
-    ipcRenderer.on('download-complete', handler);
-    return () => ipcRenderer.removeListener('download-complete', handler);
+  user: {
+    get: () => invoke("user:get"),
+    setLiked: (songId, liked) => invoke("user:set-liked", songId, liked),
+    createPlaylist: (input) => invoke("user:playlist-create", input),
+    updatePlaylist: (id, patch) => invoke("user:playlist-update", id, patch),
+    deletePlaylist: (id) => invoke("user:playlist-delete", id),
+    addSongsToPlaylist: (id, songIds) => invoke("user:playlist-add-songs", id, songIds),
+    removeSongFromPlaylist: (id, songId) => invoke("user:playlist-remove-song", id, songId),
+    reorderPlaylist: (id, songIds) => invoke("user:playlist-reorder", id, songIds),
+    addSongToPlaylists: (songId, playlistIds) => invoke("user:add-song-to-playlists", songId, playlistIds),
+    recordRecentlyPlayed: (songId) => invoke("user:record-recently-played", songId),
+    recordRecentPlaylist: (id) => invoke("user:record-recent-playlist", id),
+    updateSettings: (patch) => invoke("user:update-settings", patch),
+    dismissNotice: (id) => invoke("user:dismiss-notice", id),
+    importLegacy: (dump, origin) => invoke("user:import-legacy", dump, origin),
+    onChanged: on("user:changed"),
   },
-  onSongDeleted: (callback) => {
-    const handler = (event, data) => callback(data);
-    ipcRenderer.on('song-deleted', handler);
-    return () => ipcRenderer.removeListener('song-deleted', handler);
+  youtube: {
+    download: (input) => invoke("download-youtube", input),
+    cancelAll: () => invoke("cancel-download"),
+    onProgress: on("download-progress"),
+    onComplete: on("download-complete"),
   },
-  syncToPhone: (data) => ipcRenderer.invoke('sync-to-phone', data),
-  checkAdbConnection: () => ipcRenderer.invoke('check-adb-connection'),
-  onSyncProgress: (callback) => {
-    const handler = (event, data) => callback(data);
-    ipcRenderer.on('sync-progress', handler);
-    return () => ipcRenderer.removeListener('sync-progress', handler);
+  sync: {
+    toPhone: (data) => invoke("sync-to-phone", data),
+    checkAdb: () => invoke("check-adb-connection"),
+    onProgress: on("sync-progress"),
   },
-  getArtist: (params) => ipcRenderer.invoke('get-artist', params),
-  getArtistByName: (params) => ipcRenderer.invoke('get-artist-by-name', params),
-  getArtists: (params) => ipcRenderer.invoke('get-artists', params),
-  getAlbum: (params) => ipcRenderer.invoke('get-album', params),
-  getAlbums: (params) => ipcRenderer.invoke('get-albums', params),
-  cancelDownload: () => ipcRenderer.invoke('cancel-download'),
-  getPlaylists: (options) => ipcRenderer.invoke('get-playlists', options),
-  getSongCache: (options) => ipcRenderer.invoke('get-song-cache', options),
-  getSongQueue: (options) => ipcRenderer.invoke('get-song-queue', options),
-  getSongByPath: (options) => ipcRenderer.invoke('get-song-by-path', options),
-  createPlaylist: (name, description) => ipcRenderer.invoke('create-playlist', { name, description }),
-  updatePlaylist: (playlistId, updates) => ipcRenderer.invoke('update-playlist', { playlistId, ...updates }),
-  deletePlaylist: (playlistId) => ipcRenderer.invoke('delete-playlist', { playlistId }),
-  addSongToPlaylist: (playlistId, songPath) => ipcRenderer.invoke('add-song-to-playlist', { playlistId, songPath }),
-  removeSongFromPlaylist: (playlistId, songPath) => ipcRenderer.invoke('remove-song-from-playlist', { playlistId, songPath }),
 });

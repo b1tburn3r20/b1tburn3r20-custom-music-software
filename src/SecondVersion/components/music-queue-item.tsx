@@ -1,17 +1,15 @@
 import { Button } from "@/components/ui/button"
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem } from "@/components/ui/context-menu"
 import { Separator } from "@/components/ui/separator"
-import { useAppStore } from "@/stores/useAppStore"
 import { useDirectoryStore } from "@/stores/useDirectoryStore"
 import { useMusicStore } from "@/stores/useMusicStore"
 import { usePlayerStore } from "@/stores/usePlayerStore"
 import { useSettingsStore } from "@/stores/useSettingsStore"
 import type { PlaylistType } from "@/types/AppTypes"
 import type { Song } from "@/types/DirectoryTypes"
-import { extendQueue } from "@/utils/musicutils"
+import { openAlbumForSong, openArtist } from "@/utils/musicutils"
 import { Play, Trash2, Pause, Loader2 } from "lucide-react"
-import { useEffect, useMemo, useState } from "react"
-import { toast } from "sonner"
+import { useMemo } from "react"
 
 interface MusicQueueItemProps {
   song: Song
@@ -40,26 +38,22 @@ const MusicQueueItem = ({
   currentlyPlaying,
   playingPlaylist,
 }: MusicQueueItemProps) => {
-  const removeSong = useMusicStore((f) => f.removeSong)
-  const rootDir = useDirectoryStore((f) => f.rootDir)
-  const [deleting, setDeleting] = useState(false)
-  const setView = useAppStore((f) => f.setView)
-  const setActiveAlbum = useMusicStore((f) => f.setActiveAlbum)
+  const requestDeleteSong = useDirectoryStore((f) => f.requestDeleteSong)
+  const deleting = useDirectoryStore((f) => f.songToDelete?.id === song.id)
   const setExpanded = useSettingsStore((f) => f.setPlayerExpanded)
-  const setActiveArtist = useMusicStore((f) => f.setActiveArtist)
   const currentlyPlayingSong = usePlayerStore((f) => f.currentlyPlaying)
   const handlePlayNext = () => {
     if (isPlaying) return
     const { queue, setQueue } = useMusicStore.getState()
     const updatedQueue = [...queue]
     const existingIndex = updatedQueue.findIndex(
-      (s) => s.path === song.path
+      (s) => s.id === song.id
     )
     if (existingIndex !== -1) {
       updatedQueue.splice(existingIndex, 1)
     }
     const currentIndex = updatedQueue.findIndex(
-      (s) => s.path === currentlyPlayingSong?.path
+      (s) => s.id === currentlyPlayingSong?.id
     )
     const insertIndex = currentIndex === -1
       ? 0
@@ -69,43 +63,19 @@ const MusicQueueItem = ({
   }
 
 
-  const handleViewAlbum = async (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleViewAlbum = (e: React.MouseEvent) => {
+    e.stopPropagation()
     setExpanded(false)
-    try {
-      const result = await (window as any).electron.getAlbum({
-        rootDir,
-        path: song.path
-      });
-
-      if (result.success) {
-        setView("album")
-        setActiveAlbum(result)
-      }
-    } catch (err) {
-      console.error('error', err);
-    }
+    openAlbumForSong(song.id)
   }
 
-  const handleViewArtist = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setExpanded(false)
-    try {
-      const result = await (window as any).electron.getArtistByName({
-        rootDir,
-        artistName: song?.metadata?.artist,
-      });
-      if (result.success) {
-        setView("artist")
-        setActiveArtist(result)
-      } else {
-        toast.error("idk how did this")
 
-      }
-    } catch (err) {
-      console.error("heres the error", err)
-    }
+  const handleViewArtist = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setExpanded(false)
+    openArtist(song.metadata.artists?.[0] ?? song.metadata.artist)
   }
+
 
 
 
@@ -120,37 +90,22 @@ const MusicQueueItem = ({
     }
   }
 
-  const handleDelete = async () => {
-    setDeleting(true)
-    try {
-      await (window as any).electron.deleteSong(song.path)
-      removeSong(song)
-    } finally {
-      setDeleting(false)
-    }
+  const handleDelete = () => {
+    requestDeleteSong(song)
   }
 
+
   const showPauseIcon = isPlaying && !isPaused
-  const shouldFetchMoreSongs =
-    queue.length - (queue.indexOf(currentlyPlaying) + 1) < 3
-
-  useEffect(() => {
-    if (shouldFetchMoreSongs && isPlaying) {
-      const pathFlatmap = queue.map((f) => f.path)
-      extendQueue(rootDir, song.path, pathFlatmap)
-    }
-  }, [currentlyPlaying])
-
   const lastPlaylistSongInQueue = useMemo(() => {
     if (!playingPlaylist) return null
 
     const playlistPaths = new Set(
-      playingPlaylist.songs.map((s) => s.path)
+      playingPlaylist.songs.map((s) => s.id)
     )
 
     let lastMatch: Song | null = null
     for (const qSong of queue) {
-      if (playlistPaths.has(qSong.path)) {
+      if (playlistPaths.has(qSong.id)) {
         lastMatch = qSong
       }
     }
@@ -160,7 +115,7 @@ const MusicQueueItem = ({
 
   const shouldShowSeparator =
     (!playingPlaylist && index === 0) ||
-    (playingPlaylist && lastPlaylistSongInQueue?.path === song.path)
+    (playingPlaylist && lastPlaylistSongInQueue?.id === song.id)
 
   return (
     <div>

@@ -4,7 +4,7 @@ import { formatDuration } from "@/utils/textUtils"
 import { Music } from "lucide-react"
 import { usePlayerStore } from "@/stores/usePlayerStore"
 import { addRecentlyPlayed } from "@/components/helpers/utilities"
-import { startNewQueue } from "@/utils/musicutils"
+import { startNewQueueFromArray } from "@/utils/musicutils"
 import type { Song } from "@/types/DirectoryTypes"
 import PlaylistSongComponent from "./PlaylistSongComponent"
 import PlaylistActionButtons from "../playlists/PlaylistActionButtons/PlaylistActionButtons"
@@ -23,10 +23,11 @@ const NewActivePlaylist = () => {
   )
 
   const handlePlay = (song: Song) => {
-    setPaused(false)
+    const list = songs ?? []
     addRecentlyPlayed(song)
-    startNewQueue(song.path)
+    startNewQueueFromArray(list, activePlaylist ?? undefined, undefined, Math.max(0, list.findIndex((s) => s.id === song.id)))
   }
+
 
   const handlePause = () => {
     setPaused(true)
@@ -105,13 +106,13 @@ const NewActivePlaylist = () => {
         <div className="px-8 py-4">
           {songs?.map((song, index) => (
             <PlaylistSongComponent
-              key={song.metadata.title}
+              key={song.id}
               index={index}
               song={song}
               onPlay={handlePlay}
               onPause={handlePause}
               onResume={handleResume}
-              isPlaying={currentlyPlaying?.metadata.title === song.metadata.title}
+              isPlaying={currentlyPlaying?.id === song.id}
               isPaused={paused}
               playlist={activePlaylist}
             />

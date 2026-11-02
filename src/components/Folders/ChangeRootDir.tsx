@@ -1,213 +1,73 @@
-import { Button } from "@/components/ui/button";
-import { useDirectoryStore } from "@/stores/useDirectoryStore";
-import { findFolderByPath } from "@/utils/folderutils";
-import { Folder, Smartphone, Loader2, CheckCircle2, XCircle, AlertCircle, RefreshCcw } from "lucide-react";
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { Button } from "@/components/ui/button"
+import { rescanLibrary, selectMusicFolder } from "@/lib/actions"
+import { useLibraryStore } from "@/stores/useLibraryStore"
+import { Folder, RefreshCcw, Smartphone } from "lucide-react"
+import { useEffect, useState } from "react"
+import { toast } from "sonner"
 
 const ChangeRootDir = () => {
-  const [loading, setLoading] = useState(false);
-  const [syncing, setSyncing] = useState(false);
-  const [syncStatus, setSyncStatus] = useState<'idle' | 'checking' | 'syncing' | 'success' | 'error'>('idle');
-  const [syncMessage, setSyncMessage] = useState('');
+  const rootDir = useLibraryStore((s) => s.rootDir)
+  const [busy, setBusy] = useState<null | "folder" | "scan" | "sync">(null)
+  const [syncMessage, setSyncMessage] = useState("")
 
-  const setRootDir = useDirectoryStore((f) => f.setRootDir);
-  const setCurrentDir = useDirectoryStore((f) => f.setCurrentDir);
-  const setDirData = useDirectoryStore((f) => f.setDirData);
-  const updateFolderInDirData = useDirectoryStore((f) => f.updateFolderInDirData);
-  const rootDir = useDirectoryStore((f) => f.rootDir);
-  const dirData = useDirectoryStore((f) => f.dirData);
+  useEffect(() => {
+    return window.api.sync.onProgress((data) => {
+      if (data.status === "syncing" || data.status === "cleaning") setSyncMessage(data.message)
+      else if (data.status === "error") toast.error("Phone sync error", { description: data.message })
+    })
+  }, [])
 
-  const setPath = (path: any) => {
-    setRootDir(path);
-    loadFolderContents(path);
-    localStorage.setItem("lastRootDir", path);
-  };
-
-  const loadDataFromLocalStorage = () => {
-    const lastRootDir = localStorage.getItem("lastRootDir");
-    if (lastRootDir) {
-      setPath(lastRootDir);
-    }
-  };
-
-  const loadFolderContents = async (path: string) => {
-    setLoading(true);
+  const run = async (kind: "folder" | "scan", fn: () => Promise<unknown>) => {
+    setBusy(kind)
     try {
-      const foldersData = await window.electron.readFolderTree(path);
-      setDirData(foldersData);
-      const latestPlaylist = useDirectoryStore.getState().currentDir;
-      if (latestPlaylist?.path) {
-        const restoredFolder = findFolderByPath(foldersData, latestPlaylist?.path);
-        if (restoredFolder) {
-          setCurrentDir(restoredFolder);
-        }
-      }
-    } catch (err) {
+      await fn()
     } finally {
-      setLoading(false);
+      setBusy(null)
     }
-  };
-
-  const handleSelectFolder = async () => {
-    try {
-      const result = await window.electron.selectFolder();
-      if (result && !result.canceled) {
-        const path = result.filePaths[0];
-        setCurrentDir(null);
-        setPath(path);
-      }
-    } catch (err) {
-      console.error('[ChangeRootDir] Error selecting folder:', err);
-    }
-  };
+  }
 
   const handleSync = async () => {
     if (!rootDir) {
-      toast.error("No music folder selected", {
-        description: "Please select a music folder first"
-      });
-      return;
+      toast.error("No music folder selected")
+      return
     }
-
-    setSyncing(true);
-    setSyncStatus('checking');
-    setSyncMessage('Checking device connection...');
-
+    setBusy("sync")
+    setSyncMessage("Checking device connection…")
     try {
-      // First check if device is connected
-      const connectionCheck = await window.electron.checkAdbConnection();
-
-      if (!connectionCheck.success) {
-        setSyncStatus('error');
-        setSyncMessage(connectionCheck.error);
-
-        toast.error("Connection Error", {
-          description: connectionCheck.error
-        });
-
-        // Provide helpful guidance based on error type
-        if (connectionCheck.needsAdb) {
-          console.error('ADB not installed. Please install Android Platform Tools.');
-        } else if (connectionCheck.needsDevice) {
-          console.error('Connect your Pixel 8 Pro via USB.');
-        } else if (connectionCheck.needsAuth) {
-          console.error('Check your phone for USB debugging authorization prompt.');
-        }
-
-        setSyncing(false);
-        setTimeout(() => setSyncStatus('idle'), 3000);
-        return;
+      const conn = await window.api.sync.checkAdb()
+      if (!conn.success) {
+        toast.error("Phone not ready", { description: conn.error })
+        return
       }
-
-      // Device connected, start syncing
-      setSyncStatus('syncing');
-      setSyncMessage('Connected! Starting sync...');
-
-      const result = await window.electron.syncToPhone({
-        rootPath: rootDir,
-        folders: dirData
-      });
-
-      if (result.success) {
-        setSyncStatus('success');
-        setSyncMessage(result.message);
-
-        toast.success("Sync Complete! 🎵", {
-          description: `${result.synced.length} playlists synced to your Pixel 8 Pro`
-        });
-
-      } else {
-        setSyncStatus('error');
-        setSyncMessage(result.error || 'Sync failed');
-
-        toast.error("Sync Failed", {
-          description: result.error
-        });
-      }
-
+      const result = await window.api.sync.toPhone({ rootPath: rootDir })
+      if (result.success) toast.success("Sync complete", { description: result.message })
+      else toast.error("Sync finished with errors", { description: result.error || result.message })
     } catch (err) {
-      console.error('[ChangeRootDir] Sync error:', err);
-      setSyncStatus('error');
-      setSyncMessage('Unexpected error during sync');
-
-      toast.error("Sync Error", {
-        description: "An unexpected error occurred"
-      });
+      toast.error("Sync failed", { description: (err as Error).message })
     } finally {
-      setSyncing(false);
-      setTimeout(() => setSyncStatus('idle'), 5000);
+      setBusy(null)
+      setSyncMessage("")
     }
-  };
-
-  // Listen for sync progress updates
-  useEffect(() => {
-    const cleanup = window.electron.onSyncProgress?.((data) => {
-      if (data.status === 'syncing') {
-        setSyncMessage(data.message);
-      } else if (data.status === 'complete') {
-        toast.success(data.folder, {
-          description: data.message
-        });
-      } else if (data.status === 'error') {
-        toast.error(`Error syncing ${data.folder}`, {
-          description: data.message
-        });
-      }
-    });
-
-    return cleanup;
-  }, []);
-
-  useEffect(() => {
-    const cleanup = window.electron.onDownloadComplete((data) => {
-      if (!data.updatedFolder) {
-        console.warn('[ChangeRootDir] No updatedFolder data received!');
-        return;
-      }
-      updateFolderInDirData(data.folderPath, data.updatedFolder);
-    });
-    return cleanup;
-  }, [updateFolderInDirData]);
-
-  useEffect(() => {
-    loadDataFromLocalStorage();
-  }, []);
-
-
-  const getSyncButtonVariant = () => {
-    switch (syncStatus) {
-      case 'success':
-        return 'default';
-      case 'error':
-        return 'destructive';
-      default:
-        return 'ghost';
-    }
-  };
+  }
 
   return (
-    <div className="flex gap-2">
-      <Button
-        className='text-muted-foreground md:text-xs cursor-pointer text-md'
-        onClick={handleSelectFolder}
-        variant="ghost"
-        disabled={loading}
-      >
-        <Folder /> {loading ? 'Loading...' : 'Change Folder'}
-      </Button>
-
-      <Button
-        className='text-muted-foreground md:text-xs cursor-pointer text-md'
-        onClick={handleSync}
-        variant={getSyncButtonVariant()}
-        disabled={syncing || loading || !rootDir}
-        title={syncMessage || 'Sync to Pixel 8 Pro'}
-      >
-        <RefreshCcw className={`${syncing ? "animate-spin" : ""}`} />
-      </Button>
+    <div className="flex flex-col gap-2">
+      <p className="text-sm text-muted-foreground truncate" title={rootDir ?? undefined}>
+        {rootDir ?? "No music folder selected"}
+      </p>
+      <div className="flex gap-2 flex-wrap">
+        <Button variant="secondary" disabled={busy !== null} onClick={() => run("folder", selectMusicFolder)}>
+          <Folder /> {busy === "folder" ? "Scanning…" : "Change folder"}
+        </Button>
+        <Button variant="secondary" disabled={busy !== null || !rootDir} onClick={() => run("scan", rescanLibrary)}>
+          <RefreshCcw className={busy === "scan" ? "animate-spin" : ""} /> Rescan
+        </Button>
+        <Button variant="secondary" disabled={busy !== null || !rootDir} onClick={handleSync} title={syncMessage || "Sync to phone over ADB"}>
+          <Smartphone className={busy === "sync" ? "animate-pulse" : ""} /> {busy === "sync" ? syncMessage || "Syncing…" : "Sync to phone"}
+        </Button>
+      </div>
     </div>
-  );
-};
+  )
+}
 
-export default ChangeRootDir;
+export default ChangeRootDir

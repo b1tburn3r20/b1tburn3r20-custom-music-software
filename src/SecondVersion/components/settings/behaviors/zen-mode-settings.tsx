@@ -3,6 +3,7 @@ import { Switch } from "@/components/ui/switch"
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 import { useSettingsStore } from "@/stores/useSettingsStore"
 import { CircleQuestionMark } from "lucide-react"
+import { updateSettings } from "@/lib/actions"
 const ZenModeSettings = () => {
 
 
@@ -10,10 +11,9 @@ const ZenModeSettings = () => {
   const setLaxPlayerAutoHide = useSettingsStore((f) => f.setLaxPlayerAutoHide)
 
   const handleClick = () => {
-    const LS_KEY = "userSettingZenModeToggle"
     const newVal = !laxPlayerAutoHide
     setLaxPlayerAutoHide(newVal)
-    localStorage.setItem(LS_KEY, newVal.toString())
+    void updateSettings({ zenMode: newVal })
   }
 
 

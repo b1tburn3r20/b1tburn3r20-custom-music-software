@@ -1,7 +1,6 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAppStore } from "@/stores/useAppStore";
 import { Heart, Home, Library, Youtube } from "lucide-react";
-import { useEffect } from "react";
 import NewPlaylist from "./playlists/NewPlaylistButton";
 import { useMusicStore } from "@/stores/useMusicStore";
 import UserPlaylist from "./playlists/UserPlaylist";
@@ -13,26 +12,6 @@ import SmallRandomPlaylistButton from "./components/SmallRandomPlaylistButton";
 const LeftBar = () => {
   const setView = useAppStore((f) => f.setView);
   const playlists = useMusicStore((f) => f.playlists);
-  const setPlaylists = useMusicStore((f) => f.setPlaylists);
-  const setLikedSongs = useMusicStore((f) => f.setLikedSongs);
-
-  useEffect(() => {
-    const loadPlaylists = async () => {
-      const result = await (window as any).electron.getPlaylists({});
-      if (result.success) {
-        setPlaylists(result.playlists);
-      }
-    };
-    const loadLikedFromLocalStorage = () => {
-      const val = localStorage.getItem("likedSongs");
-      if (val) {
-        const par = JSON.parse(val);
-        setLikedSongs(par);
-      }
-    };
-    loadLikedFromLocalStorage();
-    loadPlaylists();
-  }, []);
 
   const SidePanelViewLikedMode = () => {
     return (
@@ -160,7 +139,7 @@ const LeftBar = () => {
           {playlists?.map((playlist) => (
             <UserPlaylist
               playlist={playlist}
-              key={`${playlist.id}-${playlist?.songs?.length}`}
+              key={playlist.id}
             />
           ))}
         </div>

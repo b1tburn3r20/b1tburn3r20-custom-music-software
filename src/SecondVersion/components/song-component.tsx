@@ -1,14 +1,13 @@
 import LottieViewer from "@/components/helpers/lottie-viewer"
 import { Button } from "@/components/ui/button"
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu"
-import { useAppStore } from "@/stores/useAppStore"
 import { useDirectoryStore } from "@/stores/useDirectoryStore"
 import { useMusicStore } from "@/stores/useMusicStore"
+import { openAlbumForSong, openArtist } from "@/utils/musicutils"
 import { usePlayerStore } from "@/stores/usePlayerStore"
 import type { Song } from "@/types/DirectoryTypes"
 import { Play, Trash2, Pause, Loader2, ListPlus, } from "lucide-react"
 import { useState } from "react"
-import { toast } from "sonner"
 
 interface SongComponentProps {
   song: Song
@@ -21,15 +20,11 @@ interface SongComponentProps {
 }
 
 const SongComponent = ({ song, isPlaying, onPlay, onPause, onResume, isPaused, darker }: SongComponentProps) => {
-  const removeSong = useMusicStore((f) => f.removeSong)
   const setPlaylistUpdateData = useMusicStore((f) => f.setPlaylistUpdateData)
   const setIsPlaylistModalOpen = useMusicStore((f) => f.setIsPlaylistModalOpen)
-  const setView = useAppStore((f) => f.setView)
-  const rootDir = useDirectoryStore((f) => f.rootDir)
+  const requestDeleteSong = useDirectoryStore((f) => f.requestDeleteSong)
+  const deleting = useDirectoryStore((f) => f.songToDelete?.id === song.id)
   const [hovered, setHovered] = useState(false)
-  const [deleting, setDeleting] = useState(false)
-  const setActiveAlbum = useMusicStore((f) => f.setActiveAlbum)
-  const setActiveArtist = useMusicStore((f) => f.setActiveArtist)
 
   const currentlyPlayingSong = usePlayerStore((s) => s.currentlyPlaying)
 
@@ -38,13 +33,13 @@ const SongComponent = ({ song, isPlaying, onPlay, onPause, onResume, isPaused, d
     const { queue, setQueue } = useMusicStore.getState()
     const updatedQueue = [...queue]
     const existingIndex = updatedQueue.findIndex(
-      (s) => s.path === song.path
+      (s) => s.id === song.id
     )
     if (existingIndex !== -1) {
       updatedQueue.splice(existingIndex, 1)
     }
     const currentIndex = updatedQueue.findIndex(
-      (s) => s.path === currentlyPlayingSong?.path
+      (s) => s.id === currentlyPlayingSong?.id
     )
     const insertIndex = currentIndex === -1
       ? 0
@@ -53,10 +48,7 @@ const SongComponent = ({ song, isPlaying, onPlay, onPause, onResume, isPaused, d
     setQueue(updatedQueue)
   }
   const handleClick = () => {
-    if (deleting) {
-      return
-    }
-    if (isPlaying) {
+        if (isPlaying) {
       if (isPaused) {
         onResume()
       } else {
@@ -67,17 +59,10 @@ const SongComponent = ({ song, isPlaying, onPlay, onPause, onResume, isPaused, d
     }
   }
 
-  const handleDelete = async () => {
-    setDeleting(true);
-    try {
-      await (window as any).electron.deleteSong(song.path);
-      removeSong(song)
-    } catch (err) {
-      console.error('Error deleting song:', err);
-    } finally {
-      setDeleting(false);
-    }
-  };
+  const handleDelete = () => {
+    requestDeleteSong(song)
+  }
+
 
   const handleSetPlaylistAdd = () => {
     setPlaylistUpdateData(song)
@@ -85,43 +70,17 @@ const SongComponent = ({ song, isPlaying, onPlay, onPause, onResume, isPaused, d
       setIsPlaylistModalOpen(true)
     }, 150)
   }
-  const handleAlbumClick = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    try {
-      const result = await (window as any).electron.getAlbum({
-        rootDir,
-        path: song.path
-      });
-
-      if (result.success) {
-        setView("album")
-        setActiveAlbum(result)
-      } else {
-      }
-    } catch (err) {
-      console.error('error', err);
-    }
+  const handleAlbumClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    openAlbumForSong(song.id)
   }
 
-  const handleViewArtist = async (e: React.MouseEvent, artist: string) => {
-    e.stopPropagation();
-    try {
-      const result = await (window as any).electron.getArtistByName({
-        rootDir,
-        artistName: artist,
-      });
-      if (result.success) {
-        setView("artist")
-        setActiveArtist(result)
-      } else {
-        toast.error("idk how did this")
 
-
-      }
-    } catch (err) {
-      console.error("heres the error", err)
-    }
+  const handleViewArtist = (e: React.MouseEvent, artist: string) => {
+    e.stopPropagation()
+    openArtist(artist.trim())
   }
+
 
   const showPauseIcon = isPlaying && !isPaused
 
@@ -148,7 +107,7 @@ const SongComponent = ({ song, isPlaying, onPlay, onPause, onResume, isPaused, d
 
             <div className={`flex gap-1 items-center text-xs md:text-sm text-muted-foreground truncate  ${isPlaying ? "text-primary/70" : ""}`}>
 
-              {song?.metadata.artist?.split(",").map((artist, index) => <p className="hover:underline cursor-pointer" onClick={(e) => handleViewArtist(e, artist)}>{artist}{index + 1 < song?.metadata?.artist?.split(",")?.length && (<span>,</span>)}</p>)}
+              {song?.metadata.artist?.split(",").map((artist, index) => <p key={index} className="hover:underline cursor-pointer" onClick={(e) => handleViewArtist(e, artist)}>{artist}{index + 1 < song?.metadata?.artist?.split(",")?.length && (<span>,</span>)}</p>)}
 
             </div>
 

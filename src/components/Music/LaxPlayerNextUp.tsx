@@ -66,7 +66,7 @@ const LaxPlayerNextUp = () => {
   useEffect(() => {
 
     if (queue && currentlyPlaying) {
-      const currentIndex = queue.indexOf(currentlyPlaying);
+      const currentIndex = queue.findIndex((s) => s.id === currentlyPlaying.id);
       const next = queue[currentIndex + 1];
       const first = queue[0];
 
@@ -88,7 +88,7 @@ const LaxPlayerNextUp = () => {
 
   const handleSkipNow = () => {
     if (queue && currentlyPlaying) {
-      const currentIndex = queue.indexOf(currentlyPlaying);
+      const currentIndex = queue.findIndex((s) => s.id === currentlyPlaying.id);
       const next = queue[currentIndex + 1];
       const first = queue[0];
 
@@ -107,7 +107,7 @@ const LaxPlayerNextUp = () => {
   };
 
   const handleDisableLoop = () => {
-    setLooping("noLoop");
+    setLooping("off");
   };
 
   const canSkip = nextSong !== null;

@@ -3,17 +3,17 @@ import type { Song } from "@/types/DirectoryTypes"
 import MusicQueueItem from "./music-queue-item"
 import { useMusicStore } from "@/stores/useMusicStore"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { addRecentlyPlayed } from "@/components/helpers/utilities"
+import { extendQueue } from "@/utils/musicutils"
+import { useEffect } from "react"
 
 const MusicQueue = () => {
   const queue = useMusicStore((f) => f.queue)
   const currentlyPlaying = usePlayerStore((f) => f.currentlyPlaying)
   const setPlaying = usePlayerStore((f) => f.setCurrentlyPlaying)
-  const recentlyPlayed = useMusicStore((f) => f.recentlyPlayed)
-  const setRecentlyPlayed = useMusicStore((f) => f.setRecentlyPlayed)
   const paused = usePlayerStore((f) => f.paused)
   const setPaused = usePlayerStore((f) => f.setPaused)
   const playingPlaylist = usePlayerStore((f) => f.playingPlaylist)
-  const LS_KEY = "recentlyPlayed"
   const handlePause = () => {
     setPaused(true)
   }
@@ -30,16 +30,18 @@ const MusicQueue = () => {
 
   }
 
-  const addRecentlyPlayed = (song: Song) => {
-    const filtered = recentlyPlayed.filter((s) => {
-      return !(s.name === song.name && s.folderPath === song.folderPath)
-    })
-    const newRecPlayed = [song, ...filtered].slice(0, 20)
-    setRecentlyPlayed(newRecPlayed)
-    localStorage.setItem(LS_KEY, JSON.stringify(newRecPlayed))
-  }
 
 
+
+
+
+  const playingAlbum = useMusicStore((f) => f.playingAlbum)
+  // Radio: only extend an ad-hoc queue, never a playlist or album that's playing.
+  useEffect(() => {
+    if (!currentlyPlaying || playingPlaylist || playingAlbum) return
+    const idx = queue.findIndex((s) => s.id === currentlyPlaying.id)
+    if (idx !== -1 && queue.length - (idx + 1) < 3) extendQueue(currentlyPlaying)
+  }, [currentlyPlaying, playingPlaylist, playingAlbum, queue])
 
   if (!queue) {
     return null
@@ -68,9 +70,9 @@ const MusicQueue = () => {
           </span>
         </div>
         <ScrollArea className="px-4 pt-4  h-[85vh] min-h-0">
-          {queue.map((song, index) => <MusicQueueItem currentlyPlaying={currentlyPlaying} playingPlaylist={playingPlaylist} queue={queue} index={index} song={song} key={song.path} onPlay={handlePlay} onPause={handlePause} onResume={handleResume} isPaused={paused}
+          {queue.map((song, index) => <MusicQueueItem currentlyPlaying={currentlyPlaying} playingPlaylist={playingPlaylist} queue={queue} index={index} song={song} key={`${song.id}-${index}`} onPlay={handlePlay} onPause={handlePause} onResume={handleResume} isPaused={paused}
 
-            isPlaying={currentlyPlaying?.metadata.title === song?.metadata.title && currentlyPlaying?.folderPath === song?.folderPath}
+            isPlaying={currentlyPlaying?.id === song.id}
 
           />)}
         </ScrollArea>

@@ -5,39 +5,24 @@ import SongComponent from "./song-component"
 import type { Song } from "@/types/DirectoryTypes"
 import { useState, useEffect } from "react"
 import { startNewQueue } from "@/utils/musicutils"
-import { useDirectoryStore } from "@/stores/useDirectoryStore"
+import { addRecentlyPlayed } from "@/components/helpers/utilities"
 import { useColorCacheStore } from "@/stores/useColorCacheStore"
 import SongSkeleton from "./SongSkeleton"
 
 const RecentlyDownloaded = () => {
   const currentlyPlaying = usePlayerStore((f) => f.currentlyPlaying)
-  const setPlaying = usePlayerStore((f) => f.setCurrentlyPlaying)
   const recentlyDownladed = useMusicStore((f) => f.recentlyDownloaded)
-  const setRecentlyDownloaded = useMusicStore((f) => f.setRecentlyDownloaded)
-  const recentlyPlayed = useMusicStore((f) => f.recentlyPlayed)
-  const setRecentlyPlayed = useMusicStore((f) => f.setRecentlyPlayed)
   const setPaused = usePlayerStore((f) => f.setPaused)
   const paused = usePlayerStore((f) => f.paused)
-  const rootMusicDir = useDirectoryStore((f) => f.rootDir)
 
   const [displayCount, setDisplayCount] = useState(8)
   const [isLargeScreen, setIsLargeScreen] = useState(false)
   const getColor = useColorCacheStore((f) => f.getColor)
-  const LSD_KEY = "userRecentlyDownloaded"
-  const LSP_KEY = "recentlyPlayed"
-  const addRecentlyPlayed = (song: Song) => {
-    const filtered = recentlyPlayed.filter((s) => s.name !== song.name || s.folderPath !== song.folderPath)
-    const newRecPlayed = [song, ...filtered]
-    setRecentlyPlayed(newRecPlayed)
-    localStorage.setItem(LSP_KEY, JSON.stringify(newRecPlayed))
-  }
 
 
   const handlePlay = (song: Song) => {
-    setPaused(false)
-    setPlaying(song)
     addRecentlyPlayed(song)
-    startNewQueue(song.path)
+    startNewQueue(song)
   }
 
   const handlePause = () => {
@@ -65,17 +50,6 @@ const RecentlyDownloaded = () => {
     setDisplayCount(isLargeScreen ? 16 : 8)
   }, [isLargeScreen])
 
-  const loadFromLocalStorage = () => {
-
-    const key = localStorage.getItem(LSD_KEY)
-    if (key) {
-      setRecentlyDownloaded(JSON.parse(key))
-    }
-  }
-
-  useEffect(() => {
-    loadFromLocalStorage()
-  }, [])
   if (!recentlyDownladed?.length) {
     return (
       <div>
@@ -112,12 +86,12 @@ const RecentlyDownloaded = () => {
       <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4 p-3 md:p-4">
         {displayedResults.map((res) => (
           <SongComponent
-            key={res.metadata.title}
+            key={res.id}
             song={res}
             onPlay={handlePlay}
             onPause={handlePause}
             onResume={handleResume}
-            isPlaying={currentlyPlaying?.metadata.title === res.metadata.title}
+            isPlaying={currentlyPlaying?.id === res.id}
             isPaused={paused}
           />
         ))}

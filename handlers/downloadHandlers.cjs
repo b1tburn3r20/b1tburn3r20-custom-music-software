@@ -1,313 +1,122 @@
-const { ipcMain, app } = require("electron");
-const { spawn } = require('child_process')
+// YouTube → MP3 via yt-dlp.
+// - One yt-dlp process per video (metadata used to be fetched by a separate
+//   process and then thrown away).
+// - Filenames are "<title> [<videoId>].mp3", so two different videos with the
+//   same title can never overwrite each other.
+// - The downloaded file is registered in the library (stable id + sourceId) and
+//   added to Recently Downloaded. It never touches Likes.
+const { ipcMain } = require("electron");
+const { spawn } = require("child_process");
 const path = require("path");
-const mm = require('music-metadata');
 const fs = require("fs").promises;
-const { decode } = require('html-entities');
-const crypto = require('crypto');
 
-const { addSongToCache } = require('./fileSystemHandlers.cjs');
+const active = new Map(); // videoId -> ChildProcess
 
-let activeDownloadProcesses = new Set();
-
-/**
- * @typedef {Object} MP3Metadata
- * @property {number} duration - Duration in seconds
- * @property {string} durationFormatted - Formatted duration (MM:SS or HH:MM:SS)
- * @property {string|null} thumbnail - File URL to cached thumbnail
- * @property {string} uploader - Channel/uploader name
- * @property {string} uploadDate - Upload date in YYYYMMDD format
- * @property {string} uploadDateFormatted - Upload date in YYYY-MM-DD format
- * @property {number} viewCount - Number of views
- * @property {string} title - Video title
- * @property {string} description - Video description
- * @property {string} channel - Channel name
- * @property {string} channelId - Channel ID
- * @property {number} likeCount - Number of likes
- */
-
-/**
- * @typedef {Object} DownloadedMP3
- * @property {boolean} success
- * @property {string} path 
- * @property {string} fileName 
- * @property {MP3Metadata} metadata 
- */
-
-function getThumbnailCacheDir() {
-  const userDataPath = app.getPath('userData');
-  return path.join(userDataPath, 'thumbnails');
+function sanitizeTitle(title) {
+  return String(title || "")
+    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 150) || "Untitled";
 }
 
-function getThumbnailCachePath(filePath) {
-  const hash = crypto.createHash('md5').update(filePath).digest('hex');
-  return path.join(getThumbnailCacheDir(), `${hash}.jpg`);
-}
-
-async function extractAndCacheThumbnail(filePath) {
-  try {
-    const thumbnailPath = getThumbnailCachePath(filePath);
+async function uniquePath(dir, base, ext) {
+  let candidate = path.join(dir, `${base}.${ext}`);
+  for (let n = 2; ; n++) {
     try {
-      await fs.access(thumbnailPath);
-      return thumbnailPath;
-    } catch (err) {
-      console.error("FAILED TO EXTRACT CACHE", err)
+      await fs.access(candidate);
+      candidate = path.join(dir, `${base} (${n}).${ext}`);
+    } catch {
+      return candidate;
     }
-
-    const metadata = await mm.parseFile(filePath);
-    const common = metadata.common;
-
-    if (common.picture && common.picture.length > 0) {
-      const picture = common.picture[0];
-      if (picture.format === 'image/jpeg' || picture.format === 'image/webp' || picture.format === 'image/png') {
-        await fs.writeFile(thumbnailPath, picture.data);
-        return thumbnailPath;
-      }
-    }
-
-    return null;
-  } catch (error) {
-    console.error('Error extracting thumbnail:', error);
-    return null;
   }
 }
 
-function registerDownloadHandlers() {
-  ipcMain.handle('download-youtube', downloadYouTube);
-  ipcMain.handle('cancel-download', cancelAllDownloads);
-}
-
-function cancelAllDownloads() {
-  activeDownloadProcesses.forEach(process => {
+function registerDownloadHandlers({ library, user }) {
+  ipcMain.handle("download-youtube", async (event, { videoId, title }) => {
     try {
-      process.kill('SIGTERM');
-    } catch (err) {
-      console.error('Error killing process:', err);
-    }
-  });
-  activeDownloadProcesses.clear();
-  return { success: true, cancelled: true };
-}
+      if (!/^[A-Za-z0-9_-]{11}$/.test(String(videoId))) throw Object.assign(new Error("Invalid video id"), { code: "BAD_INPUT" });
+      const saveDir = library.rootDir;
+      if (!saveDir) throw Object.assign(new Error("Pick a music folder in Settings before downloading."), { code: "NO_ROOT_DIR" });
 
-/**
- * @param {Event} event 
- * @param {Object} params 
- * @param {string} params.videoId 
- * @param {string} params.title 
- * @param {string} params.savePath
- * @returns {Promise<DownloadedMP3>}
- */
-
-async function downloadYouTube(event, { videoId, title, savePath }) {
-  return new Promise((resolve, reject) => {
-    const url = `https://www.youtube.com/watch?v=${videoId}`;
-    const decodedTitle = decode(title);
-    const sanitizedTitle = decodedTitle.replace(/[<>:"/\\|?*]/g, '').trim();
-
-    const commonArgs = [
-      '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      '--extractor-args', 'youtube:player_client=android',
-      '--geo-bypass',
-      '--force-ipv4',
-      '--no-warnings'
-    ];
-
-    const metadataProcess = spawn('yt-dlp', [
-      ...commonArgs,
-      '-j',
-      '--skip-download',
-      url
-    ]);
-
-    activeDownloadProcesses.add(metadataProcess);
-
-    let jsonBuffer = '';
-    let stderrBuffer = '';
-
-    metadataProcess.stdout.on('data', (data) => {
-      jsonBuffer += data.toString();
-    });
-
-    metadataProcess.stderr.on('data', (data) => {
-      stderrBuffer += data.toString();
-    });
-
-    metadataProcess.on('close', (code) => {
-      activeDownloadProcesses.delete(metadataProcess);
-
-      if (code !== 0) {
-        console.error('yt-dlp metadata error:', stderrBuffer);
-        reject({ success: false, error: 'Failed to fetch metadata' });
-        return;
+      // Already downloaded? Match by YouTube id, never by title.
+      const existing = library.visibleSongs().find((s) => s.sourceId === videoId);
+      if (existing) {
+        return { ok: true, data: { song: library.snapshot().songs.find((s) => s.id === existing.id), alreadyHad: true } };
       }
 
+      const base = `${sanitizeTitle(title)} [${videoId}]`;
+      const target = await uniquePath(saveDir, base, "mp3");
+      const outTemplate = target.replace(/\.mp3$/, ".%(ext)s");
+      const finalPath = await runYtDlp(event, videoId, outTemplate);
+      const song = await library.addFile(finalPath || target, { sourceId: videoId });
+      user.addRecentlyDownloaded(song.id);
+      event.sender.send("download-complete", { videoId, song, success: true });
+      return { ok: true, data: { song, alreadyHad: false } };
+    } catch (err) {
+      return { ok: false, error: { code: err.code || "DOWNLOAD_FAILED", message: err.message } };
+    }
+  });
+
+  ipcMain.handle("cancel-download", () => {
+    for (const proc of active.values()) {
       try {
-
-        const outputTemplate = path.join(savePath, `${sanitizedTitle}.%(ext)s`);
-        const finalFilePath = outputTemplate.replace('%(ext)s', 'mp3');
-
-        const downloadProcess = spawn('yt-dlp', [
-          ...commonArgs,
-          '-x',
-          '--audio-format', 'mp3',
-          '--audio-quality', '0',
-          '--embed-thumbnail',
-          '--add-metadata',
-          '--newline',
-          '-o', outputTemplate,
-          url
-        ]);
-
-        activeDownloadProcesses.add(downloadProcess);
-
-        downloadProcess.stdout.on('data', (data) => {
-          const output = data.toString();
-          const progressMatch = output.match(/(\d+\.?\d*)%/);
-          if (progressMatch) {
-            event.sender.send('download-progress', {
-              videoId,
-              percent: parseFloat(progressMatch[1]).toFixed(2),
-              downloaded: 0,
-              total: 0
-            });
-          }
-        });
-
-        downloadProcess.stderr.on('data', (data) => {
-          console.error('yt-dlp stderr:', data.toString());
-        });
-
-        downloadProcess.on('close', async (downloadCode) => {
-          activeDownloadProcesses.delete(downloadProcess);
-
-          if (downloadCode === 0) {
-            try {
-              await fs.access(finalFilePath);
-
-              await addSongToCache(finalFilePath, savePath);
-
-              const newSongData = await getSongData(finalFilePath);
-
-              event.sender.send('download-complete', {
-                rootDir: savePath,
-                newSong: newSongData,
-                success: true
-              });
-
-              resolve({
-                path: finalFilePath,
-                name: path.basename(finalFilePath),
-                metadata: newSongData.metadata
-              });
-            } catch (err) {
-              console.error('File does not exist yet:', finalFilePath, err);
-              event.sender.send('download-complete', {
-                rootDir: savePath,
-                newSong: null,
-                success: false,
-                error: 'Downloaded file does not exist'
-              });
-              reject({ success: false, error: 'File not found after download' });
-            }
-          } else if (downloadCode === null) {
-            reject({ success: false, error: 'Download cancelled', cancelled: true });
-          } else {
-            reject({ success: false, error: `Download failed with code ${downloadCode}` });
-          }
-        });
+        proc.kill("SIGTERM");
       } catch (err) {
-        console.error('Failed to parse metadata JSON:', err);
-        reject({ success: false, error: 'Failed to parse metadata: ' + err.message });
+        console.error("[download] kill failed:", err.message);
+      }
+    }
+    active.clear();
+    return { ok: true, data: { cancelled: true } };
+  });
+}
+
+function runYtDlp(event, videoId, outTemplate) {
+  return new Promise((resolve, reject) => {
+    const args = [
+      "--extractor-args", "youtube:player_client=android",
+      "--force-ipv4",
+      "--no-warnings",
+      "--no-playlist",
+      "-x", "--audio-format", "mp3", "--audio-quality", "0",
+      "--embed-thumbnail", "--add-metadata",
+      "--newline", "--progress", // --print implies --quiet; keep progress lines
+      "--print", "after_move:filepath",
+      "-o", outTemplate,
+      `https://www.youtube.com/watch?v=${videoId}`,
+    ];
+    const proc = spawn("yt-dlp", args);
+    active.set(videoId, proc);
+    let stderr = "";
+    let finalPath = null;
+    proc.stdout.on("data", (buf) => {
+      for (const line of buf.toString().split("\n")) {
+        const pct = /\[download\]\s+(\d+(?:\.\d+)?)%/.exec(line);
+        if (pct) event.sender.send("download-progress", { videoId, percent: Number(pct[1]) });
+        else if (line.trim().startsWith("/")) finalPath = line.trim();
       }
     });
-
-    metadataProcess.on('error', (err) => {
-      activeDownloadProcesses.delete(metadataProcess);
-      reject({ success: false, error: err.message });
+    proc.stderr.on("data", (buf) => {
+      const text = buf.toString();
+      const pct = /\[download\]\s+(\d+(?:\.\d+)?)%/.exec(text);
+      if (pct) event.sender.send("download-progress", { videoId, percent: Number(pct[1]) });
+      stderr += text;
+      if (stderr.length > 20000) stderr = stderr.slice(-20000);
+    });
+    proc.on("error", (err) => {
+      active.delete(videoId);
+      reject(Object.assign(new Error(err.code === "ENOENT" ? "yt-dlp is not installed or not on PATH." : err.message), { code: "YTDLP_MISSING" }));
+    });
+    proc.on("close", (code, signal) => {
+      active.delete(videoId);
+      if (signal || code === null) return reject(Object.assign(new Error("Download cancelled"), { code: "CANCELLED" }));
+      if (code !== 0) {
+        const lastErr = stderr.split("\n").filter((l) => /ERROR/.test(l)).pop() || `yt-dlp exited with code ${code}`;
+        return reject(Object.assign(new Error(lastErr.replace(/^ERROR:\s*/, "")), { code: "DOWNLOAD_FAILED" }));
+      }
+      resolve(finalPath);
     });
   });
 }
-async function getSongData(filePath) {
-  try {
-    const metadata = await extractMp3Metadata(filePath);
-    return {
-      name: path.basename(filePath),
-      path: filePath,
-      metadata: metadata
-    };
-  } catch (error) {
-    console.error('Error getting song data:', error);
-    return null;
-  }
-}
 
-async function extractMp3Metadata(filePath) {
-  try {
-    const metadata = await mm.parseFile(filePath);
-    const common = metadata.common;
-    const format = metadata.format;
-    const thumbnailPath = await extractAndCacheThumbnail(filePath);
-
-    return {
-      title: common.title || path.basename(filePath, '.mp3'),
-      artist: common.artist || common.artists?.[0] || 'Unknown Artist',
-      album: common.album || null,
-      duration: format.duration || 0,
-      durationFormatted: formatDuration(format.duration || 0),
-      year: common.year || null,
-      genre: common.genre?.[0] || null,
-      thumbnail: thumbnailPath ? `file://${thumbnailPath}` : null,
-      uploader: common.artist || 'Unknown',
-      channel: common.albumartist || common.artist || 'Unknown',
-      description: common.comment?.[0] || '',
-      viewCount: 0,
-      likeCount: 0,
-      uploadDate: common.date || '',
-    };
-  } catch (error) {
-    console.error(`Error reading metadata from ${filePath}:`, error.message);
-    return {
-      title: path.basename(filePath, '.mp3'),
-      artist: 'Unknown Artist',
-      album: null,
-      duration: 0,
-      durationFormatted: '0:00',
-      year: null,
-      genre: null,
-      thumbnail: null,
-      uploader: 'Unknown',
-      channel: 'Unknown',
-      description: '',
-      viewCount: 0,
-      likeCount: 0,
-      uploadDate: '',
-    };
-  }
-}
-
-/**
- * @param {number} seconds 
- * @returns {string}
- */
-function formatDuration(seconds) {
-  if (!seconds || seconds === 0) return '0:00';
-
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = Math.floor(seconds % 60);
-
-  if (hours > 0) {
-    return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  }
-  return `${minutes}:${secs.toString().padStart(2, '0')}`;
-}
-
-/**
- * @param {string} dateString 
- * @returns {string} 
- */
-
-
-module.exports = {
-  registerDownloadHandlers
-};
+module.exports = { registerDownloadHandlers, sanitizeTitle };

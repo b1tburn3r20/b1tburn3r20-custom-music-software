@@ -4,8 +4,9 @@ import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, C
 import { useMusicStore } from "@/stores/useMusicStore"
 import type { PlaylistType } from "@/types/AppTypes"
 import type { Song } from "@/types/DirectoryTypes"
-import { removeSongFromActivePlaylist, removeSongFromPlaylistData } from "@/utils/musicutils"
-import { Play, Trash2, Pause, Loader2, ListPlus, Shuffle, X } from "lucide-react"
+import { removeSongFromPlaylist } from "@/lib/actions"
+import { useDirectoryStore } from "@/stores/useDirectoryStore"
+import { Play, Trash2, Pause, ListPlus, X } from "lucide-react"
 import { useState } from "react"
 interface PlaylistSongProps {
   song: Song
@@ -20,11 +21,11 @@ interface PlaylistSongProps {
 }
 
 const PlaylistSongComponent = ({ song, isPlaying, onPlay, onPause, onResume, isPaused, darker, index, playlist }: PlaylistSongProps) => {
-  const removeSong = useMusicStore((f) => f.removeSong)
+  const requestDeleteSong = useDirectoryStore((f) => f.requestDeleteSong)
   const setPlaylistUpdateData = useMusicStore((f) => f.setPlaylistUpdateData)
   const setIsPlaylistModalOpen = useMusicStore((f) => f.setIsPlaylistModalOpen)
   const [hovered, setHovered] = useState(false)
-  const [deleting, setDeleting] = useState(false)
+  const deleting = useDirectoryStore((f) => f.songToDelete?.id === song.id)
   const handleClick = () => {
     if (deleting) {
       return
@@ -41,32 +42,15 @@ const PlaylistSongComponent = ({ song, isPlaying, onPlay, onPause, onResume, isP
   }
 
 
-  const handleDelete = async () => {
-    setDeleting(true);
-    try {
-      await (window as any).electron.deleteSong(song.path);
-      removeSong(song)
-    } catch (err) {
-    } finally {
-      setDeleting(false);
+  const handleDelete = () => {
+    requestDeleteSong(song)
+  }
 
-    }
-  };
 
-  const handleRemoveFromPlaylist = async () => {
-    if (!playlist?.id) {
+  const handleRemoveFromPlaylist = () => {
+    if (playlist?.id) void removeSongFromPlaylist(playlist.id, song.id)
+  }
 
-      return
-    }
-    try {
-      await (window as any).electron.removeSongFromPlaylist(playlist.id, song.path);
-      removeSongFromActivePlaylist(song)
-      removeSongFromPlaylistData(song, playlist)
-    } catch (err) {
-    } finally {
-
-    }
-  };
 
 
   const handleSetPlaylistAdd = () => {
@@ -146,12 +130,15 @@ const PlaylistSongComponent = ({ song, isPlaying, onPlay, onPause, onResume, isP
           </ContextMenuItem>
           <ContextMenuSeparator />
 
-          <ContextMenuItem onClick={handleRemoveFromPlaylist} className="flex items-center gap-3 py-3 cursor-pointer">
-            <X className="h-4 w-4" />
-            <span className="text-sm">Remove from Playlist</span>
-          </ContextMenuItem>
-
-          <ContextMenuSeparator />
+          {playlist && (
+            <>
+              <ContextMenuItem onClick={handleRemoveFromPlaylist} className="flex items-center gap-3 py-3 cursor-pointer">
+                <X className="h-4 w-4" />
+                <span className="text-sm">Remove from Playlist</span>
+              </ContextMenuItem>
+              <ContextMenuSeparator />
+            </>
+          )}
 
           <ContextMenuItem variant="destructive" onClick={handleDelete} className="flex items-center gap-3 py-3 cursor-pointer">
             <Trash2 className="h-4 w-4" />

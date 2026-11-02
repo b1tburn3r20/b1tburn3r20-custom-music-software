@@ -6,14 +6,14 @@ import { useColorCacheStore } from "@/stores/useColorCacheStore";
 import { usePlayerStore } from "@/stores/usePlayerStore";
 import LottieViewer from "@/components/helpers/lottie-viewer";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useMusicStore } from "@/stores/useMusicStore";
 import { addRecentlyPlayed, shuffleArray } from "@/components/helpers/utilities";
-import { addToRecentlyPlayedPlaylists, startNewQueueFromArray } from "@/utils/musicutils";
+import { startNewQueueFromArray } from "@/utils/musicutils";
 
 const UserPlaylist = ({ playlist }: { playlist: PlaylistType }) => {
   const [contextMenuOpen, setContextMenuOpen] = useState(false);
 
   const setPlaylistForDelete = useAppStore((f) => f.setPlaylistForDelete)
+  const setPlaylistForRename = useAppStore((f) => f.setPlaylistForRename)
   const setView = useAppStore((f) => f.setView);
   const setCurrentPlaylist = useAppStore((f) => f.setCurrentPlaylist);
   const thumbnail = playlist?.songs?.[0]?.metadata?.thumbnail;
@@ -24,9 +24,6 @@ const UserPlaylist = ({ playlist }: { playlist: PlaylistType }) => {
     state.getColor(thumbnail as string | undefined, playlistId)
   );
 
-  const setQueue = useMusicStore((f) => f.setQueue);
-  const startPlaying = usePlayerStore((f) => f.setCurrentlyPlaying);
-  const setPlayingPlaylist = usePlayerStore((f) => f.setPlayingPlaylist);
 
   const handleClick = useCallback(() => {
     setCurrentPlaylist(playlist);
@@ -34,26 +31,23 @@ const UserPlaylist = ({ playlist }: { playlist: PlaylistType }) => {
   }, [playlist.id, setCurrentPlaylist, setView]);
 
   const handlePlayPlaylist = useCallback(() => {
-
-    addToRecentlyPlayedPlaylists(playlist?.id)
-    setPlayingPlaylist(playlist);
-    setQueue(playlist?.songs);
-    startPlaying(playlist?.songs[0]);
     addRecentlyPlayed(playlist?.songs[0]);
-    setContextMenuOpen(false);
-  }, [playlist, setPlayingPlaylist, setQueue, startPlaying]);
-
-  const handleShufflePlaylist = useCallback(() => {
-    const shuffled = shuffleArray(playlist?.songs)
-    startNewQueueFromArray(shuffled, playlist)
-    addToRecentlyPlayedPlaylists(playlist?.id)
-    setContextMenuOpen(false);
-    setPlayingPlaylist(playlist);
-  }, [playlist, setPlayingPlaylist, setQueue, startPlaying]);
-
-  const handleRenamePlaylist = useCallback(() => {
+    startNewQueueFromArray(playlist.songs, playlist);
     setContextMenuOpen(false);
   }, [playlist]);
+
+
+  const handleShufflePlaylist = useCallback(() => {
+    startNewQueueFromArray(shuffleArray(playlist.songs), playlist);
+    setContextMenuOpen(false);
+  }, [playlist]);
+
+
+  const handleRenamePlaylist = useCallback(() => {
+    setPlaylistForRename(playlist);
+    setContextMenuOpen(false);
+  }, [playlist, setPlaylistForRename]);
+
 
   const handleDeletePlaylist = useCallback(() => {
     setPlaylistForDelete(playlist)

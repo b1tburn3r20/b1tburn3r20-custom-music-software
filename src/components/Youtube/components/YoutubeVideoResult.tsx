@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Check, Loader2, Plus, Play, Youtube, Pause } from 'lucide-react';
+import { Check, Play, Youtube, Pause } from 'lucide-react';
 import type { YoutubeDetailsResult } from '@/types/YoutubeTypes';
-import type { FolderDetails, Song } from '@/types/DirectoryTypes';
-import { useDirectoryStore } from '@/stores/useDirectoryStore';
+import { findDownloaded } from '@/lib/youtubeMatch';
+import { call, errorMessage } from '@/lib/api';
+import { getSong } from '@/stores/useLibraryStore';
 import { useMusicStore, type CacheSongType } from '@/stores/useMusicStore';
 import { usePlayerStore } from '@/stores/usePlayerStore';
 
@@ -12,82 +13,52 @@ const YoutubeVideoResult = ({
   currentDir
 }: {
   result: YoutubeDetailsResult;
-  currentDir: FolderDetails | null;
+  currentDir: string | null;
 }) => {
   const [downloading, setDownloading] = useState(false);
   const [downloaded, setDownloaded] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [showEmbed, setShowEmbed] = useState(false);
-  const setCurrentDir = useDirectoryStore((f) => f.setCurrentDir);
-  const setRecentlyDownloaded = useMusicStore((f) => f.setRecentlyDownloaded)
-  const recentlyDownloaded = useMusicStore((f) => f.recentlyDownloaded)
   const songCache = useMusicStore((f) => f.songCache)
-  const setPlaying = usePlayerStore((f) => f.setCurrentlyPlaying)
   const setPaused = usePlayerStore((f) => f.setPaused)
-  const LS_KEY = "userRecentlyDownloaded"
   const playing = usePlayerStore((f) => f.currentlyPlaying)
   const paused = usePlayerStore((f) => f.paused)
-  const songSame = songCache.find((s) => s.title === result.title)
+  const songSame = findDownloaded(result.id, result.title, songCache)?.song
   const artistSame = songCache.some((s) =>
-    result.channel.toLowerCase().includes(s.artist.toLowerCase())
+    s.artist && result.channel.toLowerCase().includes(s.artist.toLowerCase())
   );
-  const addSongToCache = useMusicStore((f) => f.addSongToCache)
 
 
 
-  const addRecentlyDownloaded = (song: Song) => {
-    const filtered = recentlyDownloaded.filter((s) => s.name !== song.name || s.folderPath !== song.folderPath)
-    const newRecPlayed = [song, ...filtered]
-    setRecentlyDownloaded(newRecPlayed)
-    localStorage.setItem(LS_KEY, JSON.stringify(newRecPlayed))
-  }
-  const isPlaying = songSame?.title?.toLowerCase() === playing?.metadata?.title?.toLowerCase() && songSame?.artist?.toLowerCase() === playing?.metadata?.artist?.toLowerCase()
 
-  const handleAddToCache = (song: Song) => {
-    const body: CacheSongType = {
-      title: song.metadata.title ?? "",
-      artist: song.metadata.artist ?? "",
-      thumbnail: song.metadata.thumbnail ?? "",
-      path: song.path
-    }
-    addSongToCache(body)
-  }
+
+  const isPlaying = Boolean(songSame && playing?.id === songSame.id)
+
+
+
 
   const handleDownload = async () => {
     if (!currentDir) {
-      setError('Please select a folder first');
+      setError('Pick a music folder in Settings first');
       return;
     }
     setDownloading(true);
     setError(null);
-
-    let cleanup = null;
+    const cleanup = window.api.youtube.onProgress((data) => {
+      if (data.videoId === result.id) setProgress(Math.round(data.percent));
+    });
     try {
-      cleanup = (window as any).electron.onDownloadProgress((data) => {
-        if (data.videoId === result.id) {
-          setProgress(parseFloat(data.percent));
-        }
-      });
-
-      const response = await (window as any).electron.downloadYoutube({
-        videoId: result.id,
-        title: result.title,
-        savePath: currentDir
-      });
-      if (!response.error) {
-        addRecentlyDownloaded(response)
-        handleAddToCache(response)
-      } else {
-        setError(response.error);
-      }
+      await call(window.api.youtube.download({ videoId: result.id, title: result.title }));
+      setDownloaded(true);
     } catch (err) {
-      setError(err.toString() || 'Failed to download video');
+      setError(errorMessage(err));
     } finally {
-      if (cleanup) cleanup();
+      cleanup();
       setDownloading(false);
     }
   };
+
 
   const getStyles = () => {
     if (songSame && artistSame) {
@@ -129,25 +100,15 @@ const YoutubeVideoResult = ({
 
   }
 
-  const handlePlay = async (song: CacheSongType) => {
-    if (isPlaying && !paused) {
-      setPaused(true)
-      return
-    } else if (isPlaying && paused) {
-      setPaused(false)
+  const handlePlay = (song: CacheSongType) => {
+    if (isPlaying) {
+      setPaused(!paused)
       return
     }
-    const body = {
-      rootDir: currentDir,
-      path: song.path,
-      forceRefresh: false,
-    }
-    const response: any = await (window as any).electron.getSongByPath(body)
-    if (response.song) {
-      startNewQueue(response.song.path)
-      setPaused(false)
-    }
+    const full = getSong(song.id)
+    if (full) startNewQueue(full)
   }
+
 
 
   const getPlayButtonContent = () => {

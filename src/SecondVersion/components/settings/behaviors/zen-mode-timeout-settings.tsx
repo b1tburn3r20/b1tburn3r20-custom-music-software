@@ -4,6 +4,10 @@ import { Slider } from "@/components/ui/slider"
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 import { useSettingsStore } from "@/stores/useSettingsStore"
 import { CircleQuestionMark } from "lucide-react"
+import { updateSettings } from "@/lib/actions"
+import { debounce } from "@/lib/debounce"
+
+const persistZenTimeout = debounce((zenTimeout: number) => void updateSettings({ zenTimeout }), 400)
 const ZenModeTimeoutSettings = () => {
 
   const enabled = useSettingsStore((f) => f.laxPlayerAutoHide)
@@ -11,9 +15,8 @@ const ZenModeTimeoutSettings = () => {
   const setZenModeTimeout = useSettingsStore((f) => f.setZenModeTimeout)
 
   const handleSlide = (number: number) => {
-    const LS_KEY = "userSettingZenModeTimout"
     setZenModeTimeout(number)
-    localStorage.setItem(LS_KEY, number.toString())
+    persistZenTimeout(number)
   }
 
 

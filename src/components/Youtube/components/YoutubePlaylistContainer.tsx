@@ -1,6 +1,6 @@
 import { useYoutubeStore } from "../useYoutubeStore"
 import { useDirectoryStore } from "@/stores/useDirectoryStore"
-import { Loader2, Search, Youtube } from "lucide-react"
+import { Loader2, Youtube } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import YoutubePlaylists from "./YoutubePlaylist"
 

@@ -13,22 +13,12 @@ import { Settings } from "lucide-react";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import StatsSettings from "./settings/stats-settings";
 import BehaviorsSettings from "./settings/behaviors-settings";
-import { loadExpandOnPlayFromLocalStorage, loadZenModeTimeoutFromLocalStorage, loadZenModeToggleFromLocalStorage } from "@/utils/settingsutils";
-import { useEffect } from "react";
 
 const ChatSettings = () => {
-  const loadFromLocalStorage = () => {
-    loadExpandOnPlayFromLocalStorage()
-    loadZenModeToggleFromLocalStorage()
-    loadZenModeTimeoutFromLocalStorage()
-  }
-  const setDarkMode = () => {
-    localStorage.setItem("theme", "dark")
-  }
-  useEffect(() => {
-    loadFromLocalStorage()
-    setDarkMode()
-  }, [])
+
+
+
+
 
 
   return (
@@ -42,10 +32,10 @@ const ChatSettings = () => {
         <DialogContent className="min-h-[400px]">
           <VisuallyHidden>
             <DialogHeader>
-              <DialogTitle>Chat Settings</DialogTitle>
+              <DialogTitle>Settings</DialogTitle>
             </DialogHeader>
             <DialogDescription>
-              Here in chat settings you can update the settings on the chat.
+              App settings
             </DialogDescription>
           </VisuallyHidden>
           <Tabs

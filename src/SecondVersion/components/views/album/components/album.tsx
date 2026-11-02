@@ -4,15 +4,12 @@ import { formatDuration } from "@/utils/textUtils"
 import { Music } from "lucide-react"
 import { usePlayerStore } from "@/stores/usePlayerStore"
 import { addRecentlyPlayed } from "@/components/helpers/utilities"
-import { startNewQueue } from "@/utils/musicutils"
+import { openArtist, startNewQueueFromArray } from "@/utils/musicutils"
 import type { Song } from "@/types/DirectoryTypes"
 import { useColorCacheStore } from "@/stores/useColorCacheStore"
 import { useMusicStore } from "@/stores/useMusicStore"
 import AlbumActionButtons from "./AlbumActionButtons"
 import AlbumSongComponent from "./AlbumSongComponent"
-import { useDirectoryStore } from "@/stores/useDirectoryStore"
-import { toast } from "sonner"
-import { useAppStore } from "@/stores/useAppStore"
 
 const ActiveAlbum = () => {
   const setPaused = usePlayerStore((f) => f.setPaused)
@@ -23,15 +20,13 @@ const ActiveAlbum = () => {
   const dominantColor = useColorCacheStore((state) =>
     state.getColor(thumbnail as string | undefined, "guarp")
   )
-  const setView = useAppStore((f) => f.setView)
-  const setActiveArtist = useMusicStore((f) => f.setActiveArtist)
-  const rootDir = useDirectoryStore((f) => f.rootDir)
 
   const handlePlay = (song: Song) => {
-    setPaused(false)
+    const list = activeAlbum?.album_songs ?? []
     addRecentlyPlayed(song)
-    startNewQueue(song.path)
+    startNewQueueFromArray(list, undefined, activeAlbum ?? undefined, Math.max(0, list.findIndex((s) => s.id === song.id)))
   }
+
 
   const handlePause = () => {
     setPaused(true)
@@ -50,22 +45,8 @@ const ActiveAlbum = () => {
       </div>
     )
   }
-  const handleViewArtist = async (artistName: string) => {
-    try {
-      const result = await (window as any).electron.getArtistByName({
-        rootDir,
-        artistName: artistName,
-      });
-      if (result.success) {
-        setView("artist")
-        setActiveArtist(result)
-      } else {
-        toast.error("idk how did this")
-      }
-    } catch (err) {
-      console.error("heres the error", err)
-    }
-  }
+  const handleViewArtist = (artistName: string) => openArtist(artistName)
+
 
 
   const songs = activeAlbum?.album_songs
@@ -139,13 +120,13 @@ const ActiveAlbum = () => {
         <div className="px-8 py-4">
           {songs?.map((song, index) => (
             <AlbumSongComponent
-              key={song.metadata.title}
+              key={song.id}
               index={index}
               song={song}
               onPlay={handlePlay}
               onPause={handlePause}
               onResume={handleResume}
-              isPlaying={currentlyPlaying?.metadata.title === song.metadata.title}
+              isPlaying={currentlyPlaying?.id === song.id}
               isPaused={paused}
               album={activeAlbum}
             />

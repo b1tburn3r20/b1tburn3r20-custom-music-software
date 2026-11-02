@@ -1,14 +1,14 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
-import { useEffect, useState } from "react"
+import { useMemo, useState } from "react"
+import { addSongsToPlaylist } from "@/lib/actions"
 import { ListPlus } from "lucide-react"
 import type { PlaylistType } from "@/types/AppTypes"
 import { useMusicStore } from "@/stores/useMusicStore"
 import { useDebounce } from "use-debounce"
 import { Input } from "@/components/ui/input"
 import PlaylistAddSongItem from "./PlaylistAddSongItem"
-import { useAppStore } from "@/stores/useAppStore"
 
 interface PlaylistAddSongsButtonProps {
   playlist: PlaylistType
@@ -17,11 +17,8 @@ const PlaylistAddSongsButton = ({ playlist }: PlaylistAddSongsButtonProps) => {
   const songCache = useMusicStore((f) => f.songCache)
   const [selectedSongs, setSelectedSongs] = useState<Set<string>>(new Set())
   const [isAdding, setIsAdding] = useState(false)
-  const setActivePlaylist = useAppStore((f) => f.setCurrentPlaylist)
   const [searchVal, setSearchVal] = useState("")
-  const replacePlaylist = useMusicStore((f) => f.replacePlaylist)
   const [value] = useDebounce(searchVal, 300)
-  const [suggestions, setSuggestions] = useState(songCache.slice(0, 10))
   const [open, setOpen] = useState(false)
   const handlePlaylistToggle = (songPath: string) => {
     setSelectedSongs((prev) => {
@@ -36,47 +33,29 @@ const PlaylistAddSongsButton = ({ playlist }: PlaylistAddSongsButtonProps) => {
   }
   const handleAddToPlaylists = async () => {
     if (selectedSongs.size === 0) return
-
     setIsAdding(true)
-    try {
-      const promises = Array.from(selectedSongs).map((songPath) =>
-        (window as any).electron.addSongToPlaylist(playlist.id, songPath)
-      )
-
-      const responses = await Promise.all(promises)
-
-      responses.forEach((response: any) => {
-        if (response?.success) {
-          replacePlaylist(response.playlist)
-          setActivePlaylist(response.playlist)
-        }
-      })
-
-      setTimeout(() => {
-        setOpen(false)
-      }, 300)
-    } catch (error) {
-      console.error("Failed to add song to playlists:", error)
-    } finally {
-      setIsAdding(false)
+    const res = await addSongsToPlaylist(playlist.id, Array.from(selectedSongs))
+    setIsAdding(false)
+    if (res) {
+      setSelectedSongs(new Set())
+      setOpen(false)
     }
   }
 
-  useEffect(() => {
-    const cacheSuggestions = songCache.filter((song) => {
-      const query = value?.toLowerCase()
-      const titleMatch = song.title?.toLowerCase().includes(query)
 
-      const artistMatch = song.artist?.toLowerCase().includes(query)
-      return titleMatch || artistMatch
-    }).slice(0, 15)
-    setSuggestions(cacheSuggestions)
-  }, [value])
+  const suggestions = useMemo(() => {
+    const inPlaylist = new Set(playlist.songIds)
+    const pool = songCache.filter((s) => !inPlaylist.has(s.id))
+    const q = value.trim().toLowerCase()
+    if (!q) return pool.slice(0, 30)
+    const words = q.split(/\s+/)
+    return pool.filter((s) => words.every((w) => `${s.title} ${s.artist}`.toLowerCase().includes(w))).slice(0, 50)
+  }, [value, songCache, playlist.songIds])
 
 
 
   return (
-    <Dialog open={open} >
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setSelectedSongs(new Set()) }}>
       <DialogTrigger asChild>
         <Button onClick={() => setOpen(true)} className="rounded-full h-14 w-14">
           <ListPlus className="" />
@@ -97,16 +76,16 @@ const PlaylistAddSongsButton = ({ playlist }: PlaylistAddSongsButtonProps) => {
 
             {suggestions?.map((song) => (
               <PlaylistAddSongItem
-                key={song.path}
+                key={song.id}
                 song={song}
-                isSelected={selectedSongs.has(song.path)}
-                onToggle={() => handlePlaylistToggle(song.path)}
+                isSelected={selectedSongs.has(song.id)}
+                onToggle={() => handlePlaylistToggle(song.id)}
               />
             ))}
 
             {suggestions?.length === 0 && (
               <div className="text-center py-8 text-muted-foreground">
-                No songs match.
+                {songCache.length ? "No matching songs that aren't already in this playlist." : "Your library is empty."}
               </div>
             )}
           </div>
@@ -120,7 +99,7 @@ const PlaylistAddSongsButton = ({ playlist }: PlaylistAddSongsButtonProps) => {
             onClick={handleAddToPlaylists}
             disabled={selectedSongs.size === 0 || isAdding}
           >
-            {isAdding ? "Adding..." : `Add to ${selectedSongs.size} playlist${selectedSongs.size !== 1 ? 's' : ''}`}
+            {isAdding ? "Adding..." : `Add ${selectedSongs.size} song${selectedSongs.size !== 1 ? 's' : ''}`}
           </Button>
         </div>
       </DialogContent>

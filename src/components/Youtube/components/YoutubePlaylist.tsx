@@ -7,6 +7,8 @@ import type { YoutubeDetailsResult, YoutubePlaylistResultType } from "@/types/Yo
 import { useState, useRef } from "react"
 import { toast } from "sonner"
 import PlaylistSongItem from "./PlaylistSongItem"
+import { findDownloaded } from "@/lib/youtubeMatch"
+import { ApiError, call, errorMessage } from "@/lib/api"
 
 interface YoutubePlaylistProps {
   playlists: YoutubePlaylistResultType[]
@@ -18,7 +20,7 @@ interface PlaylistItemProps {
   currentDir: any | null
   currentlyDownloading: string[]
   currentlyDownloaded: string[]
-  onDownloadSong: (song: YoutubeDetailsResult, dir: any) => Promise<void>
+  onDownloadSong: (song: YoutubeDetailsResult, dir: string | null) => Promise<void>
   addRecentlyDownloaded: (song: Song) => void
 }
 
@@ -36,11 +38,7 @@ const PlaylistItem = ({
   const playing = usePlayerStore((f) => f.currentlyPlaying)
   const paused = usePlayerStore((f) => f.paused)
 
-  const currentlySavedSongs = playlist.videos.filter(video =>
-    currentDir?.children?.some((child: any) =>
-      child.name.normalize("NFC").includes(video.title.normalize("NFC"))
-    )
-  )
+  const currentlySavedSongs = playlist.videos.filter(video => findDownloaded(video.id, video.title, songCache))
 
   const downloadPlaylist = async (playlist: YoutubePlaylistResultType, newdir?: any) => {
     const dir = newdir ?? currentDir
@@ -52,11 +50,7 @@ const PlaylistItem = ({
     cancelRef.current = false
     setPlaylistError(false)
 
-    const songsToDownload = playlist.videos.filter(video =>
-      !currentDir?.children?.some((child: any) =>
-        child.name.normalize("NFC").includes(video.title.normalize("NFC"))
-      )
-    )
+    const songsToDownload = playlist.videos.filter(video => !findDownloaded(video.id, video.title, songCache))
 
     try {
       for (const song of songsToDownload) {
@@ -109,9 +103,9 @@ const PlaylistItem = ({
       <AccordionContent>
         <div className="flex flex-col gap-2">
           {playlist.videos.map((song, indx) => {
-            const songSame = songCache.find((s) => s.title === song.title)
-            const artistSame = songCache.some((s) => song.channel.toLowerCase().includes(s.artist.toLowerCase()))
-            const isPlaying = songSame?.title === playing?.metadata?.title
+            const songSame = findDownloaded(song.id, song.title, songCache)?.song
+            const artistSame = songCache.some((s) => s.artist && song.channel.toLowerCase().includes(s.artist.toLowerCase()))
+            const isPlaying = Boolean(songSame && songSame.id === playing?.id)
 
             return (
               <PlaylistSongItem
@@ -139,53 +133,27 @@ const PlaylistItem = ({
 const YoutubePlaylists = ({ playlists, currentDir }: YoutubePlaylistProps) => {
   const [currentlyDownloading, setCurrentlyDownloading] = useState<string[]>([])
   const [currentlyDownloaded, setCurrentlyDownloaded] = useState<string[]>([])
-  const setRecentlyDownloaded = useMusicStore((f) => f.setRecentlyDownloaded)
-  const addSongToCache = useMusicStore((f) => f.addSongToCache)
-  const recentlyDownloaded = useMusicStore((f) => f.recentlyDownloaded)
-  const LS_KEY = "userRecentlyDownloaded"
 
-  const addRecentlyDownloaded = (song: Song) => {
-    const filtered = recentlyDownloaded.filter((s) => s.name !== song.name || s.folderPath !== song.folderPath)
-    const newRecPlayed = [song, ...filtered]
-    setRecentlyDownloaded(newRecPlayed)
-    localStorage.setItem(LS_KEY, JSON.stringify(newRecPlayed))
-  }
+  const addRecentlyDownloaded = () => {}
 
-  const downloadSong = async (result: YoutubeDetailsResult, dir: any) => {
+
+  const downloadSong = async (result: YoutubeDetailsResult, dir: string | null) => {
     if (!dir) return
-
     setCurrentlyDownloading(prev => [...prev, result.id])
-
     try {
-      const response = await (window as any).electron.downloadYoutube({
-        videoId: result.id,
-        title: result.title,
-        savePath: dir
-      })
-
-      if (response.name) {
-        addRecentlyDownloaded(response)
-        setCurrentlyDownloaded(prev => [...prev, result.id])
-        addSongToCache({
-          title: response.metadata.title,
-          artist: response.metadata.artist,
-          path: response.path,
-          thumbnail: response.metadata.thumbnail
-        })
-        setTimeout(() => {
-          setCurrentlyDownloaded(prev => prev.filter(id => id !== result.id))
-        }, 3000)
-      } else if (!response.success) {
-        toast.error(`Failed: ${result.title}`)
+      await call(window.api.youtube.download({ videoId: result.id, title: result.title }))
+      setCurrentlyDownloaded(prev => [...prev, result.id])
+      setTimeout(() => setCurrentlyDownloaded(prev => prev.filter(id => id !== result.id)), 3000)
+    } catch (err) {
+      if (!(err instanceof ApiError && err.code === "CANCELLED")) {
+        toast.error(`Couldn't download "${result.title}"`, { description: errorMessage(err) })
       }
-    } catch (err: any) {
-      if (!err.message?.includes('cancelled')) {
-        toast.error(`Error downloading: ${result.title}`)
-      }
+      throw err
     } finally {
       setCurrentlyDownloading(prev => prev.filter(id => id !== result.id))
     }
   }
+
 
   return (
     <div>

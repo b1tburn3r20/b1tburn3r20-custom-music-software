@@ -1,13 +1,13 @@
 import { addRecentlyPlayed, shuffleArray } from "@/components/helpers/utilities";
 import { Input } from "@/components/ui/input";
 import { useAppStore } from "@/stores/useAppStore";
-import { useDirectoryStore } from "@/stores/useDirectoryStore";
 import { useMusicStore, type CacheSongType } from "@/stores/useMusicStore";
 import { useSettingsStore } from "@/stores/useSettingsStore";
 import { ListMusic, Music, Search, Youtube } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
 import CacheResult from "../search/CacheResult";
+import { getSong, useLibraryStore } from "@/stores/useLibraryStore";
+import { searchSongs } from "@/lib/catalog";
 import { Label } from "@/components/ui/label";
 import { usePlayerStore } from "@/stores/usePlayerStore";
 import { startNewQueue } from "@/utils/musicutils";
@@ -18,9 +18,7 @@ const YTM_BASE = "https://music.youtube.com";
 
 const SearchMusic = () => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const setMusicResults = useMusicStore((f) => f.setMusicResults);
-  const rootMusicDir = useDirectoryStore((f) => f.rootDir);
   const songCache = useMusicStore((f) => f.songCache);
   const [suggestions, setSuggestions] = useState<CacheSongType[]>([]);
   const [open, setOpen] = useState<boolean>(false);
@@ -29,13 +27,8 @@ const SearchMusic = () => {
   const inputRef = useRef<HTMLInputElement>(null);
   const expanded = useSettingsStore((f) => f.playerExpanded)
   const currentlyPlaying = usePlayerStore((f) => f.currentlyPlaying)
-  const setPlaying = usePlayerStore((f) => f.setCurrentlyPlaying)
-  const recentlyPlayed = useMusicStore((f) => f.recentlyPlayed)
-  const setRecentlyPlayed = useMusicStore((f) => f.setRecentlyPlayed)
   const setPaused = usePlayerStore((f) => f.setPaused)
   const paused = usePlayerStore((f) => f.paused)
-  const setRootDir = useDirectoryStore((f) => f.setRootDir)
-  const setSongCache = useMusicStore((f) => f.setSongCache)
   const [focusedIndex, setFocusedIndex] = useState(-1)
   // 4 action items when query exists: search video (api), search playlist (api), search YTM songs, search YTM playlists
   const totalItems = suggestions?.length + (searchQuery ? 4 : 0)
@@ -58,32 +51,18 @@ const SearchMusic = () => {
     );
   };
 
-  const setPath = (path: any) => {
-    setRootDir(path);
-    localStorage.setItem("lastRootDir", path);
-  };
 
-  const loadDataFromLocalStorage = () => {
-    const lastRootDir = localStorage.getItem("lastRootDir");
-    if (lastRootDir) {
-      setPath(lastRootDir);
-    }
-  }
-  const handleCachePlay = async (song: CacheSongType) => {
-    const body = {
-      rootDir: rootMusicDir,
-      path: song.path,
-      forceRefresh: false,
-    }
 
-    const response: any = await (window as any).electron.getSongByPath(body)
-    if (response.song) {
-      setPlaying(response.song)
-      setPaused(false)
-      addRecentlyPlayed(response.song)
-      startNewQueue(song.path)
-    }
+
+
+
+  const handleCachePlay = (song: CacheSongType) => {
+    const full = getSong(song.id)
+    if (!full) return
+    addRecentlyPlayed(full)
+    startNewQueue(full)
   }
+
 
   const handlePause = () => {
     setPaused(true)
@@ -92,28 +71,11 @@ const SearchMusic = () => {
   const handleResume = () => {
     setPaused(false)
   }
-  const searchMusic = async (query?: string) => {
-    if (!rootMusicDir) return;
-    setIsLoading(true);
-    setQuery(query ?? "");
+  const searchMusic = (query: string) => {
+    setQuery(query)
+    setMusicResults(searchSongs(useLibraryStore.getState().songs, query))
+  }
 
-    try {
-      const result = await (window as any).electron.searchSongs({
-        rootDir: rootMusicDir,
-        query,
-        forceRefresh: false,
-      });
-
-      if (result.success) {
-        setMusicResults(result.songs);
-      }
-    } catch (error) {
-      console.error("Error loading songs:", error);
-      toast.error("Search failed");
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleFocus = () => {
     setOpen(true);
@@ -265,12 +227,11 @@ const SearchMusic = () => {
         <Input
           ref={inputRef}
           className="pl-10 w-full"
-          placeholder={isLoading ? "Loading..." : "Search..."}
+          placeholder="Search…"
           value={searchQuery}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
           onFocus={handleFocus}
-          disabled={isLoading}
         />
 
         {open && (
@@ -283,7 +244,7 @@ const SearchMusic = () => {
                     <div className="">
                       {suggestions.map((song, idx) => (
                         <div
-                          key={idx}
+                          key={song.id}
                           className={`text-xs rounded-md transition-colors ${focusedIndex === idx ? 'bg-accent/10 ring-1 ring-primary/50 pointer-events-none' : ''
                             }`}
                         >
@@ -292,7 +253,7 @@ const SearchMusic = () => {
                             onPause={handlePause}
                             onPlay={handleCachePlay}
                             onResume={handleResume}
-                            isPlaying={currentlyPlaying?.metadata.title === song.title}
+                            isPlaying={currentlyPlaying?.id === song.id}
                             song={song}
                           />
                         </div>

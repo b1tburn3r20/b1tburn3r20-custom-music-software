@@ -3,26 +3,23 @@
 import { usePlayerStore } from "@/stores/usePlayerStore"
 import { Slider } from "@/components/ui/slider"
 import { Volume, Volume1, Volume2, VolumeX } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useState } from "react"
+import { updateSettings } from "@/lib/actions"
+import { debounce } from "@/lib/debounce"
+
+const persistVolume = debounce((volume: number) => void updateSettings({ volume }), 400)
 
 const MusicVolume = () => {
   const volume = usePlayerStore((f) => f.musicVolume)
   const setMusicVolume = usePlayerStore((f) => f.setMusicVolume)
   const [hovered, setHovered] = useState(false)
 
-  const loadVolumeFromLocalStorage = () => {
-    const localStorageVolume = localStorage.getItem("musicVolume")
-    if (localStorageVolume) {
-      setMusicVolume(Number(localStorageVolume))
-    }
-  }
 
-  useEffect(() => {
-    loadVolumeFromLocalStorage()
-  }, [])
+
+
   const handleMusicChange = (val: number) => {
-    localStorage.setItem("musicVolume", String(val))
     setMusicVolume(val)
+    persistVolume(val)
   }
 
 

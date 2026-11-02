@@ -11,7 +11,7 @@ const MusicControls = () => {
   if (!currentSong) {
     return null;
   }
-  const currentIndex = queue?.indexOf(currentSong);
+  const currentIndex = queue.findIndex((s) => s.id === currentSong.id);
 
   return (
     <div className="flex items-center gap-2">

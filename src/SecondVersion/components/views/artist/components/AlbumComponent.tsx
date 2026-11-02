@@ -7,7 +7,7 @@ import { useMusicStore } from "@/stores/useMusicStore"
 import { usePlayerStore } from "@/stores/usePlayerStore"
 import type { AlbumType, PlaylistType } from "@/types/AppTypes"
 import { formatDuration } from "@/utils/textUtils"
-import { Dot, Music, Play, Trash2 } from "lucide-react"
+import { Dot, Music, Play } from "lucide-react"
 
 interface AlbumComponentProps {
   album: AlbumType

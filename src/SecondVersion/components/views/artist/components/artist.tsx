@@ -2,7 +2,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Music } from "lucide-react";
 import { usePlayerStore } from "@/stores/usePlayerStore";
 import { addRecentlyPlayed } from "@/components/helpers/utilities";
-import { startNewQueue } from "@/utils/musicutils";
+import { startNewQueueFromArray } from "@/utils/musicutils";
 import type { Song } from "@/types/DirectoryTypes";
 import { useColorCacheStore } from "@/stores/useColorCacheStore";
 import { useMusicStore } from "@/stores/useMusicStore";
@@ -21,10 +21,11 @@ const ActiveArtist = () => {
   );
 
   const handlePlay = (song: Song) => {
-    setPaused(false);
+    const list = activeArtist?.artist_songs ?? [];
     addRecentlyPlayed(song);
-    startNewQueue(song.path);
+    startNewQueueFromArray(list, undefined, undefined, Math.max(0, list.findIndex((s) => s.id === song.id)));
   };
+
 
   const handlePause = () => {
     setPaused(true);
@@ -113,15 +114,13 @@ const ActiveArtist = () => {
         <div className="px-8 py-4 grid grid-cols-2 md:grid-cols-2 xl:grid-cols-3">
           {activeArtist?.artist_songs?.map((song, index) => (
             <SongComponent
-              isPlaying={
-                currentlyPlaying?.metadata.title === song.metadata.title
-              }
+              isPlaying={currentlyPlaying?.id === song.id}
               isPaused={paused}
               onPause={handlePause}
               onResume={handleResume}
               onPlay={handlePlay}
               song={song}
-              key={index}
+              key={song.id}
             />
           ))}
         </div>

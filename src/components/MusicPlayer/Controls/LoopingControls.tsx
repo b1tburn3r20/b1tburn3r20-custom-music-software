@@ -2,29 +2,20 @@
 
 import { usePlayerStore } from "@/stores/usePlayerStore"
 import { Repeat, Repeat1 } from "lucide-react"
-import { useEffect } from "react"
+import { updateSettings } from "@/lib/actions"
 
 
 const LoopingControls = () => {
   const loopingState = usePlayerStore((f) => f.looping)
   const setLoopingState = usePlayerStore((f) => f.setLooping)
 
-  const LOCAL_STORAGE_VAL = "userLoopingPreferance"
 
-  const loadFromLocalStorage = () => {
-    const val = localStorage.getItem(LOCAL_STORAGE_VAL)
-    if (val) {
 
-      setLoopingState(val)
-    }
-  }
-  useEffect(() => {
-    loadFromLocalStorage()
-  }, [])
+
 
   const handleClick = (val: string) => {
     setLoopingState(val)
-    localStorage.setItem(LOCAL_STORAGE_VAL, val)
+    void updateSettings({ repeat: val === "loopPlaylist" ? "all" : val === "loopSong" ? "one" : "off" })
 
   }
 

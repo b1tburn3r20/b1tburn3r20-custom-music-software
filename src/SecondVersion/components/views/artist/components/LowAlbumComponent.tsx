@@ -3,11 +3,8 @@ import LottieViewer from "@/components/helpers/lottie-viewer"
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem } from "@/components/ui/context-menu"
 import { useAppStore } from "@/stores/useAppStore"
 import { useColorCacheStore } from "@/stores/useColorCacheStore"
-import { useDirectoryStore } from "@/stores/useDirectoryStore"
 import { useMusicStore } from "@/stores/useMusicStore"
-import { usePlayerStore } from "@/stores/usePlayerStore"
-import { formatDuration } from "@/utils/textUtils"
-import { Dot, Music, Play, Trash2 } from "lucide-react"
+import { Dot, Music, Play } from "lucide-react"
 
 interface AlbumComponentProps {
   album: any
@@ -19,32 +16,14 @@ interface AlbumComponentProps {
 
 
 const LowAlbumProps = ({ album, isPlaying, onPause, onResume, isPaused }: AlbumComponentProps) => {
-  const setQueue = useMusicStore((f) => f.setQueue)
-  const startPlaying = usePlayerStore((f) => f.setCurrentlyPlaying)
-  const setPaused = usePlayerStore((f) => f.setPaused)
   const setView = useAppStore((f) => f.setView)
-  const rootDir = useDirectoryStore((f) => f.rootDir)
-  const paused = usePlayerStore((f) => f.paused)
-  const currentlyPlaying = usePlayerStore((f) => f.currentlyPlaying)
-  const activeArtist = useMusicStore((f) => f.activeArtist)
   const setActiveAlbum = useMusicStore((f) => f.setActiveAlbum)
 
-  const handleAlbumClick = async (song: any) => {
-    try {
-      const result = await (window as any).electron.getAlbum({
-        rootDir,
-        path: song
-      });
-
-      if (result.success) {
-        setView("album")
-        setActiveAlbum(result)
-      } else {
-      }
-    } catch (err) {
-      console.error('error', err);
-    }
+  const handleAlbumClick = () => {
+    setActiveAlbum(album)
+    setView("album")
   }
+
 
 
   const thumbnail = album?.album_thumbnail
@@ -61,7 +40,7 @@ const LowAlbumProps = ({ album, isPlaying, onPause, onResume, isPaused }: AlbumC
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <div
-          onClick={() => handleAlbumClick(album?.song_paths[0])}
+          onClick={handleAlbumClick}
           className="group relative select-none flex flex-col gap-2 p-3 rounded-xl hover:bg-white/5 transition-all cursor-pointer"
         >
           <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-muted">

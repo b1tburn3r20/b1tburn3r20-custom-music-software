@@ -3,14 +3,14 @@ import { Switch } from "@/components/ui/switch"
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
 import { useSettingsStore } from "@/stores/useSettingsStore"
 import { CircleQuestionMark } from "lucide-react"
+import { updateSettings } from "@/lib/actions"
 const ExpandOnPlaySetting = () => {
   const expandOnPlay = useSettingsStore((f) => f.expandOnPlay)
   const setExpandOnPlay = useSettingsStore((f) => f.setExpandOnPlay)
   const handleClick = () => {
-    const LS_KEY = "userSettingExpandOnPlayToggle"
     const newVal = !expandOnPlay
     setExpandOnPlay(newVal)
-    localStorage.setItem(LS_KEY, newVal.toString())
+    void updateSettings({ expandOnPlay: newVal })
   }
 
 

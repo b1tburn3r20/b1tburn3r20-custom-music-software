@@ -1,7 +1,7 @@
 import { Input } from "@/components/ui/input"
 import { useEffect, useRef } from "react"
 import { useYoutubeStore } from "./Youtube/useYoutubeStore"
-import { Loader, Loader2, Search } from "lucide-react"
+import { Loader, Search } from "lucide-react"
 import { getOptionalQueryParams } from "@/utils/youtubeutils"
 
 const YoutubeInstall = () => {
