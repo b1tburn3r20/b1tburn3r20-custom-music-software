@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { ChevronLeft, ChevronRight, ListMusic, Music, Search, Youtube } from "lucide-react"
+import { ChevronLeft, ChevronRight, ListMusic, Mic2, Music, Search, Youtube } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -9,7 +9,8 @@ import { navigate, useAppStore } from "@/stores/useAppStore"
 import { useSettingsStore } from "@/stores/useSettingsStore"
 import { useYoutubeStore } from "@/components/youtube/searchStore"
 import { useYoutubeTab } from "@/components/youtube/tabStore"
-import { searchSongs, shuffled } from "@/lib/catalog"
+import { buildArtistList, searchAlbums, searchArtists, searchSongs, shuffled } from "@/lib/catalog"
+import { Artwork } from "@/components/base/Artwork"
 import { playRadio } from "@/player/controls"
 import { cn } from "@/lib/utils"
 import { ListButton } from "@/components/base/Layout"
@@ -52,9 +53,24 @@ function SearchBox() {
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const randomFive = useMemo(() => shuffled(songs).slice(0, 5), [songs.length, open])
-  const suggestions = useMemo(() => (query.trim() ? searchSongs(songs, query, 5) : randomFive), [songs, query, randomFive])
-  const actions = query.trim() ? ACTIONS : []
-  const total = suggestions.length + actions.length
+  const albums = useLibraryStore((s) => s.albums)
+  const artistList = useMemo(() => buildArtistList(songs), [songs])
+  const q = query.trim()
+  const artistHits = useMemo(() => (q ? searchArtists(artistList, q, 3) : []), [artistList, q])
+  const albumHits = useMemo(() => (q ? searchAlbums(albums, q, 3) : []), [albums, q])
+  const suggestions = useMemo(() => (q ? searchSongs(songs, q, 5) : randomFive), [songs, q, randomFive])
+  const actions = useMemo(() => (q ? ACTIONS : []), [q])
+  // One flat list so ↑/↓ move across every section.
+  const items = useMemo(
+    () => [
+      ...artistHits.map((a) => ({ kind: "artist" as const, artist: a })),
+      ...albumHits.map((a) => ({ kind: "album" as const, album: a })),
+      ...suggestions.map((s) => ({ kind: "song" as const, song: s })),
+      ...actions.map((a) => ({ kind: "action" as const, action: a })),
+    ],
+    [artistHits, albumHits, suggestions, actions],
+  )
+  const total = items.length
 
   useEffect(() => {
     setQuery(route.name === "search" ? route.q : "")
@@ -91,15 +107,18 @@ function SearchBox() {
     done()
   }
   const runIndex = (i: number) => {
-    if (i < suggestions.length) {
-      playRadio(suggestions[i])
-      done()
-    } else {
-      actions[i - suggestions.length]?.run(query.trim())
+    const it = items[i]
+    if (!it) return
+    if (it.kind === "artist") navigate({ name: "artist", artist: it.artist.name })
+    else if (it.kind === "album") navigate({ name: "album", key: it.album.key })
+    else if (it.kind === "song") playRadio(it.song)
+    else {
+      it.action.run(q)
       setQuery("")
-      done()
     }
+    done()
   }
+  const indexOf = (pred: (it: (typeof items)[number]) => boolean) => items.findIndex(pred)
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowDown") {
@@ -141,22 +160,60 @@ function SearchBox() {
       />
       {open && (
         <div id="search-suggestions" role="listbox" className="absolute top-full z-50 mt-1 w-full rounded-lg border border-border bg-popover p-2 text-popover-foreground shadow-xl">
-          {suggestions.length > 0 && (
+          {artistHits.length > 0 && (
             <>
-              <p className="px-2 pb-1 text-xs font-medium text-muted-foreground">{query.trim() ? "Songs" : "Try something"}</p>
-              {suggestions.map((s, i) => (
-                <SongRow key={s.id} song={s} variant="compact" onActivate={() => runIndex(i)} className={cn(focus === i && "ring-2 ring-primary/60")} />
-              ))}
+              <p className="px-2 pb-1 text-xs font-medium text-muted-foreground">Artists</p>
+              {artistHits.map((a) => {
+                const i = indexOf((it) => it.kind === "artist" && it.artist === a)
+                return (
+                  <ListButton key={a.key} role="option" aria-selected={focus === i} selected={focus === i} onClick={() => runIndex(i)}>
+                    {a.thumbnail ? <Artwork src={a.thumbnail} size="sm" className="rounded-full" /> : <span className="flex size-art-sm items-center justify-center rounded-full bg-muted"><Mic2 className="size-4 text-muted-foreground" /></span>}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-medium">{a.name}</span>
+                      <span className="block text-xs text-muted-foreground">Artist · {a.songCount} {a.songCount === 1 ? "song" : "songs"}</span>
+                    </span>
+                  </ListButton>
+                )
+              })}
             </>
           )}
+          {albumHits.length > 0 && (
+            <>
+              <p className="px-2 pb-1 pt-2 text-xs font-medium text-muted-foreground">Albums</p>
+              {albumHits.map((a) => {
+                const i = indexOf((it) => it.kind === "album" && it.album === a)
+                return (
+                  <ListButton key={a.key} role="option" aria-selected={focus === i} selected={focus === i} onClick={() => runIndex(i)}>
+                    <Artwork src={a.album_thumbnail} size="sm" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-medium">{a.album_name}</span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        Album · {a.album_artists.length >= 5 ? "Various artists" : a.album_artists.join(", ")}
+                      </span>
+                    </span>
+                  </ListButton>
+                )
+              })}
+            </>
+          )}
+          {suggestions.length > 0 && (
+            <>
+              <p className="px-2 pb-1 pt-2 text-xs font-medium text-muted-foreground">{q ? "Songs" : "Try something"}</p>
+              {suggestions.map((s) => {
+                const i = indexOf((it) => it.kind === "song" && it.song === s)
+                return <SongRow key={s.id} song={s} variant="compact" onActivate={() => runIndex(i)} className={cn(focus === i && "ring-2 ring-primary/60")} />
+              })}
+            </>
+          )}
+          {q && !artistHits.length && !albumHits.length && !suggestions.length && <p className="px-2 py-3 text-sm text-muted-foreground">Nothing in your library matches “{q}”.</p>}
           {query.trim() && (
             <ListButton onClick={submit} className="mt-1">
               <Search className="size-4 text-muted-foreground" /> See all results for “{query.trim()}” <span className="ml-auto text-xs text-muted-foreground">Enter</span>
             </ListButton>
           )}
           {actions.length > 0 && <div className="my-1 h-px bg-border" />}
-          {actions.map((a, j) => {
-            const i = suggestions.length + j
+          {actions.map((a) => {
+            const i = indexOf((it) => it.kind === "action" && it.action === a)
             const Icon = a.icon
             return (
               <ListButton key={a.key} onClick={() => runIndex(i)} selected={focus === i}>

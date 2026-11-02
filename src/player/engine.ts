@@ -67,15 +67,19 @@ function load(songId: string | null) {
   updateMediaSession()
 }
 
-/** Appends "radio" songs similar to the last one. Returns false when nothing could be added. */
-export function appendRadio(): boolean {
+/** Radio grows lazily: a few songs at a time, topped up near the end of the queue. */
+export const RADIO_BATCH = 5
+const RADIO_LOOKAHEAD = 2
+
+/** Appends a few "radio" songs similar to the current one. Returns false when nothing could be added. */
+export function appendRadio(count = RADIO_BATCH): boolean {
   const { queue, setQueue } = usePlayerStore.getState()
   const lib = useLibraryStore.getState()
   const lastId = Q.currentSongId(queue)
   const seed = lastId ? lib.songsById[lastId] : null
   if (!seed) return false
   const exclude = new Set(queue.items.map((i) => i.songId))
-  const more = radioFor(lib.songs, seed, exclude, 15)
+  const more = radioFor(lib.songs, seed, exclude, count)
   if (!more.length) return false
   setQueue(Q.addToQueue(queue, more.map((s) => s.id), "radio"))
   return true
@@ -101,6 +105,15 @@ export function advance({ auto }: { auto: boolean }) {
     return
   }
   usePlayerStore.getState().setQueue(r.queue)
+}
+
+/** In a radio queue (or once autoplay has taken over), add a few more songs when only a couple are left. */
+function topUpRadio(queue: Q.QueueState) {
+  const cur = Q.currentItem(queue)
+  if (!cur) return
+  const isRadio = queue.context?.type === "radio" || cur.source === "radio"
+  if (!isRadio || queue.repeat === "one") return
+  if (Q.upcoming(queue).length <= RADIO_LOOKAHEAD) queueMicrotask(() => appendRadio())
 }
 
 export function restartCurrent() {
@@ -184,6 +197,7 @@ export function startEngine(controls: { next: () => void; prev: () => void; togg
   window.addEventListener("beforeunload", () => report(tracker.finish()))
 
   usePlayerStore.subscribe((s, p) => {
+    if (s.currentUid !== p.currentUid) topUpRadio(s.queue)
     if (s.currentSongId !== loadedSongId || (s.currentUid !== p.currentUid && s.currentSongId === loadedSongId && s.currentUid !== null)) {
       if (s.currentSongId !== loadedSongId) load(s.currentSongId)
       else restartCurrent() // same song, different queue entry (duplicate) → start over

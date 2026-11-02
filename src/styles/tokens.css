@@ -27,8 +27,8 @@
 :root {
   /* Stacking layers (use the z-* utilities below, never raw numbers) */
   --z-content: 1;
-  --z-player-track: 9;
   --z-player: 10;
+  --z-player-track: 11; /* the seek bar overlaps the top edge of the player bar */
   --z-zen: 20;
   --z-zen-art: 21;
   --z-zen-queue: 22;

@@ -8,7 +8,7 @@ import { radioFor } from "@/lib/catalog"
 import { debounce } from "@/lib/debounce"
 import type { Song } from "@/types/DirectoryTypes"
 import * as Q from "./queue"
-import { advance, currentTime, getAudio, restartCurrent, startEngine } from "./engine"
+import { advance, currentTime, getAudio, restartCurrent, startEngine, RADIO_BATCH } from "./engine"
 import { toast } from "sonner"
 
 const store = () => usePlayerStore.getState()
@@ -42,7 +42,8 @@ export function playFromList(list: readonly Song[], song: Song, context: Q.Queue
 /** Single song with no surrounding list: start a radio queue seeded by it. */
 export function playRadio(seed: Song) {
   const lib = useLibraryStore.getState()
-  const more = radioFor(lib.songs, seed, new Set([seed.id]), 15)
+  // Start small; the engine tops the queue up as you get near the end.
+  const more = radioFor(lib.songs, seed, new Set([seed.id]), RADIO_BATCH - 1)
   playContext([seed, ...more], 0, { type: "radio", id: seed.id, label: `${seed.metadata.title} radio` })
 }
 

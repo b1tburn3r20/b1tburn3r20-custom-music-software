@@ -18,7 +18,7 @@ export default function HistoryPage() {
   const history = useStatsStore((s) => s.history)
   const loadHistory = useStatsStore((s) => s.loadHistory)
   const byId = useLibraryStore((s) => s.songsById)
-  const legacy = useUserStore((s) => s.recentlyPlayed.filter((r) => r.legacy))
+  const recentlyPlayed = useUserStore((s) => s.recentlyPlayed)
 
   useEffect(() => {
     void loadHistory()
@@ -36,7 +36,7 @@ export default function HistoryPage() {
     return out
   }, [history, byId])
   const listSongs = useMemo(() => groups.flatMap((g) => g.rows.map((r) => r.song)), [groups])
-  const legacySongs = useMemo(() => resolveSongs(legacy.map((l) => l.songId), byId), [legacy, byId])
+  const legacySongs = useMemo(() => resolveSongs(recentlyPlayed.filter((r) => r.legacy).map((l) => l.songId), byId), [recentlyPlayed, byId])
   const empty = history !== null && !groups.length && !legacySongs.length
 
   return (

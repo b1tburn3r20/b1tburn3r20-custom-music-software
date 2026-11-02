@@ -7,21 +7,18 @@ import { AlbumCard } from "@/components/cards/AlbumCard"
 import { ArtistCard } from "@/components/cards/ArtistCard"
 import { Button } from "@/components/ui/button"
 import { useLibraryStore } from "@/stores/useLibraryStore"
-import { buildArtistList, searchSongs } from "@/lib/catalog"
+import { buildArtistList, searchAlbums, searchArtists, searchSongs } from "@/lib/catalog"
 import { navigate } from "@/stores/useAppStore"
 import { useYoutubeStore } from "@/components/youtube/searchStore"
 import { useYoutubeTab } from "@/components/youtube/tabStore"
 import type { QueueContext } from "@/player/queue"
 
-const lc = (s: string) => s.toLowerCase()
-
 export default function SearchPage({ q }: { q: string }) {
   const songs = useLibraryStore((s) => s.songs)
   const albums = useLibraryStore((s) => s.albums)
-  const words = useMemo(() => lc(q).split(/\s+/).filter(Boolean), [q])
   const songHits = useMemo(() => searchSongs(songs, q), [songs, q])
-  const albumHits = useMemo(() => albums.filter((a) => words.length && words.every((w) => lc(`${a.album_name} ${a.album_artists.join(" ")}`).includes(w))), [albums, words])
-  const artistHits = useMemo(() => buildArtistList(songs).filter((a) => words.length && words.every((w) => a.key.includes(w))), [songs, words])
+  const albumHits = useMemo(() => searchAlbums(albums, q), [albums, q])
+  const artistHits = useMemo(() => searchArtists(buildArtistList(songs), q), [songs, q])
   const context = useMemo<QueueContext>(() => ({ type: "search", id: q, label: `Search: ${q}` }), [q])
 
   const searchYouTube = () => {

@@ -172,3 +172,34 @@ export function radioFor(songs: Song[], seed: Song, exclude: Set<string>, count 
   }
   return [...shuffled(same, rand), ...shuffled(other, rand)].slice(0, count)
 }
+
+const rank = (name: string, words: string[], q: string) => {
+  const n = lc(name)
+  return n === q ? 0 : n.startsWith(q) ? 1 : words.every((w) => n.includes(w)) ? 2 : 3
+}
+
+/** Albums whose name (or album artists) contain every word of the query. Name matches rank first. */
+export function searchAlbums(albums: AlbumType[], query: string, limit = Infinity): AlbumType[] {
+  const q = lc(query)
+  const words = q.split(/\s+/).filter(Boolean)
+  if (!words.length) return []
+  return albums
+    .filter((a) => words.every((w) => lc(`${a.album_name} ${a.album_artists.join(" ")}`).includes(w)))
+    .map((a) => ({ a, r: rank(a.album_name, words, q) }))
+    .sort((x, y) => x.r - y.r || x.a.album_name.localeCompare(y.a.album_name))
+    .slice(0, limit)
+    .map((x) => x.a)
+}
+
+/** Artists whose name contains every word of the query. Exact and prefix matches rank first, then by song count. */
+export function searchArtists<T extends { name: string; songCount: number }>(artists: T[], query: string, limit = Infinity): T[] {
+  const q = lc(query)
+  const words = q.split(/\s+/).filter(Boolean)
+  if (!words.length) return []
+  return artists
+    .filter((a) => words.every((w) => lc(a.name).includes(w)))
+    .map((a) => ({ a, r: rank(a.name, words, q) }))
+    .sort((x, y) => x.r - y.r || y.a.songCount - x.a.songCount)
+    .slice(0, limit)
+    .map((x) => x.a)
+}
