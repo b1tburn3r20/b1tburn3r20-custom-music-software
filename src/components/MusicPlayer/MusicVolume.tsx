@@ -15,7 +15,7 @@ const MusicVolume = () => {
   const volume = usePlayerStore((s) => s.volume)
   const [hovered, setHovered] = useState(false)
   return (
-    <div className="flex items-center gap-3 w-full" onMouseOver={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+    <div className="flex w-full max-w-48 items-center gap-3" onMouseOver={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
       <VolumeIcon volume={volume} />
       <Slider aria-label="Volume" value={[volume]} onValueChange={(v) => setVolume(v[0])} max={100} step={1} expand={hovered} className="w-full" />
     </div>

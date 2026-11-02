@@ -26,13 +26,13 @@ const MusicQueue = () => {
   const ctx = queue.context
   return (
     <div className="w-full flex justify-end">
-      <div className="flex h-full max-w-md 2xl:max-w-lg flex-col rounded-bl-lg bg-background/60 backdrop-blur-lg">
+      <div className="flex h-full max-w-md flex-col rounded-bl-lg bg-background/60 backdrop-blur-lg 2xl:max-w-lg">
         <div className="flex min-w-0 select-none items-baseline gap-2 p-4 pb-0 text-xl font-bold text-muted-foreground">
           <span className="truncate">{ctx?.label ?? "Queue"}</span>
           <span className="shrink-0 text-sm font-medium">{CONTEXT_LABEL[ctx?.type ?? "list"]}</span>
         </div>
-        <ScrollArea className="h-[85vh] min-h-0 px-4 pt-4">
-          <div className="md:min-w-[400px]">
+        <ScrollArea className="h-[85dvh] min-h-0 px-4 pt-4">
+          <div className="md:min-w-queue">
             {rows.map(({ item, song, pos }) => (
               <Fragment key={item.uid}>
                 <SongRow

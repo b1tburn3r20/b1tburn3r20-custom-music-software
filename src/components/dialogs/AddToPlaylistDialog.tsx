@@ -7,6 +7,7 @@ import { useUserStore } from "@/stores/useUserStore"
 import { resolveSongs, useLibraryStore } from "@/stores/useLibraryStore"
 import { Artwork } from "@/components/base/Artwork"
 import { cn } from "@/lib/utils"
+import { ListButton } from "@/components/base/Layout"
 import { Check, Plus } from "lucide-react"
 import { useEffect, useState } from "react"
 
@@ -48,32 +49,23 @@ export default function AddToPlaylistDialog() {
         </DialogHeader>
         <ScrollArea className="max-h-96 pr-2">
           <div className="flex flex-col gap-1">
-            <button
-              type="button"
+            <ListButton
               onClick={() => {
                 close()
                 dialogs().openPlaylistForm({ mode: "create", songIds: ids })
               }}
-              className="flex items-center gap-3 rounded-lg p-2 text-left hover:bg-accent/50"
             >
-              <span className="size-10 rounded-md bg-muted flex items-center justify-center">
+              <span className="flex size-art-sm items-center justify-center rounded-md bg-muted">
                 <Plus className="size-5" />
               </span>
               <span className="font-medium">New playlist…</span>
-            </button>
+            </ListButton>
             {playlists.map((p) => {
               const hasAll = ids.length > 0 && ids.every((id) => p.songIds.includes(id))
               const isSel = selected.has(p.id)
               const cover = resolveSongs(p.songIds.slice(0, 1), byId)[0]?.metadata.thumbnail
               return (
-                <button
-                  type="button"
-                  key={p.id}
-                  disabled={hasAll}
-                  aria-pressed={isSel}
-                  onClick={() => toggle(p.id)}
-                  className={cn("flex items-center gap-3 rounded-lg p-2 text-left hover:bg-accent/50 disabled:opacity-60 disabled:cursor-default", isSel && "bg-accent/30 ring-2 ring-primary/50")}
-                >
+                <ListButton key={p.id} disabled={hasAll} aria-pressed={isSel} selected={isSel} onClick={() => toggle(p.id)}>
                   <span className={cn("size-5 rounded border-2 flex items-center justify-center", isSel || hasAll ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground/50")}>
                     {(isSel || hasAll) && <Check className="size-3" />}
                   </span>
@@ -82,7 +74,7 @@ export default function AddToPlaylistDialog() {
                     <span className="block font-medium truncate">{p.name}</span>
                     <span className="block text-sm text-muted-foreground">{hasAll ? "Already added" : `${p.songIds.length} ${p.songIds.length === 1 ? "song" : "songs"}`}</span>
                   </span>
-                </button>
+                </ListButton>
               )
             })}
           </div>

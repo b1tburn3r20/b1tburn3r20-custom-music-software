@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "./styles/tokens.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -23,6 +24,7 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-like: var(--like);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -59,6 +61,7 @@
   --accent: oklch(0.919 0.023 162.78479472287816);
   --accent-foreground: oklch(0.232 0.026 160.12004308135644);
   --destructive: oklch(0.580 0.237 28.43022926835137);
+  --like: oklch(0.637 0.237 25.331);
   --border: oklch(0.895 0.005 163.31311659677098);
   --input: oklch(0.895 0.005 163.31311659677098);
   --ring: oklch(0.790 0.145 157.2046614401493);
@@ -93,6 +96,7 @@
   --accent: oklch(0.544 0.079 158.95067799694382);
   --accent-foreground: oklch(0.966 0.010 163.188767908733);
   --destructive: oklch(0.580 0.237 28.43022926835137);
+  --like: oklch(0.637 0.237 25.331);
   --border: oklch(0.437 0.034 161.26770936619664);
   --input: oklch(0.437 0.034 161.26770936619664);
   --ring: oklch(0.790 0.145 157.2046614401493);

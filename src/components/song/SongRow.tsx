@@ -82,7 +82,7 @@ function SourceBadge({ song }: { song: Song }) {
   const yt = Boolean(song.sourceId)
   const Icon = yt ? Youtube : FileAudio
   return (
-    <span title={yt ? `Downloaded from YouTube (${song.sourceId})` : song.name} className="inline-flex items-center gap-1 rounded-sm bg-muted px-1 text-[0.65rem] uppercase tracking-wide text-muted-foreground">
+    <span title={yt ? `Downloaded from YouTube (${song.sourceId})` : song.name} className="inline-flex items-center gap-1 rounded-sm bg-muted px-1 text-2xs uppercase tracking-wide text-muted-foreground">
       <Icon className="size-3" aria-hidden /> {yt ? "YouTube" : "File"}
     </span>
   )

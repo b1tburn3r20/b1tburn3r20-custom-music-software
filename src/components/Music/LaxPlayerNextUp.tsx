@@ -3,7 +3,9 @@ import { useSettingsStore } from "@/stores/useSettingsStore"
 import { useLibraryStore } from "@/stores/useLibraryStore"
 import { next, setRepeat } from "@/player/controls"
 import * as Q from "@/player/queue"
-import { Loader2, SkipForward, Repeat, Repeat1, Music } from "lucide-react"
+import { Loader2, SkipForward, Repeat, Repeat1 } from "lucide-react"
+import { Artwork } from "@/components/base/Artwork"
+import { Button } from "@/components/ui/button"
 
 /** "Up next" card shown in the expanded player during the last seconds of a song. */
 const LaxPlayerNextUp = () => {
@@ -35,39 +37,31 @@ const LaxPlayerNextUp = () => {
   const showDisableLoop = queue.repeat !== "off"
 
   return (
-    <div className={`absolute z-40 top-0 right-0 duration-500 ease-in-out transition-transform ${shouldShow ? "translate-x-0" : "translate-x-[calc(100%+1.25rem)]"}`}>
-      <div className="bg-black/80 backdrop-blur-sm p-4 text-white min-w-[300px] border border-white/10 rounded-bl-4xl">
+    <div role="status" aria-live="polite" className={`absolute right-0 top-0 z-toast transition-transform duration-slow ease-standard ${shouldShow ? "translate-x-0" : "translate-x-[calc(100%+var(--spacing)*5)]"}`}>
+      <div className="min-w-toast rounded-bl-3xl border border-border/40 bg-popover/90 p-4 text-popover-foreground backdrop-blur-sm">
         <div className="flex items-center justify-between gap-4">
-          {nextSong?.metadata.thumbnail ? (
-            <div className="bg-white/10 p-1 rounded-lg shrink-0">
-              <img className="shrink-0 w-10 h-10 object-cover rounded-lg" src={nextSong.metadata.thumbnail} alt="" />
-            </div>
-          ) : (
-            <div className="p-1 bg-white/10 rounded-lg flex flex-col justify-center items-center">
-              <Music className="text-primary h-10 w-10 bg-secondary rounded-lg p-1" />
-            </div>
-          )}
+          <Artwork src={nextSong?.metadata.thumbnail} size="sm" />
           <div className="flex-1">
-            <div className="text-xs text-white/60 mb-1">{willLoop ? "Playing again" : "Up next"}</div>
-            <div className="text-sm font-medium line-clamp-1">{nextSong?.metadata.title || "End of queue"}</div>
-            {nextSong?.metadata.artist && <div className="text-xs text-white/60 line-clamp-1">{nextSong.metadata.artist}</div>}
+            <div className="mb-1 text-xs text-muted-foreground">{willLoop ? "Playing again" : "Up next"}</div>
+            <div className="line-clamp-1 text-sm font-medium">{nextSong?.metadata.title || "End of queue"}</div>
+            {nextSong?.metadata.artist && <div className="line-clamp-1 text-xs text-muted-foreground">{nextSong.metadata.artist}</div>}
           </div>
           <div className="relative flex items-center justify-center">
-            <span className="absolute text-sm font-bold font-mono mt-1">{timeLeft !== null && timeLeft < 8 ? timeLeft.toFixed(0) : "0"}</span>
-            <Loader2 className="animate-spin text-white/40" size={48} />
+            <span className="absolute mt-1 font-mono text-sm font-bold">{timeLeft !== null && timeLeft < 8 ? timeLeft.toFixed(0) : "0"}</span>
+            <Loader2 className="size-12 animate-spin text-muted-foreground/50" aria-hidden />
           </div>
         </div>
         {(nextSong || showDisableLoop) && (
-          <div className="flex gap-2 mt-3 pt-3 border-t border-white/10">
+          <div className="mt-3 flex gap-2 border-t border-border/40 pt-3">
             {nextSong && (
-              <button onClick={next} className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-xs transition-colors">
-                <SkipForward size={14} /> Skip now
-              </button>
+              <Button variant="secondary" size="sm" className="flex-1 rounded-xl" onClick={next}>
+                <SkipForward /> Skip now
+              </Button>
             )}
             {showDisableLoop && (
-              <button onClick={() => setRepeat("off")} className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-xs transition-colors">
-                {queue.repeat === "one" ? <Repeat1 size={14} /> : <Repeat size={14} />} Turn off repeat
-              </button>
+              <Button variant="secondary" size="sm" className="flex-1 rounded-xl" onClick={() => setRepeat("off")}>
+                {queue.repeat === "one" ? <Repeat1 /> : <Repeat />} Turn off repeat
+              </Button>
             )}
           </div>
         )}

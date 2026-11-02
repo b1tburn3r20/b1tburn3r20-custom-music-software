@@ -3,11 +3,11 @@ import { Music } from "lucide-react"
 import { useState } from "react"
 
 const SIZES = {
-  xs: "size-6 rounded-sm",
-  sm: "size-10 rounded-md",
-  md: "size-14 rounded-md",
-  lg: "size-48 rounded-lg",
-  xl: "size-[min(60vh,600px)] rounded-sm",
+  xs: "size-art-xs rounded-sm",
+  sm: "size-art-sm rounded-md",
+  md: "size-art-md rounded-md",
+  lg: "size-art-lg rounded-lg",
+  hero: "size-art-hero rounded-sm",
   fill: "w-full aspect-square rounded-lg",
 } as const
 

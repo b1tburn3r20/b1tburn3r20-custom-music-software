@@ -11,7 +11,8 @@ import { useYoutubeStore } from "@/components/Youtube/useYoutubeStore"
 import { searchSongs, shuffled } from "@/lib/catalog"
 import { playRadio } from "@/player/controls"
 import { cn } from "@/lib/utils"
-import AppSettings from "@/SecondVersion/components/Settings"
+import { ListButton } from "@/components/base/Layout"
+import AppSettings from "./settings/SettingsDialog"
 
 const YTM = "https://music.youtube.com"
 
@@ -149,22 +150,22 @@ function SearchBox() {
             </>
           )}
           {query.trim() && (
-            <button type="button" onClick={submit} className="mt-1 flex w-full items-center gap-3 rounded-md px-2 py-2 text-left text-sm hover:bg-accent/50">
+            <ListButton onClick={submit} className="mt-1">
               <Search className="size-4 text-muted-foreground" /> See all results for “{query.trim()}” <span className="ml-auto text-xs text-muted-foreground">Enter</span>
-            </button>
+            </ListButton>
           )}
           {actions.length > 0 && <div className="my-1 h-px bg-border" />}
           {actions.map((a, j) => {
             const i = suggestions.length + j
             const Icon = a.icon
             return (
-              <button type="button" key={a.key} onClick={() => runIndex(i)} className={cn("flex w-full items-center gap-3 rounded-md px-2 py-2 text-left text-sm hover:bg-accent/50", focus === i && "ring-2 ring-primary/60")}>
+              <ListButton key={a.key} onClick={() => runIndex(i)} selected={focus === i}>
                 <Icon className="size-4 text-destructive" aria-hidden />
                 <span className="truncate">
                   {a.label} “{query.trim()}”
                 </span>
                 <span className="ml-auto shrink-0 text-xs text-muted-foreground">{a.tag}</span>
-              </button>
+              </ListButton>
             )
           })}
         </div>

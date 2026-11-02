@@ -1,7 +1,14 @@
 import { call } from "@/lib/api"
 import { useLibraryStore } from "@/stores/useLibraryStore"
 import { useUserStore } from "@/stores/useUserStore"
+import { useSettingsStore } from "@/stores/useSettingsStore"
 import { toast } from "sonner"
+
+// Mirror the persisted UI settings into the (non-persisted) settings store used by the views.
+function syncUiSettings() {
+  const s = useUserStore.getState().settings
+  useSettingsStore.setState({ expandOnPlay: s.expandOnPlay, laxPlayerAutoHide: s.zenMode, zenModeTimeout: s.zenTimeout })
+}
 
 const LEGACY_MARKER = "b1t:legacyImportedAt"
 /** Old localStorage keys that held user data. They are left in place as a backup. */
@@ -56,11 +63,15 @@ export async function bootstrapData() {
   started = true
   // Subscribe first so no change between the initial fetch and subscription is lost.
   window.api.library.onChanged((delta) => useLibraryStore.getState().applyDelta(delta))
-  window.api.user.onChanged((snap) => useUserStore.getState().setSnapshot(snap))
+  window.api.user.onChanged((snap) => {
+    useUserStore.getState().setSnapshot(snap)
+    syncUiSettings()
+  })
   try {
     const [lib, user] = await Promise.all([call(window.api.library.get()), call(window.api.user.get())])
     useLibraryStore.getState().setSnapshot(lib)
     useUserStore.getState().setSnapshot(user)
+    syncUiSettings()
   } catch (err) {
     toast.error("Couldn't load your library", { description: String((err as Error).message ?? err), duration: Infinity })
     return

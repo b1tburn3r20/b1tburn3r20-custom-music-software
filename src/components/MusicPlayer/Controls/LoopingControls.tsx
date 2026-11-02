@@ -1,3 +1,4 @@
+import { IconButton } from "@/components/base/IconButton"
 import { cycleRepeat } from "@/player/controls"
 import { usePlayerStore } from "@/stores/usePlayerStore"
 import { Repeat, Repeat1 } from "lucide-react"
@@ -6,17 +7,6 @@ const LABELS = { off: "Repeat: off", all: "Repeat: all", one: "Repeat: one" } as
 
 const LoopingControls = () => {
   const repeat = usePlayerStore((s) => s.queue.repeat)
-  return (
-    <button
-      aria-label={LABELS[repeat]}
-      title={LABELS[repeat]}
-      aria-pressed={repeat !== "off"}
-      onClick={cycleRepeat}
-      className="rounded-full flex justify-center items-center p-4 cursor-pointer hover:bg-secondary/50 hover:text-primary"
-    >
-      {repeat === "one" ? <Repeat1 className="text-primary" /> : <Repeat className={repeat === "all" ? "text-primary" : "text-muted-foreground"} />}
-    </button>
-  )
+  return <IconButton icon={repeat === "one" ? Repeat1 : Repeat} label={LABELS[repeat]} aria-pressed={repeat !== "off"} active={repeat !== "off"} onClick={cycleRepeat} />
 }
-
 export default LoopingControls

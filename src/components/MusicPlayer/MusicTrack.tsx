@@ -11,7 +11,7 @@ const MusicTrack = () => {
   const idle = useAppStore((f) => f.idle)
   const progress = duration > 0 ? (time / duration) * 100 : 0
   return (
-    <div className="z-[9]" onMouseOver={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+    <div className="z-player-track" onMouseOver={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
       <Slider
         aria-label="Seek"
         expand={hovered}

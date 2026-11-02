@@ -1,4 +1,3 @@
-"use client";
 import { usePlayerStore } from "@/stores/usePlayerStore";
 import MusicControls from "./MusicControls";
 import MusicVolume from "./MusicVolume";
@@ -31,15 +30,15 @@ const MusicPlayer = () => {
   return (
     <div
       onDoubleClick={(e) => handleDoubleClick(e)}
-      className={`shrink-0 flex flex-col relative transition-transform duration-1000 ease-in-out ${idle ? 'translate-y-full' : 'translate-y-0'}`}
+      className={`relative flex shrink-0 flex-col transition-transform duration-gentle ease-standard ${idle ? 'translate-y-full' : 'translate-y-0'}`}
     >
       <MusicTrack />
-      <div className="grid z-[8] grid-cols-3 items-center w-full backdrop-blur-md p-4 bg-black/20 shadow-2xl inset-shadow-sm border-background/40">
+      <div className="z-player grid w-full grid-cols-3 items-center gap-4 bg-background/70 p-4 shadow-2xl backdrop-blur-md">
         <MusicPlayerName />
         <div className="flex justify-center items-center">
           <MusicControls />
         </div>
-        <div className="flex gap-2 justify-center items-center">
+        <div className="flex items-center justify-end gap-2">
           <MusicVolume />
           <LoopingControls />
           <ToggleExpandPlayer />
