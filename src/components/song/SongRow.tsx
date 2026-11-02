@@ -1,5 +1,7 @@
 // The one song component used everywhere a song appears.
-import { memo, useState } from "react"
+import { memo, useLayoutEffect, useRef, useState } from "react"
+import { useVirtualizer } from "@tanstack/react-virtual"
+import { useScrollParent } from "@/app/scrollContext"
 import { MoreHorizontal, Pause, Play, Youtube, FileAudio, Check } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Song } from "@/types/DirectoryTypes"
@@ -264,12 +266,42 @@ export const SongRow = memo(function SongRow(props: SongRowProps) {
   )
 })
 
-/** A list of songs where each row plays the list from that song. */
+const VIRTUALIZE_AFTER = 60
+const ROW_HEIGHT = { row: 56, compact: 52, card: 72, tile: 240 } as const
+
+/** A list of songs where each row plays the list from that song. Long lists are virtualized. */
 export function SongList({ songs, variant = "row", className, ...ctx }: { songs: readonly Song[]; variant?: SongRowVariant; className?: string } & Omit<SongContext, "list">) {
+  const scrollParent = useScrollParent()
+  if (songs.length > VIRTUALIZE_AFTER && scrollParent) return <VirtualSongList songs={songs} variant={variant} className={className} scrollParent={scrollParent} {...ctx} />
   return (
     <div className={cn("flex flex-col", className)}>
       {songs.map((s, i) => (
         <SongRow key={s.id} song={s} index={i} variant={variant} list={songs} {...ctx} />
+      ))}
+    </div>
+  )
+}
+
+function VirtualSongList({ songs, variant, className, scrollParent, ...ctx }: { songs: readonly Song[]; variant: SongRowVariant; className?: string; scrollParent: HTMLElement } & Omit<SongContext, "list">) {
+  const listRef = useRef<HTMLDivElement>(null)
+  const [offset, setOffset] = useState(0)
+  useLayoutEffect(() => {
+    const measure = () => {
+      const el = listRef.current
+      if (el) setOffset(el.getBoundingClientRect().top - scrollParent.getBoundingClientRect().top + scrollParent.scrollTop)
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(scrollParent)
+    return () => ro.disconnect()
+  }, [scrollParent])
+  const v = useVirtualizer({ count: songs.length, getScrollElement: () => scrollParent, estimateSize: () => ROW_HEIGHT[variant], overscan: 12, scrollMargin: offset })
+  return (
+    <div ref={listRef} className={cn("relative", className)} style={{ height: v.getTotalSize() }}>
+      {v.getVirtualItems().map((item) => (
+        <div key={songs[item.index].id} data-index={item.index} ref={v.measureElement} className="absolute inset-x-0 top-0" style={{ transform: `translateY(${item.start - v.options.scrollMargin}px)` }}>
+          <SongRow song={songs[item.index]} index={item.index} variant={variant} list={songs} {...ctx} />
+        </div>
       ))}
     </div>
   )
