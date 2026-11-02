@@ -47,7 +47,7 @@ function ArtistLinks({ song, onNavigate }: { song: Song; onNavigate?: () => void
         <span key={a}>
           <button
             type="button"
-            className="hover:underline hover:text-foreground focus-visible:underline outline-none"
+            className="inline hover:underline hover:text-foreground focus-visible:underline outline-none"
             onClick={(e) => {
               e.stopPropagation()
               onNavigate?.()
@@ -68,7 +68,7 @@ function AlbumLink({ song, onNavigate }: { song: Song; onNavigate?: () => void }
   return (
     <button
       type="button"
-      className="hover:underline hover:text-foreground focus-visible:underline outline-none truncate"
+      className="inline hover:underline hover:text-foreground focus-visible:underline outline-none"
       onClick={(e) => {
         e.stopPropagation()
         onNavigate?.()
