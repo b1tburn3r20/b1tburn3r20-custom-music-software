@@ -1,75 +1,61 @@
 import { create } from "zustand"
-import { type Song } from "../types/DirectoryTypes"
-import type { PlaylistType } from "@/types/AppTypes";
+import type { Song } from "@/types/DirectoryTypes"
+import { currentItem, emptyQueue, type QueueContext, type QueueState } from "@/player/queue"
+import { useLibraryStore } from "./useLibraryStore"
 
-export interface MP3Metadata {
-  title: string;
-  artist: string;
-  album: string;
-  duration: number;
-  durationFormatted: string;
-  year: number | null;
-  genre: string | null;
-  thumbnail: string | null;
-  uploader: string;
-  channel: string;
-  description: string;
-  viewCount: number;
-  likeCount: number;
-  uploadDate: string;
-}
-
-type PlayerStore = {
+type PlayerState = {
+  queue: QueueState
+  /** Id of the song that is loaded in the engine. */
+  currentSongId: string | null
+  /** uid of the current queue entry (distinguishes duplicates). */
+  currentUid: string | null
+  /** Resolved Song for currentSongId (kept fresh when the library changes). */
   currentlyPlaying: Song | null
-  setCurrentlyPlaying: (data: Song | null) => void
   paused: boolean
-  setPaused: (data: boolean) => void
-  looping: string
-  setLooping: (data: string) => void
-  musicIsPlaying: boolean
-  setMusicIsPlaying: (data: boolean) => void
-  musicVolume: number
-  setMusicVolume: (data: number) => void
-  musicProgress: number
-  setMusicProgress: (data: number) => void
-  playingPlaylist: PlaylistType | null
-  setPlayingPlaylist: (data: PlaylistType | null) => void
-  audioRef: HTMLAudioElement | null
-
-
-
-
-  setAudioRef: (ref: HTMLAudioElement | null) => void
-  seek: (progressPercent: number) => void
+  /** Volume 0–100 (instant UI value; persisted to settings with a debounce). */
+  volume: number
+  /** Incremented to force the engine to restart the current song from 0. */
+  restartToken: number
+  setQueue: (queue: QueueState) => void
+  setPaused: (paused: boolean) => void
+  setVolume: (volume: number) => void
+  bumpRestart: () => void
 }
 
-const initialState = {
+function deriveCurrent(queue: QueueState) {
+  const item = currentItem(queue)
+  const songId = item?.songId ?? null
+  return { currentSongId: songId, currentUid: item?.uid ?? null, currentlyPlaying: songId ? useLibraryStore.getState().songsById[songId] ?? null : null }
+}
+
+export const usePlayerStore = create<PlayerState>((set) => ({
+  queue: emptyQueue(),
+  currentSongId: null,
+  currentUid: null,
   currentlyPlaying: null,
-  musicIsPlaying: false,
-  musicVolume: 50,
-  musicProgress: 0,
-  paused: false,
-  looping: "loopPlaylist",
-  audioRef: null as HTMLAudioElement | null,
-  playingPlaylist: null
-}
+  paused: true,
+  volume: 50,
+  restartToken: 0,
+  setQueue: (queue) => set({ queue, ...deriveCurrent(queue) }),
+  setPaused: (paused) => set({ paused }),
+  setVolume: (volume) => set({ volume: Math.min(100, Math.max(0, volume)) }),
+  bumpRestart: () => set((s) => ({ restartToken: s.restartToken + 1 })),
+}))
 
-export const usePlayerStore = create<PlayerStore>((set, get) => ({
-  ...initialState,
-  setLooping: (data: string) => set({ looping: data }),
-  setPaused: (data: boolean) => set({ paused: data }),
-  setMusicVolume: (data: number) => set({ musicVolume: data }),
-  setCurrentlyPlaying: (data: Song | null) => set({ currentlyPlaying: data }),
-  setMusicIsPlaying: (data: boolean) => set({ musicIsPlaying: data }),
-  setMusicProgress: (data: number) => set({ musicProgress: data }),
-  setPlayingPlaylist: (playingPlaylist: PlaylistType | null) => set({ playingPlaylist }),
-  setAudioRef: (ref: HTMLAudioElement | null) => set({ audioRef: ref }),
-  seek: (progressPercent: number) => {
-    const { audioRef, currentlyPlaying } = get();
-    if (audioRef && currentlyPlaying?.metadata?.duration) {
-      const duration = currentlyPlaying.metadata.duration;
-      audioRef.currentTime = (progressPercent / 100) * duration;
-    }
-    set({ musicProgress: progressPercent });
-  },
+// Keep the resolved Song fresh (metadata edits, re-links) without restarting playback.
+useLibraryStore.subscribe((lib, prev) => {
+  if (lib.songsById === prev.songsById) return
+  const { currentSongId, currentlyPlaying } = usePlayerStore.getState()
+  const fresh = currentSongId ? lib.songsById[currentSongId] ?? null : null
+  if (fresh !== currentlyPlaying) usePlayerStore.setState({ currentlyPlaying: fresh })
+})
+
+export const selectContext = (s: PlayerState): QueueContext | null => s.queue.context
+
+/** Small, separate store for the playback clock so 4×/s updates only re-render the progress UI. */
+type ClockState = { time: number; duration: number; setClock: (time: number, duration: number) => void }
+export const usePlaybackClock = create<ClockState>((set) => ({
+  time: 0,
+  duration: 0,
+  setClock: (time, duration) => set({ time, duration }),
 }))

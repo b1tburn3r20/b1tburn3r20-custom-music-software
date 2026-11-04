@@ -1,43 +1,52 @@
-import { usePlayerStore } from "@/stores/usePlayerStore"
-import { Dot, Music } from "lucide-react"
-import MusicRefsAndTitle from "./MusicRefsAndTitle"
-import MusicPlayerTimeRunning from "./components/MusicPlayerTimeRunning"
+import { usePlayerStore } from "@/stores/usePlayerStore";
+import { useSettingsStore } from "@/stores/useSettingsStore";
+import { Artwork } from "@/components/base/Artwork";
+import { songArtists } from "@/lib/catalog";
+import { openAlbumForSong, openArtist } from "@/utils/musicutils";
+import MusicPlayerTimeRunning from "./components/MusicPlayerTimeRunning";
 
 const MusicPlayerName = () => {
-  const currentlyPlaying = usePlayerStore((f) => f.currentlyPlaying)
+  const song = usePlayerStore((s) => s.currentlyPlaying);
+  const collapse = () => useSettingsStore.getState().setPlayerExpanded(false);
+  if (!song) return null;
+  const m = song.metadata;
+  const artists = songArtists(song);
   return (
-
-    <div className="flex select-none gap-2 items-center">
-      {currentlyPlaying?.metadata?.thumbnail ? (
-        <div className="bg-white/10 p-1 rounded-lg shrink-0">
-          <img
-            className="shrink-0 w-10 h-10 object-cover rounded-lg"
-            src={currentlyPlaying.metadata.thumbnail}
-            alt="Album art"
-          />
+    <div className="flex min-w-0 select-none items-center gap-3">
+      <Artwork src={m.thumbnail} size="sm" />
+      <div className="min-w-0">
+        <div className="truncate text-sm font-medium" title={m.title}>
+          {m.title}
         </div>
-      ) : (
-        <div className="p-1 bg-white/10 rounded-lg flex flex-col justify-center items-center">
-          <Music className="text-primary h-10 w-10 bg-secondary rounded-lg p-1" />
-        </div>
-      )}
-      <div className="truncate">
-        <MusicRefsAndTitle />
-        <div className="flex  items-center">
-          <span className="text-foreground/50">{currentlyPlaying?.metadata?.artist}</span>
-          <div>
-            <span className="text-foreground/50 pl-1">
-              {currentlyPlaying?.metadata?.album && currentlyPlaying?.metadata?.album !== "Unknown Album" ? `- ${currentlyPlaying.metadata.album} (${currentlyPlaying?.metadata?.year})` : ""}
-            </span>
-
-          </div>
-          <Dot className="text-foreground/50" />
-          <MusicPlayerTimeRunning />
+        {/* Each part truncates on its own (the artist list gives way first, the album keeps a minimum); the time never shrinks. */}
+        <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+          <span className="min-w-8 shrink-[3] truncate" title={m.artist}>
+            {(artists.length ? artists : [m.artist]).map((a, i) => (
+              <span key={a}>
+                <button type="button" className="inline hover:text-foreground hover:underline" onClick={() => { collapse(); openArtist(a) }}>
+                  {a}
+                </button>
+                {i < artists.length - 1 && ", "}
+              </span>
+            ))}
+          </span>
+          {m.album && (
+            <>
+              <span aria-hidden className="shrink-0">·</span>
+              <span className="min-w-16 shrink truncate" title={`${m.album}${m.year ? ` (${m.year})` : ""}`}>
+                <button type="button" className="inline hover:text-foreground hover:underline" onClick={() => { collapse(); openAlbumForSong(song.id) }}>
+                  {m.album}
+                </button>
+                {m.year ? ` (${m.year})` : ""}
+              </span>
+            </>
+          )}
+          <span aria-hidden className="shrink-0">·</span>
+          <MusicPlayerTimeRunning className="shrink-0" />
         </div>
       </div>
     </div>
+  );
+};
 
-  )
-}
-
-export default MusicPlayerName
+export default MusicPlayerName;

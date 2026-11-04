@@ -1,145 +1,24 @@
-import { useAppStore } from "@/stores/useAppStore"
-import { useDirectoryStore } from "@/stores/useDirectoryStore"
-import { useMusicStore } from "@/stores/useMusicStore"
-import { usePlayerStore } from "@/stores/usePlayerStore"
-import { useSettingsStore } from "@/stores/useSettingsStore"
-import type { AlbumType, PlaylistType } from "@/types/AppTypes"
+import { navigate } from "@/stores/useAppStore"
+import { useLibraryStore } from "@/stores/useLibraryStore"
+import { albumForSong } from "@/lib/catalog"
+import { playRadio } from "@/player/controls"
 import type { Song } from "@/types/DirectoryTypes"
+import { toast } from "sonner"
 
+/** Single song with no list around it: radio queue seeded by the song. */
+export const startNewQueue = (songOrId: Song | string | null | undefined) => {
+  const lib = useLibraryStore.getState()
+  const seed = typeof songOrId === "string" ? lib.songsById[songOrId] : songOrId
+  if (seed) playRadio(seed)
+}
 
-export const startNewQueue = async (path) => {
-  const setQueue = useMusicStore.getState().setQueue
-  const root = useDirectoryStore.getState().rootDir
-  const setPlayingPlaylist = usePlayerStore.getState().setPlayingPlaylist
-  const expandOnPlay = useSettingsStore.getState().expandOnPlay
-  const setExpanded = useSettingsStore.getState().setPlayerExpanded
-  const startPlaying = usePlayerStore.getState().setCurrentlyPlaying
-  if (!path) {
+export const openAlbumForSong = (songId: string) => {
+  const album = albumForSong(useLibraryStore.getState().albums, songId)
+  if (!album) {
+    toast.info("This song has no album information")
     return
   }
-  try {
-    const response: any = await (window as any).electron.getSongQueue({ root, path })
-    if (response?.error) {
-      throw new Error(response.error)
-    }
-
-    setPlayingPlaylist(null)
-    setQueue(response.songs)
-    startPlaying(response?.songs[0])
-    if (expandOnPlay) {
-      setExpanded(true)
-    }
-
-
-  } catch (error) {
-    console.error("This went wrong", error)
-  }
+  navigate({ name: "album", key: album.key })
 }
 
-export const startNewQueueFromArray = async (array: Song[], playlist?: PlaylistType, album?: AlbumType) => {
-  const setQueue = useMusicStore.getState().setQueue
-  const setPlayingPlaylist = usePlayerStore.getState().setPlayingPlaylist
-  const setPlayingAlbum = useMusicStore.getState().setPlayingAlbum
-  const startPlaying = usePlayerStore.getState().setCurrentlyPlaying
-  setQueue(array)
-  if (playlist) {
-    setPlayingPlaylist(playlist)
-  }
-  startPlaying(array[0])
-  if (album) {
-    setPlayingAlbum(album)
-  }
-}
-export const handleArtistClick = async (e: React.MouseEvent, path: string) => {
-  const rootDir = useDirectoryStore.getState().rootDir
-  const setView = useAppStore.getState().setView
-  const setActiveArtist = useMusicStore.getState().setActiveArtist
-  e.stopPropagation();
-  try {
-    const result = await (window as any).electron.getArtist({
-      rootDir,
-      path,
-    });
-
-    if (result.success) {
-      setView("artist")
-      setActiveArtist(result)
-    } else {
-    }
-  } catch (err) {
-    console.error("heres the error", err)
-  }
-}
-
-
-
-export const extendQueue = async (rootDir, path, songsToOmit) => {
-  const setQueue = useMusicStore.getState().setQueue
-  const queue = useMusicStore.getState().queue
-  if (!path) {
-    return
-  }
-  try {
-    const response: any = await (window as any).electron.getSongQueue({ rootDir, path, songsToOmit })
-    if (response?.error) {
-      throw new Error(response.error)
-    }
-    const newQueue = [...queue, ...response.songs]
-    setQueue(newQueue)
-  } catch (error) {
-    console.error("This went wrong", error)
-  }
-}
-
-export const removeSongFromActivePlaylist = (song: Song) => {
-  const activePlaylist = useAppStore.getState().currentPlaylist
-  const setActivePlaylist = useAppStore.getState().setCurrentPlaylist
-  if (activePlaylist) {
-    const filteredPlaylist = activePlaylist.songs.filter((s) => s.path !== song.path)
-    setActivePlaylist({ ...activePlaylist, songs: filteredPlaylist })
-  }
-}
-export const removeSongFromPlaylistData = (song: Song, playlist: PlaylistType) => {
-  const playlists = useMusicStore.getState().playlists
-  const foundPlaylist = playlists.find((pl) => pl.id === playlist.id)
-  const replacePlaylist = useMusicStore.getState().replacePlaylist
-  if (foundPlaylist) {
-    const filteredSongs = foundPlaylist.songs.filter((s) => s.path !== song.path)
-    const newPL = { ...foundPlaylist, songs: filteredSongs }
-    replacePlaylist(newPL)
-  }
-
-}
-
-export const removePlaylist = (playlistId: string) => {
-  const playlists = useMusicStore.getState().playlists
-  const currentPlaylist = useAppStore.getState().currentPlaylist
-  const setPlaylists = useMusicStore.getState().setPlaylists
-  const setView = useAppStore.getState().setView
-  const setCurrentPlaylist = useAppStore.getState().setCurrentPlaylist
-
-  const filteredPlaylists = playlists.filter((pl) => pl.id !== playlistId)
-  setPlaylists(filteredPlaylists)
-  const openRN = currentPlaylist?.id === playlistId
-  if (openRN) {
-    setCurrentPlaylist(null)
-    setView("home")
-  }
-
-}
-
-export const addToRecentlyPlayedPlaylists = (playlistId: string) => {
-  const playlists = useMusicStore.getState().playlists
-  const foundPlaylist = playlists.find((pl) => pl.id === playlistId)
-  const setRecentlyPlayedPlaylists = useMusicStore.getState().setRecentlyPlayedPlaylists
-  const recentlyPlayedPlaylists = useMusicStore.getState().recentlyPlayedPlaylists
-  if (foundPlaylist) {
-    const filtered = recentlyPlayedPlaylists.filter((pl) => pl.id !== playlistId)
-    const newSpread = [foundPlaylist, ...filtered]
-    setRecentlyPlayedPlaylists(newSpread)
-    localStorage.setItem("userRecentlyPlayedPlaylists", JSON.stringify(newSpread))
-  }
-}
-
-
-
+export const openArtist = (artistName: string) => navigate({ name: "artist", artist: artistName.trim() })

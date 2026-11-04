@@ -1,10 +1,15 @@
 const { ipcMain } = require("electron");
-const { exec } = require("child_process");
+const { execFile } = require("child_process");
 const { promisify } = require("util");
 const fs = require("fs").promises;
 const path = require("path");
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
+// adb is invoked with an argument array (no local shell). `adb shell` still runs
+// its arguments through the phone's /bin/sh, so remote paths are single-quoted.
+const adb = (args, opts = {}) => execFileAsync("adb", args, { maxBuffer: 1024 * 1024 * 16, ...opts });
+const shQuote = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
+const DEVICE_ID_RE = /^[A-Za-z0-9._:-]+$/;
 
 function registerSyncHandlers() {
   ipcMain.handle('sync-to-phone', syncToPhone);
@@ -13,7 +18,7 @@ function registerSyncHandlers() {
 async function checkAdbConnection() {
   try {
     try {
-      await execAsync('adb version');
+      await adb(['version']);
     } catch (error) {
       return {
         success: false,
@@ -22,7 +27,7 @@ async function checkAdbConnection() {
       };
     }
 
-    const { stdout } = await execAsync('adb devices');
+    const { stdout } = await adb(['devices']);
     const lines = stdout.split('\n').filter(line => line.trim() && !line.includes('List of devices'));
 
     if (lines.length === 0) {
@@ -53,7 +58,8 @@ async function checkAdbConnection() {
     const deviceId = deviceLine.split('\t')[0];
 
     try {
-      await execAsync(`adb -s ${deviceId} shell "ls /sdcard/Music"`);
+      if (!DEVICE_ID_RE.test(deviceId)) throw new Error('Unexpected device id from adb');
+      await adb(['-s', deviceId, 'shell', 'ls /sdcard/Music']);
       return {
         success: true,
         deviceId: deviceId,
@@ -61,7 +67,7 @@ async function checkAdbConnection() {
       };
     } catch (error) {
       try {
-        await execAsync(`adb -s ${deviceId} shell "mkdir -p /sdcard/Music"`);
+        await adb(['-s', deviceId, 'shell', 'mkdir -p /sdcard/Music']);
         return {
           success: true,
           deviceId: deviceId,
@@ -90,7 +96,7 @@ async function cleanupPhoneMusic(event, deviceId, rootPath, results) {
       message: 'Checking for old files to remove...'
     });
 
-    const { stdout } = await execAsync(`adb -s ${deviceId} shell "ls -1 /sdcard/Music"`);
+    const { stdout } = await adb(['-s', deviceId, 'shell', 'ls -1 /sdcard/Music']);
     const phoneFiles = stdout.split('\n')
       .map(line => line.trim())
       .filter(line => line && !line.includes('Permission denied'));
@@ -112,7 +118,8 @@ async function cleanupPhoneMusic(event, deviceId, rootPath, results) {
           message: `Removing ${fileToDelete}...`
         });
 
-        await execAsync(`adb -s ${deviceId} shell "rm -f '/sdcard/Music/${fileToDelete}'"`);
+        if (fileToDelete.includes('/') || fileToDelete === '..') throw new Error('Refusing to delete a path outside /sdcard/Music');
+        await adb(['-s', deviceId, 'shell', `rm -f ${shQuote(`/sdcard/Music/${fileToDelete}`)}`]);
         results.deleted.push(fileToDelete);
 
         event.sender.send('sync-progress', {
@@ -209,10 +216,7 @@ async function syncToPhone(event, { rootPath }) {
           continue;
         }
 
-        await execAsync(
-          `adb -s ${deviceId} push "${filePath}" "${phoneDestination}"`,
-          { maxBuffer: 1024 * 1024 * 100 }
-        );
+        await adb(['-s', deviceId, 'push', filePath, phoneDestination], { maxBuffer: 1024 * 1024 * 100 });
 
         syncDb.files[fileName] = {
           size: fileSize,

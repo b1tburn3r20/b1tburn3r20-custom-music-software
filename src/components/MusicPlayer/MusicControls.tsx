@@ -1,26 +1,18 @@
-import { usePlayerStore } from "@/stores/usePlayerStore";
-import RewindButton from "./Controls/Rewind";
-import FastForwardButton from "./Controls/FastForwardButton";
-import MusicPlayButton from "./MusicPlayButton";
-import { useMusicStore } from "@/stores/useMusicStore";
-import LikeSongButton from "./Controls/like-song-button";
+import RewindButton from "./Controls/Rewind"
+import FastForwardButton from "./Controls/FastForwardButton"
+import MusicPlayButton from "./MusicPlayButton"
+import ShuffleControls from "./Controls/ShuffleControls"
+import LoopingControls from "./Controls/LoopingControls"
 
-const MusicControls = () => {
-  const currentSong = usePlayerStore((f) => f.currentlyPlaying);
-  const queue = useMusicStore((f) => f.queue);
-  if (!currentSong) {
-    return null;
-  }
-  const currentIndex = queue?.indexOf(currentSong);
+/** Transport, centred: shuffle · previous · play · next · repeat. */
+const MusicControls = () => (
+  <div role="group" aria-label="Playback" className="flex items-center gap-5">
+    <ShuffleControls />
+    <RewindButton />
+    <MusicPlayButton />
+    <FastForwardButton />
+    <LoopingControls />
+  </div>
+)
 
-  return (
-    <div className="flex items-center gap-2">
-      <RewindButton currentIndex={currentIndex || 0} />
-      <MusicPlayButton />
-      <FastForwardButton currentIndex={currentIndex || 0} />
-      <LikeSongButton song={currentSong} />
-    </div>
-  );
-};
-
-export default MusicControls;
+export default MusicControls

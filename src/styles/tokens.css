@@ -1,0 +1,65 @@
+/*
+ * Design tokens (non-color). Colors live in themes.css so every theme can
+ * override them. Spacing uses Tailwind's 4px scale (p-1 = 4px, p-4 = 16px…);
+ * the names below cover the few sizes that aren't on that scale.
+ */
+@theme {
+  /* Artwork / layout sizes → size-art-sm, w-queue, max-w-tooltip, … */
+  --spacing-art-xs: 1.5rem;
+  --spacing-art-sm: 2.5rem;
+  --spacing-art-md: 3.5rem;
+  --spacing-art-lg: 12rem;
+  --spacing-art-card: 9rem;
+  /* The song card over a visualizer. Visualizers are dark in every theme, so these don't vary by theme. */
+  --color-visualizer-card: oklch(0 0 0 / 0.2);
+  --color-on-visualizer: oklch(0.98 0 0);
+  --spacing-art-hero: min(60vh, 37.5rem);
+  --spacing-queue: 25rem;
+  --spacing-toast: 18.75rem;
+  --spacing-tooltip: 18.75rem;
+  --spacing-card: 16.25rem;
+
+  /* Type scale additions (Tailwind provides xs…9xl) */
+  --text-2xs: 0.65rem;
+  --text-2xs--line-height: 1rem;
+
+  /* Motion */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --blur-ambient: 200px;
+}
+
+:root {
+  /* Stacking layers (use the z-* utilities below, never raw numbers) */
+  --z-content: 1;
+  --z-player: 10;
+  --z-player-track: 11; /* the seek bar overlaps the top edge of the player bar */
+  --z-zen: 20;
+  --z-zen-art: 21;
+  --z-zen-queue: 22;
+  --z-bar: 30;
+  --z-toast: 40;
+  --z-popover: 50;
+
+  /* Durations */
+  --duration-fast: 150ms;
+  --duration-normal: 300ms;
+  --duration-slow: 500ms;
+  --duration-gentle: 1000ms;
+  --duration-ambient: 3000ms;
+}
+
+@utility z-content { z-index: var(--z-content); }
+@utility z-player-track { z-index: var(--z-player-track); }
+@utility z-player { z-index: var(--z-player); }
+@utility z-zen { z-index: var(--z-zen); }
+@utility z-zen-art { z-index: var(--z-zen-art); }
+@utility z-zen-queue { z-index: var(--z-zen-queue); }
+@utility z-bar { z-index: var(--z-bar); }
+@utility z-toast { z-index: var(--z-toast); }
+@utility z-popover { z-index: var(--z-popover); }
+
+@utility duration-fast { transition-duration: var(--duration-fast); }
+@utility duration-normal { transition-duration: var(--duration-normal); }
+@utility duration-slow { transition-duration: var(--duration-slow); }
+@utility duration-gentle { transition-duration: var(--duration-gentle); }
+@utility duration-ambient { transition-duration: var(--duration-ambient); }

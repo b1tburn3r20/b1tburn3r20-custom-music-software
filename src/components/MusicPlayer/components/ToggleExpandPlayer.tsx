@@ -1,23 +1,20 @@
-"use client"
-
+import { IconButton } from "@/components/base/IconButton"
 import { useSettingsStore } from "@/stores/useSettingsStore"
-import { Triangle } from "lucide-react"
+import { ChevronUp } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 const ToggleExpandPlayer = () => {
-  const playerExpanded = useSettingsStore((f) => f.playerExpanded)
-  const setPlayerExpanded = useSettingsStore((f) => f.setPlayerExpanded)
-
+  const expanded = useSettingsStore((f) => f.playerExpanded)
+  const setExpanded = useSettingsStore((f) => f.setPlayerExpanded)
   return (
-    <div>
-      <button
-        id="music-play-button"
-        className={`rounded-full flex justify-center items-center p-4 cursor-pointer hover:bg-secondary/50 hover:text-primary transition-all ${!playerExpanded ? "rotate-0" : "rotate-180"}`}
-        onClick={() => setPlayerExpanded(!playerExpanded)}
-      >
-        <Triangle />
-      </button>
-    </div>
+    <IconButton
+      icon={ChevronUp}
+      size="sm"
+      label={expanded ? "Collapse player (F)" : "Expand player (F)"}
+      aria-expanded={expanded}
+      onClick={() => setExpanded(!expanded)}
+      iconClassName={cn("transition-transform duration-normal", expanded && "rotate-180")}
+    />
   )
 }
-
 export default ToggleExpandPlayer

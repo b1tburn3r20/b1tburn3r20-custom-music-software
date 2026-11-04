@@ -10,6 +10,8 @@ function Slider({
   max = 100,
   expand = false,
   hideThumb = false,
+  "aria-label": ariaLabel,
+  "aria-valuetext": ariaValueText,
   ...props
 }: React.ComponentProps<typeof SliderPrimitive.Root> & { expand?: boolean; hideThumb?: boolean }) {
   const _values = React.useMemo(
@@ -54,8 +56,11 @@ function Slider({
         <SliderPrimitive.Thumb
           data-slot="slider-thumb"
           key={index}
+          // The thumb is the focusable role="slider" element, so it carries the accessible name/value.
+          aria-label={ariaLabel}
+          aria-valuetext={ariaValueText}
           className={cn(
-            "border-primary ring-ring/50 block size-6 shrink-0 rounded-full border bg-white shadow-sm transition-all hover:ring-4 focus-visible:ring-4 focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50",
+            "border-primary ring-ring/50 block size-6 shrink-0 rounded-full border bg-foreground shadow-sm transition-all hover:ring-4 focus-visible:ring-4 focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50",
             hideThumb && "opacity-0"
           )}
         />

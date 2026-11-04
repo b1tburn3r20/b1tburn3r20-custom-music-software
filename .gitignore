@@ -23,3 +23,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Credentials — never commit (YouTube cookies, tokens)
+cookies.txt
+yt-cookies.txt
+*cookies*.txt
+credentials/
+backups/

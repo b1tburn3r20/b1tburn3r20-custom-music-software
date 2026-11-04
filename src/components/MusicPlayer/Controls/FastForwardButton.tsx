@@ -1,36 +1,6 @@
-import { useMusicStore } from "@/stores/useMusicStore"
-import { usePlayerStore } from "@/stores/usePlayerStore"
-import { FastForward } from "lucide-react"
-interface FastForwardButtonProps {
-  currentIndex: number
-}
+import { IconButton } from "@/components/base/IconButton"
+import { next } from "@/player/controls"
+import { SkipForward } from "lucide-react"
 
-const FastForwardButton = ({ currentIndex }: FastForwardButtonProps) => {
-
-  const setCurrentSong = usePlayerStore((f) => f.setCurrentlyPlaying)
-  const queue = useMusicStore((f) => f.queue)
-
-
-  const isThereNextSong = queue[currentIndex + 1]
-
-  const handleNextSong = () => {
-    const audioRef = usePlayerStore.getState().audioRef
-    if (audioRef) {
-      if (isThereNextSong) {
-        setCurrentSong(isThereNextSong)
-      }
-    }
-  }
-
-  return (
-    <button
-      onClick={() => handleNextSong()}
-      className="rounded-full flex justify-center items-center p-4 cursor-pointer hover:bg-secondary/50 hover:text-primary"
-    >
-      <FastForward />
-    </button>
-
-  )
-}
-
+const FastForwardButton = () => <IconButton icon={SkipForward} size="sm" label="Next (Ctrl+→)" onClick={next} iconClassName="fill-current" />
 export default FastForwardButton

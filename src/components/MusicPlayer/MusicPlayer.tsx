@@ -1,52 +1,51 @@
-"use client";
-import { usePlayerStore } from "@/stores/usePlayerStore";
-import MusicControls from "./MusicControls";
-import MusicVolume from "./MusicVolume";
-import MusicTrack from "./MusicTrack";
-import LoopingControls from "./Controls/LoopingControls";
-import ToggleExpandPlayer from "./components/ToggleExpandPlayer";
-import { useAppStore } from "@/stores/useAppStore";
-import MusicPlayerName from "./MusicPlayerName";
-import { useSettingsStore } from "@/stores/useSettingsStore";
+import { usePlayerStore } from "@/stores/usePlayerStore"
+import { useAppStore } from "@/stores/useAppStore"
+import { useSettingsStore } from "@/stores/useSettingsStore"
+import MusicControls from "./MusicControls"
+import MusicVolume from "./MusicVolume"
+import MusicTrack from "./MusicTrack"
+import ToggleExpandPlayer from "./components/ToggleExpandPlayer"
+import MusicPlayerName from "./MusicPlayerName"
+import LikeSongButton from "./Controls/like-song-button"
+import TagSongButton from "./Controls/TagSongButton"
 
+/** The slim bar at the bottom: song · transport · volume. */
 const MusicPlayer = () => {
-  const currentlyPlaying = usePlayerStore((f) => f.currentlyPlaying);
+  const currentlyPlaying = usePlayerStore((f) => f.currentlyPlaying)
   const setExpanded = useSettingsStore((f) => f.setPlayerExpanded)
   const expanded = useSettingsStore((f) => f.playerExpanded)
   const idle = useAppStore((f) => f.idle)
 
-
-
-  const handleDoubleClick = (e: any) => {
-    const tag = e.target?.tagName;
-    if (!["SPAN", "BUTTON", "INPUT"].includes(tag)) {
-      setExpanded(!expanded)
-    }
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    if (!(e.target as HTMLElement)?.closest("button,input,a,[role=slider]")) setExpanded(!expanded)
   }
 
-  if (!currentlyPlaying) {
-    return null;
-  }
+  if (!currentlyPlaying) return null
 
   return (
-    <div
-      onDoubleClick={(e) => handleDoubleClick(e)}
-      className={`shrink-0 flex flex-col relative transition-transform duration-1000 ease-in-out ${idle ? 'translate-y-full' : 'translate-y-0'}`}
+    <section
+      aria-label="Player"
+      data-region="player"
+      onDoubleClick={handleDoubleClick}
+      className={`relative flex shrink-0 flex-col transition-transform duration-gentle ease-standard ${idle ? "translate-y-full" : "translate-y-0"}`}
     >
       <MusicTrack />
-      <div className="grid z-[8] grid-cols-3 items-center w-full backdrop-blur-md p-4 bg-black/20 shadow-2xl inset-shadow-sm border-background/40">
-        <MusicPlayerName />
-        <div className="flex justify-center items-center">
-          <MusicControls />
+      <div className="z-player grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-10 bg-background/70 px-6 py-2 shadow-2xl backdrop-blur-md">
+        <div className="flex min-w-0 items-center gap-4">
+          <MusicPlayerName />
+          <div className="flex shrink-0 items-center gap-1">
+            <LikeSongButton song={currentlyPlaying} />
+            <TagSongButton song={currentlyPlaying} />
+          </div>
         </div>
-        <div className="flex gap-2 justify-center items-center">
+        <MusicControls />
+        <div className="flex items-center justify-end gap-4">
           <MusicVolume />
-          <LoopingControls />
           <ToggleExpandPlayer />
         </div>
       </div>
-    </div>
-  );
-};
+    </section>
+  )
+}
 
-export default MusicPlayer;
+export default MusicPlayer
