@@ -205,49 +205,11 @@ export function buildTagList(songs: Song[], userTags: TagMap): { key: string; na
 
 export const songsWithTag = (songs: Song[], tag: string, userTags: TagMap) => songs.filter((s) => tagsOf(s, userTags).some((t) => lc(t) === lc(tag)))
 
-/** Weighted random sample without replacement (Efraimidis–Spirakis). */
-function weightedSample<T>(items: { v: T; w: number }[], n: number, rand: () => number): T[] {
-  return items
-    .map((x) => ({ v: x.v, k: Math.pow(rand() || 1e-12, 1 / x.w) }))
-    .sort((a, b) => b.k - a.k)
-    .slice(0, n)
-    .map((x) => x.v)
-}
-
-
-
 /** How many of your tags a candidate shares with the seed. */
 export function sharedTagCount(seed: Song, cand: Song, userTags: TagMap = {}): number {
   const seedTags = new Set(tagsOf(seed, userTags).map(lc))
   if (!seedTags.size) return 0
   return tagsOf(cand, userTags).filter((t) => seedTags.has(lc(t))).length
-}
-
-/**
- * Radio suggestions, in strict tiers:
- *  1. songs sharing tags with the seed — always first, most shared tags first
- *     (random order among equals), so a "somber" seed plays every other
- *     "somber" song before anything untagged;
- *  2. then songs sharing an artist (weighted random);
- *  3. then everything else (random), for variety once related songs run out.
- */
-export function radioFor(songs: Song[], seed: Song, exclude: Set<string>, count = 15, rand: () => number = Math.random, userTags: TagMap = {}): Song[] {
-  const tagged: { s: Song; n: number; r: number }[] = []
-  const artistRelated: { v: Song; w: number }[] = []
-  const rest: { v: Song; w: number }[] = []
-  const seedArtists = new Set(songArtists(seed).map(lc))
-  for (const s of songs) {
-    if (s.id === seed.id || exclude.has(s.id)) continue
-    const n = sharedTagCount(seed, s, userTags)
-    if (n > 0) tagged.push({ s, n, r: rand() })
-    else if (songArtists(s).some((a) => seedArtists.has(lc(a)))) artistRelated.push({ v: s, w: 1 })
-    else rest.push({ v: s, w: 1 })
-  }
-  tagged.sort((a, b) => b.n - a.n || a.r - b.r)
-  const out = tagged.slice(0, count).map((t) => t.s)
-  if (out.length < count) out.push(...weightedSample(artistRelated, count - out.length, rand))
-  if (out.length < count) out.push(...weightedSample(rest, count - out.length, rand))
-  return out
 }
 
 const rank = (name: string, words: string[], q: string) => {

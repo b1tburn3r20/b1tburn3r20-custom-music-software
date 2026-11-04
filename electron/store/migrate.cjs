@@ -17,6 +17,9 @@ const DEFAULT_SETTINGS = Object.freeze({
   expandOnPlay: false,
   zenMode: true,
   zenTimeout: 3000,
+  playerBackground: "artwork", // 'artwork' | 'visualizer' (full-screen player)
+  visualizer: "cycle", // a scene id, or 'cycle' for a different one each song
+  visualizerOffsetMs: 0, // extra visual delay on top of the reported output latency (Bluetooth etc.)
   youtubeAuth: { mode: "none", browser: "firefox", profile: "" },
 });
 
@@ -27,6 +30,8 @@ function emptyUserState() {
     likes: [],
     recentlyPlayed: [],
     recentlyDownloaded: [],
+    /** songId -> when it was downloaded (ms). Older downloads have no entry. */
+    downloadedAt: {},
     recentPlaylists: [],
     /** songId -> your own tags (moods/genres), e.g. ["somber", "rap"] */
     songTags: {},

@@ -11,6 +11,7 @@ export type Route =
   | { name: "liked" }
   | { name: "tag"; tag: string }
   | { name: "history" }
+  | { name: "downloads" }
   | { name: "stats" }
   | { name: "youtube" }
 
@@ -54,15 +55,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
 export const navigate = (route: Route, opts?: { replace?: boolean }) => useAppStore.getState().navigate(route, opts)
 
-/** Mouse back/forward buttons and Alt+←/→ walk the page history. */
+/** Mouse back/forward buttons walk the page history (Alt+←/→ is in src/app/shortcuts.ts). */
 export function installNavigationShortcuts() {
   window.addEventListener("mouseup", (e) => {
     if (e.button === 3) useAppStore.getState().goBack()
     if (e.button === 4) useAppStore.getState().goForward()
-  })
-  window.addEventListener("keydown", (e) => {
-    if (!e.altKey) return
-    if (e.key === "ArrowLeft") useAppStore.getState().goBack()
-    if (e.key === "ArrowRight") useAppStore.getState().goForward()
   })
 }

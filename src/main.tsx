@@ -6,8 +6,10 @@ import { Toaster } from "@/components/ui/sonner"
 import { bootstrapData } from './data/bootstrap.ts'
 import { initPlayer } from './player/controls.ts'
 import { installNavigationShortcuts } from './stores/useAppStore.ts'
+import { installShortcuts } from './app/shortcuts.ts'
 
 installNavigationShortcuts()
+installShortcuts()
 initPlayer()
 void bootstrapData()
 

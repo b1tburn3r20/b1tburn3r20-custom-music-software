@@ -1,36 +1,27 @@
-import { useCallback, useEffect, useState } from "react"
+import { useEffect } from "react"
 import { RefreshCcw, LogIn } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/base/Page"
-import { ApiError, call } from "@/lib/api"
-import type { MyYoutubePlaylist } from "@/types/api"
 import { useUserStore } from "@/stores/useUserStore"
 import { openSettings } from "@/app/settings/settingsStore"
 import { PlaylistPanel } from "./PlaylistPanel"
 import { AuthBanner } from "./AuthBanner"
+import { useMyPlaylistsStore } from "./myPlaylistsStore"
 
-/** The signed-in user's own YouTube playlists (including private ones and Liked videos). */
+/** The signed-in user's own YouTube playlists (including private ones and Liked videos). Cached; "Refresh" resyncs. */
 export function MyPlaylists() {
   const mode = useUserStore((s) => s.settings.youtubeAuth.mode)
-  const [playlists, setPlaylists] = useState<MyYoutubePlaylist[] | null>(null)
-  const [error, setError] = useState<{ code: string; message: string } | null>(null)
-  const [loading, setLoading] = useState(false)
+  const playlists = useMyPlaylistsStore((s) => s.playlists)
+  const loading = useMyPlaylistsStore((s) => s.loading)
+  const error = useMyPlaylistsStore((s) => s.error)
+  const items = useMyPlaylistsStore((s) => s.items)
+  const open = useMyPlaylistsStore((s) => s.open)
+  const { loadPlaylists, loadItems, setOpen } = useMyPlaylistsStore.getState()
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      setPlaylists(await call(window.api.youtube.myPlaylists()))
-    } catch (err) {
-      setError({ code: err instanceof ApiError ? err.code : "ERROR", message: (err as Error).message })
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
+  // Fetches only the first time (or after the sign-in method changes); otherwise uses the cache.
   useEffect(() => {
-    if (mode !== "none") void load()
-  }, [mode, load])
+    if (mode !== "none") void loadPlaylists(mode)
+  }, [mode, loadPlaylists])
 
   if (mode === "none")
     return (
@@ -46,21 +37,32 @@ export function MyPlaylists() {
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">{playlists ? `${playlists.length} playlists` : loading ? "Loading your playlists…" : ""}</p>
-        <Button size="sm" variant="ghost" onClick={load} disabled={loading}>
+        <Button size="sm" variant="ghost" onClick={() => loadPlaylists(mode, true)} disabled={loading} title="Fetch your playlists from YouTube again">
           <RefreshCcw className={loading ? "animate-spin" : ""} /> Refresh
         </Button>
       </div>
       {error && <AuthBanner code={error.code} message={error.message} />}
-      {playlists?.map((p) => (
-        <PlaylistPanel
-          key={p.id}
-          id={p.id}
-          title={p.title}
-          subtitle={p.system ? "Private · system playlist" : p.count != null ? `${p.count} videos` : undefined}
-          thumbnail={p.thumbnail}
-          load={async () => (await call(window.api.youtube.playlistItems(p.id))).videos}
-        />
-      ))}
+      {playlists?.map((p) => {
+        const it = items[p.id]
+        return (
+          <PlaylistPanel
+            key={p.id}
+            id={p.id}
+            title={p.title}
+            subtitle={p.system ? "Private · system playlist" : p.count != null ? `${p.count} videos` : undefined}
+            thumbnail={p.thumbnail}
+            videos={it?.videos ?? null}
+            loading={it?.loading ?? false}
+            error={it?.error ?? null}
+            open={Boolean(open[p.id])}
+            onOpenChange={(o) => {
+              setOpen(p.id, o)
+              if (o) void loadItems(p.id)
+            }}
+            onRefresh={() => loadItems(p.id, true)}
+          />
+        )
+      })}
     </div>
   )
 }

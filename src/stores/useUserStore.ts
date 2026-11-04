@@ -16,6 +16,9 @@ const DEFAULT_SETTINGS: Settings = {
   expandOnPlay: false,
   zenMode: true,
   zenTimeout: 3000,
+  playerBackground: "artwork",
+  visualizer: "cycle",
+  visualizerOffsetMs: 0,
   youtubeAuth: { mode: "none", browser: "firefox", profile: "" },
 }
 
@@ -27,6 +30,7 @@ export const useUserStore = create<UserState>((set) => ({
   likedIds: new Set(),
   recentlyPlayed: [],
   recentlyDownloaded: [],
+  downloadedAt: {},
   recentPlaylists: [],
   settings: DEFAULT_SETTINGS,
   notices: [],

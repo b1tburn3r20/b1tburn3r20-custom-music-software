@@ -13,6 +13,12 @@ export type Settings = {
   expandOnPlay: boolean
   zenMode: boolean
   zenTimeout: number
+  /** Full-screen player background: blurred cover art, or an audio visualizer. */
+  playerBackground: "artwork" | "visualizer"
+  /** Visualizer scene id, or "cycle" for a different one each song. */
+  visualizer: string
+  /** Extra delay (ms) for the visualizer on top of the reported audio output latency. */
+  visualizerOffsetMs: number
   youtubeAuth: { mode: "none" | "browser" | "file"; browser: string; profile: string }
 }
 
@@ -31,7 +37,10 @@ export type UserSnapshot = {
   playlists: Playlist[]
   likes: { songId: string; likedAt: number }[]
   recentlyPlayed: { songId: string; playedAt: number | null; legacy?: boolean }[]
+  /** Newest first. */
   recentlyDownloaded: string[]
+  /** songId -> download time (ms); missing for downloads made before this was tracked. */
+  downloadedAt: Record<string, number>
   recentPlaylists: string[]
   settings: Settings
   notices: { id: string; createdAt: number; message: string }[]
@@ -107,6 +116,7 @@ export type RawApi = {
     get(range: StatsRange): Promise<IpcResult<StatsSummary>>
     history(opts?: { limit?: number; before?: number }): Promise<IpcResult<PlayEvent[]>>
     forgotten(opts?: { minPlays?: number; olderThanDays?: number; limit?: number }): Promise<IpcResult<{ songId: string; plays: number; ms: number; lastPlayedAt: number }[]>>
+    radioSignals(): Promise<IpcResult<RadioSignals>>
     onChanged(cb: (p: { at: number }) => void): Unsubscribe
   }
   sync: {
@@ -140,6 +150,11 @@ export type StatsSummary = {
   topSongs: { songId: string; plays: number; ms: number; lastPlayedAt: number }[]
   topArtists: { name: string; plays: number; ms: number; songCount: number }[]
   daily: { day: string; ms: number }[]
+}
+export type RadioSignals = {
+  songs: Record<string, { plays: number; skips: number; lastPlayedAt: number; lastSkippedAt: number }>
+  /** songId → songs you chose to hear near it → how often */
+  together: Record<string, Record<string, number>>
 }
 export type PlayEvent = { id: string; songId: string; endedAt: number; listenedMs: number; counted: boolean }
 

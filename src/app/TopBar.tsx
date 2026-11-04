@@ -1,48 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { ChevronLeft, ChevronRight, ListMusic, Mic2, Music, Search, Youtube } from "lucide-react"
-import type { LucideIcon } from "lucide-react"
+import { ChevronLeft, ChevronRight, Keyboard, Mic2, Search } from "lucide-react"
+import { IconButton } from "@/components/base/IconButton"
+import { dialogs } from "@/stores/useDialogStore"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { SongRow } from "@/components/song/SongRow"
-import { useLibraryStore } from "@/stores/useLibraryStore"
 import { navigate, useAppStore } from "@/stores/useAppStore"
 import { useSettingsStore } from "@/stores/useSettingsStore"
-import { useYoutubeStore } from "@/components/youtube/searchStore"
-import { useYoutubeTab } from "@/components/youtube/tabStore"
-import { buildArtistList, searchAlbums, searchArtists, searchSongs, shuffled } from "@/lib/catalog"
+import { SEARCH_ACTIONS, useLibrarySearch } from "./librarySearch"
 import { Artwork } from "@/components/base/Artwork"
 import { playRadio } from "@/player/controls"
 import { cn } from "@/lib/utils"
 import { ListButton } from "@/components/base/Layout"
 import AppSettings from "./settings/SettingsDialog"
 
-const YTM = "https://music.youtube.com"
-
-function openYTMPopup(url: string) {
-  const width = Math.min(window.screen.width * 0.85, 1200)
-  const height = Math.min(window.screen.height * 0.85, 900)
-  window.open(url, "ytmusic", `width=${width},height=${height},left=${(window.screen.width - width) / 2},top=${(window.screen.height - height) / 2},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`)
-}
-
-function searchYouTubeApi(q: string, playlists: boolean) {
-  const yt = useYoutubeStore.getState()
-  yt.setSearchTerm(q)
-  yt.setPlaylists(playlists)
-  yt.incrementTriggerSearchKey()
-  useYoutubeTab.getState().setTab("search")
-  navigate({ name: "youtube" })
-}
-
-type Action = { key: string; icon: LucideIcon; label: string; tag: string; run: (q: string) => void }
-const ACTIONS: Action[] = [
-  { key: "ytm-song", icon: Music, label: "Search songs", tag: "YouTube Music", run: (q) => openYTMPopup(`${YTM}/search?q=${encodeURIComponent(q)}`) },
-  { key: "ytm-pl", icon: ListMusic, label: "Search playlists", tag: "YouTube Music", run: (q) => openYTMPopup(`${YTM}/search?q=${encodeURIComponent(q)}&params=EgeKAQQoAUICCAE%3D`) },
-  { key: "api-video", icon: Youtube, label: "Search videos", tag: "YouTube", run: (q) => searchYouTubeApi(q, false) },
-  { key: "api-pl", icon: ListMusic, label: "Search playlists", tag: "YouTube", run: (q) => searchYouTubeApi(q, true) },
-]
+const LIMITS = { artists: 3, albums: 3, songs: 5 }
 
 function SearchBox() {
-  const songs = useLibraryStore((s) => s.songs)
   const route = useAppStore((s) => s.route)
   const expanded = useSettingsStore((s) => s.playerExpanded)
   const [query, setQuery] = useState("")
@@ -51,15 +25,8 @@ function SearchBox() {
   const boxRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const randomFive = useMemo(() => shuffled(songs).slice(0, 5), [songs.length, open])
-  const albums = useLibraryStore((s) => s.albums)
-  const artistList = useMemo(() => buildArtistList(songs), [songs])
-  const q = query.trim()
-  const artistHits = useMemo(() => (q ? searchArtists(artistList, q, 3) : []), [artistList, q])
-  const albumHits = useMemo(() => (q ? searchAlbums(albums, q, 3) : []), [albums, q])
-  const suggestions = useMemo(() => (q ? searchSongs(songs, q, 5) : randomFive), [songs, q, randomFive])
-  const actions = useMemo(() => (q ? ACTIONS : []), [q])
+  const { q, artistHits, albumHits, songHits: suggestions } = useLibrarySearch(query, LIMITS, open)
+  const actions = useMemo(() => (q ? SEARCH_ACTIONS : []), [q])
   // One flat list so ↑/↓ move across every section.
   const items = useMemo(
     () => [
@@ -143,6 +110,8 @@ function SearchBox() {
       <Search className="pointer-events-none absolute left-2.5 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" aria-hidden />
       <Input
         ref={inputRef}
+        id="app-search"
+        data-region-focus
         role="combobox"
         aria-expanded={open}
         aria-controls="search-suggestions"
@@ -235,18 +204,19 @@ export default function TopBar() {
   const canBack = useAppStore((s) => s.back.length > 0)
   const canForward = useAppStore((s) => s.forward.length > 0)
   return (
-    <div className="flex w-full items-center gap-2 p-4">
+    <div className="flex w-full items-center gap-2 p-4" data-region="top" role="search">
       <div className="flex gap-1">
-        <Button variant="ghost" size="icon" aria-label="Back" disabled={!canBack} onClick={() => useAppStore.getState().goBack()}>
+        <Button variant="ghost" size="icon" aria-label="Back (Alt+←)" title="Back (Alt+←)" disabled={!canBack} onClick={() => useAppStore.getState().goBack()}>
           <ChevronLeft />
         </Button>
-        <Button variant="ghost" size="icon" aria-label="Forward" disabled={!canForward} onClick={() => useAppStore.getState().goForward()}>
+        <Button variant="ghost" size="icon" aria-label="Forward (Alt+→)" title="Forward (Alt+→)" disabled={!canForward} onClick={() => useAppStore.getState().goForward()}>
           <ChevronRight />
         </Button>
       </div>
       <div className="mx-auto w-full max-w-xl">
         <SearchBox />
       </div>
+      <IconButton icon={Keyboard} label="Keyboard shortcuts (Ctrl+/)" size="md" className="bg-muted/60" onClick={() => dialogs().openShortcuts(true)} />
       <AppSettings />
     </div>
   )

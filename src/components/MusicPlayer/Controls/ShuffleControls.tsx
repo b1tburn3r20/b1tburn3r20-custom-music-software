@@ -5,6 +5,6 @@ import { Shuffle } from "lucide-react"
 
 const ShuffleControls = () => {
   const shuffle = usePlayerStore((s) => s.queue.shuffle)
-  return <IconButton icon={Shuffle} label={shuffle ? "Shuffle: on" : "Shuffle: off"} aria-pressed={shuffle} active={shuffle} onClick={toggleShuffle} />
+  return <IconButton icon={Shuffle} size="sm" label={shuffle ? "Shuffle: on (S)" : "Shuffle: off (S)"} aria-pressed={shuffle} active={shuffle} onClick={toggleShuffle} />
 }
 export default ShuffleControls

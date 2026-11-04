@@ -42,6 +42,20 @@ export function currentItem(q: QueueState): QueueItem | null {
 }
 export const currentSongId = (q: QueueState) => currentItem(q)?.songId ?? null
 
+/**
+ * The song a radio's suggestions are based on. It stays fixed so the mix follows its
+ * tags until they're exhausted: the radio's own seed, or for autoplay after a list,
+ * the last song you chose rather than whichever suggestion is playing now.
+ */
+export function radioSeedId(q: QueueState): string | null {
+  if (q.context?.type === "radio" && q.context.id) return q.context.id
+  for (let i = q.pos; i >= 0; i--) {
+    const item = q.items[q.order[i]]
+    if (item && item.source !== "radio") return item.songId
+  }
+  return currentSongId(q)
+}
+
 /** Items after the current one, in playback order. */
 export function upcoming(q: QueueState): QueueItem[] {
   return q.order.slice(q.pos + 1).map((i) => q.items[i])

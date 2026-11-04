@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { SongRow } from "@/components/song/SongRow"
+import { VirtualList } from "@/components/base/VirtualList"
 import { searchSongs } from "@/lib/catalog"
 import { useLibraryStore } from "@/stores/useLibraryStore"
 
@@ -63,9 +64,7 @@ export default function AddSongsDialog({ open, onOpenChange, title = "Add songs"
         <Input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search your library…" aria-label="Search songs" />
         <ScrollArea className="h-96">
           <div className="flex flex-col pr-3">
-            {results.map((s) => (
-              <SongRow key={s.id} song={s} variant="compact" selected={selected.has(s.id)} onToggleSelect={() => toggle(s.id)} />
-            ))}
+            <VirtualList items={results} getKey={(s) => s.id} estimateSize={52} threshold={40} renderItem={(s) => <SongRow song={s} variant="compact" selected={selected.has(s.id)} onToggleSelect={() => toggle(s.id)} />} />
             {!results.length && <p className="py-8 text-center text-sm text-muted-foreground">{songs.length ? "No matching songs that aren't already in this playlist." : "Your library is empty."}</p>}
           </div>
         </ScrollArea>

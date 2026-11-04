@@ -8,6 +8,21 @@ const rand = () => 0
 const cur = (q: Q.QueueState) => Q.currentSongId(q)
 const playOrder = (q: Q.QueueState) => Q.songIdsInPlayOrder(q).join("")
 
+describe("radioSeedId", () => {
+  it("keeps a radio's own seed, whatever is playing", () => {
+    const q = Q.playContext(Q.emptyQueue(), ["a", "b"], 1, { type: "radio", id: "a", label: "a radio" })
+    expect(Q.radioSeedId(q)).toBe("a")
+  })
+  it("after a list, stays on the last song you chose while suggestions play", () => {
+    let q = Q.playContext(Q.emptyQueue(), ["a", "b"], 1, ctx)
+    q = Q.addToQueue(q, ["r1", "r2"], "radio")
+    expect(Q.radioSeedId(q)).toBe("b")
+    q = { ...q, pos: q.pos + 2 }
+    expect(cur(q)).toBe("r2")
+    expect(Q.radioSeedId(q)).toBe("b")
+  })
+})
+
 describe("playContext", () => {
   it("queues the whole list and starts at the clicked song", () => {
     const q = Q.playContext(Q.emptyQueue(), ids, 2, ctx)

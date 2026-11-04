@@ -1,6 +1,7 @@
-import { Fragment, useEffect, useMemo } from "react"
+import { useEffect, useMemo } from "react"
 import { History } from "lucide-react"
-import { Page, PageHeader, Section, EmptyState } from "@/components/base/Page"
+import { Container, Page, PageHeader, EmptyState } from "@/components/base/Page"
+import { VirtualList } from "@/components/base/VirtualList"
 import { SongRow } from "@/components/song/SongRow"
 import { Button } from "@/components/ui/button"
 import { resolveSongs, useLibraryStore } from "@/stores/useLibraryStore"
@@ -12,6 +13,21 @@ import type { QueueContext } from "@/player/queue"
 import type { Song } from "@/types/DirectoryTypes"
 
 const CONTEXT: QueueContext = { type: "history", label: "History" }
+
+type HistoryRow =
+  | { kind: "heading"; key: string; label: string; first: boolean; note?: string }
+  | { kind: "song"; key: string; song: Song; list: readonly Song[]; badge?: string }
+
+function renderRow(r: HistoryRow) {
+  if (r.kind === "heading")
+    return (
+      <div className={r.first ? "" : "pt-6"}>
+        <h2 className="mb-4 truncate text-2xl font-bold tracking-tight">{r.label}</h2>
+        {r.note && <p className="mb-2 text-sm text-muted-foreground">{r.note}</p>}
+      </div>
+    )
+  return <SongRow song={r.song} variant="row" startRadio list={r.list} queueContext={CONTEXT} badge={r.badge} />
+}
 
 /** Listening sessions, newest first, grouped by day. Pre-overhaul history (no timestamps) is listed last. */
 export default function HistoryPage() {
@@ -39,26 +55,28 @@ export default function HistoryPage() {
   const legacySongs = useMemo(() => resolveSongs(recentlyPlayed.filter((r) => r.legacy).map((l) => l.songId), byId), [recentlyPlayed, byId])
   const empty = history !== null && !groups.length && !legacySongs.length
 
+  // One flat list (day headings + songs) so long histories can be virtualized.
+  const rows = useMemo(() => {
+    const out: HistoryRow[] = []
+    groups.forEach((g, gi) => {
+      out.push({ kind: "heading", key: `h:${g.label}`, label: g.label, first: gi === 0 })
+      for (const r of g.rows) out.push({ kind: "song", key: r.key, song: r.song, list: listSongs, badge: `${new Date(r.at).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })} · ${formatListening(r.listenedMs)}${r.counted ? "" : " · skipped"}` })
+    })
+    if (legacySongs.length) {
+      out.push({ kind: "heading", key: "h:legacy", label: "Earlier", first: !groups.length, note: "Played before listening stats were tracked (no dates)." })
+      legacySongs.forEach((s) => out.push({ kind: "song", key: `legacy:${s.id}`, song: s, list: legacySongs }))
+    }
+    return out
+  }, [groups, listSongs, legacySongs])
+
   return (
     <Page>
       <PageHeader eyebrow="History" title="Recently played" icon={History} colorKey="history" actions={<Button variant="secondary" onClick={() => navigate({ name: "stats" })}>Listening stats</Button>} />
       {empty && <EmptyState icon={History} title="Nothing played yet" />}
-      {groups.map((g) => (
-        <Section key={g.label} title={g.label} className="pt-0">
-          {g.rows.map((r) => (
-            <Fragment key={r.key}>
-              <SongRow song={r.song} variant="row" list={listSongs} queueContext={CONTEXT} badge={`${new Date(r.at).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })} · ${formatListening(r.listenedMs)}${r.counted ? "" : " · skipped"}`} />
-            </Fragment>
-          ))}
-        </Section>
-      ))}
-      {legacySongs.length > 0 && (
-        <Section title="Earlier" className="pt-0">
-          <p className="mb-2 text-sm text-muted-foreground">Played before listening stats were tracked (no dates).</p>
-          {legacySongs.map((s) => (
-            <SongRow key={s.id} song={s} list={legacySongs} queueContext={CONTEXT} />
-          ))}
-        </Section>
+      {rows.length > 0 && (
+        <Container className="pb-6">
+          <VirtualList items={rows} getKey={(r) => r.key} estimateSize={(r) => (r.kind === "song" ? 56 : 64)} renderItem={renderRow} />
+        </Container>
       )}
     </Page>
   )

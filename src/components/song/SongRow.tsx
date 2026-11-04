@@ -1,7 +1,5 @@
 // The one song component used everywhere a song appears.
-import { memo, useLayoutEffect, useRef, useState } from "react"
-import { useVirtualizer } from "@tanstack/react-virtual"
-import { useScrollParent } from "@/app/scrollContext"
+import { memo, useMemo, useState } from "react"
 import { MoreHorizontal, Pause, Play, Youtube, FileAudio, Check } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Song } from "@/types/DirectoryTypes"
@@ -11,7 +9,8 @@ import { useUserStore } from "@/stores/useUserStore"
 import { useSelectionStore } from "@/stores/useSelectionStore"
 import { dialogs } from "@/stores/useDialogStore"
 import { navigate } from "@/stores/useAppStore"
-import { togglePlay } from "@/player/controls"
+import { addToQueue, playNext, togglePlay } from "@/player/controls"
+import { setLiked } from "@/lib/actions"
 import { songArtists } from "@/lib/catalog"
 import { formatDuration } from "@/utils/textUtils"
 import { openAlbumForSong, openArtist } from "@/utils/musicutils"
@@ -19,6 +18,7 @@ import { ContextMenu, ContextMenuContent, ContextMenuTrigger } from "@/component
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import LottieViewer from "@/components/helpers/lottie-viewer"
 import { Artwork } from "@/components/base/Artwork"
+import { VirtualList } from "@/components/base/VirtualList"
 import { MenuEntries } from "./menu"
 import { playSongInContext, useSongMenu, type SongContext } from "./useSongMenu"
 
@@ -40,6 +40,10 @@ export type SongRowProps = SongContext & {
   className?: string
   /** Extra inline label after the artist line (e.g. "queued"). */
   badge?: string
+  /** Leave the album line out of a "tile" for a denser grid. */
+  hideAlbum?: boolean
+  /** Show the song's tags as a quiet line under the artist (rows, compact and cards). */
+  showTags?: boolean
 }
 
 function ArtistLinks({ song, onNavigate }: { song: Song; onNavigate?: () => void }) {
@@ -100,8 +104,23 @@ function PlayStateIcon({ current, playing, hovered }: { current: boolean; playin
   return <Play className={cn("size-4", current && "fill-current")} />
 }
 
+/**
+ * ↑/↓ (and Home/End) between song rows: the rows of the same surface (page, queue,
+ * dialog, search popup) in on-screen order. Returns the newly focused row.
+ */
+function moveRowFocus(from: HTMLElement, step: number): HTMLElement | null {
+  const scope = from.closest("[role=dialog],[data-queue],#search-suggestions,[data-radix-scroll-area-viewport]") ?? document.body
+  const rows = [...scope.querySelectorAll<HTMLElement>("[data-song-row]")]
+  const i = rows.indexOf(from)
+  const to = step === -Infinity ? rows[0] : step === Infinity ? rows[rows.length - 1] : rows[i + step]
+  if (!to) return null
+  to.focus({ preventScroll: true })
+  to.scrollIntoView({ block: "nearest" })
+  return to
+}
+
 export const SongRow = memo(function SongRow(props: SongRowProps) {
-  const { song, variant = "row", index, onActivate, selected, onToggleSelect, dimmed, className, badge, ...ctx } = props
+  const { song, variant = "row", index, onActivate, selected, onToggleSelect, dimmed, className, badge, hideAlbum, showTags, ...ctx } = props
   const storeCurrent = usePlayerStore((s) => s.currentSongId === song.id)
   const isCurrent = props.isCurrent ?? storeCurrent
   const storePlaying = usePlayerStore((s) => s.currentSongId === song.id && !s.paused)
@@ -128,16 +147,57 @@ export const SongRow = memo(function SongRow(props: SongRowProps) {
     if (isCurrent) return togglePlay()
     playSongInContext(song, ctx)
   }
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" || e.key === " ") {
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.target !== e.currentTarget) return // keys on the row's own buttons (⋯, artist links) are theirs
+    const stop = () => {
       e.preventDefault()
       e.stopPropagation()
-      activate(e)
-    } else if (e.key.toLowerCase() === "t" && !e.ctrlKey && !e.metaKey && !e.altKey && !selectable && !useSelectionStore.getState().ids.size) {
-      // T on a focused song: edit its tags
-      e.preventDefault()
-      e.stopPropagation()
+    }
+    const mod = e.ctrlKey || e.metaKey || e.altKey
+    const key = e.key
+    if (key === "Enter" || key === " ") {
+      stop()
+      // Shift/Ctrl+Enter would extend the selection; plain Enter plays.
+      activate(key === " " ? undefined : e)
+      return
+    }
+    const step = key === "ArrowDown" || (variant === "tile" && key === "ArrowRight") ? 1 : key === "ArrowUp" || (variant === "tile" && key === "ArrowLeft") ? -1 : 0
+    if ((step || key === "Home" || key === "End") && !mod) {
+      stop()
+      const target = moveRowFocus(e.currentTarget, step || (key === "Home" ? -Infinity : Infinity))
+      // Shift+↑/↓ selects as you go (like Shift-click).
+      if (e.shiftKey && step && ctx.list && index !== undefined && !selectable) {
+        const sel = useSelectionStore.getState()
+        const to = index + step
+        if (to >= 0 && to < ctx.list.length && target) {
+          if (sel.list !== ctx.list || !sel.ids.has(song.id)) sel.toggle(ctx.list, index)
+          useSelectionStore.getState().range(ctx.list, to)
+        }
+      }
+      return
+    }
+    if (key === "ContextMenu" || (key === "F10" && e.shiftKey)) {
+      // Open the right-click menu at the row (Radix positions it from the pointer coords).
+      stop()
+      const r = e.currentTarget.getBoundingClientRect()
+      e.currentTarget.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: r.left + 48, clientY: r.top + r.height / 2 }))
+      return
+    }
+    if (mod || selectable || e.repeat) return
+    const k = key.toLowerCase()
+    if (k === "t" && !useSelectionStore.getState().ids.size) {
+      // T on a focused song: edit its tags (with a selection, the selection bar tags all of them)
+      stop()
       dialogs().openTags([song])
+    } else if (k === "l") {
+      stop()
+      void setLiked(song.id, !useUserStore.getState().likedIds.has(song.id))
+    } else if (k === "q") {
+      stop()
+      addToQueue([song])
+    } else if (k === "n") {
+      stop()
+      playNext([song])
     }
   }
 
@@ -147,7 +207,7 @@ export const SongRow = memo(function SongRow(props: SongRowProps) {
     </span>
   )
   const meta = song.metadata
-  const showAlbumLine = variant !== "compact" || duplicateTitle
+  const showAlbumLine = !hideAlbum && (variant !== "compact" || duplicateTitle)
 
   const moreButton = !selectable && (
     <DropdownMenu open={menuOpen} onOpenChange={(o) => { setMenuOpen(o); if (o) setMenuUsed(true) }}>
@@ -241,6 +301,11 @@ export const SongRow = memo(function SongRow(props: SongRowProps) {
             </span>
           )}
           {variant === "compact" && duplicateTitle && meta.album && <span className="text-muted-foreground/70 truncate text-xs">{meta.album}</span>}
+          {showTags && (
+            <span className="truncate text-xs text-muted-foreground/60" title={tags?.join(", ")}>
+              {tags?.length ? tags.join(" · ") : <span className="italic opacity-70">no tags</span>}
+            </span>
+          )}
         </div>
         {variant === "row" && tags && tags.length > 0 && (
           <span className="hidden shrink-0 items-center gap-1 lg:flex">
@@ -302,43 +367,26 @@ export const SongRow = memo(function SongRow(props: SongRowProps) {
   )
 })
 
-const VIRTUALIZE_AFTER = 60
 const ROW_HEIGHT = { row: 56, compact: 52, card: 72, tile: 240 } as const
 
 /** A list of songs where each row plays the list from that song. Long lists are virtualized. */
 export function SongList({ songs, variant = "row", className, ...ctx }: { songs: readonly Song[]; variant?: SongRowVariant; className?: string } & Omit<SongContext, "list">) {
-  const scrollParent = useScrollParent()
-  if (songs.length > VIRTUALIZE_AFTER && scrollParent) return <VirtualSongList songs={songs} variant={variant} className={className} scrollParent={scrollParent} {...ctx} />
+  // A playlist can hold the same song twice: keys must still be unique.
+  const keys = useMemo(() => {
+    const seen = new Map<string, number>()
+    return songs.map((s) => {
+      const n = seen.get(s.id) ?? 0
+      seen.set(s.id, n + 1)
+      return n ? `${s.id}#${n}` : s.id
+    })
+  }, [songs])
   return (
-    <div className={cn("flex flex-col", className)}>
-      {songs.map((s, i) => (
-        <SongRow key={s.id} song={s} index={i} variant={variant} list={songs} {...ctx} />
-      ))}
-    </div>
-  )
-}
-
-function VirtualSongList({ songs, variant, className, scrollParent, ...ctx }: { songs: readonly Song[]; variant: SongRowVariant; className?: string; scrollParent: HTMLElement } & Omit<SongContext, "list">) {
-  const listRef = useRef<HTMLDivElement>(null)
-  const [offset, setOffset] = useState(0)
-  useLayoutEffect(() => {
-    const measure = () => {
-      const el = listRef.current
-      if (el) setOffset(el.getBoundingClientRect().top - scrollParent.getBoundingClientRect().top + scrollParent.scrollTop)
-    }
-    measure()
-    const ro = new ResizeObserver(measure)
-    ro.observe(scrollParent)
-    return () => ro.disconnect()
-  }, [scrollParent])
-  const v = useVirtualizer({ count: songs.length, getScrollElement: () => scrollParent, estimateSize: () => ROW_HEIGHT[variant], overscan: 12, scrollMargin: offset })
-  return (
-    <div ref={listRef} className={cn("relative", className)} style={{ height: v.getTotalSize() }}>
-      {v.getVirtualItems().map((item) => (
-        <div key={songs[item.index].id} data-index={item.index} ref={v.measureElement} className="absolute inset-x-0 top-0" style={{ transform: `translateY(${item.start - v.options.scrollMargin}px)` }}>
-          <SongRow song={songs[item.index]} index={item.index} variant={variant} list={songs} {...ctx} />
-        </div>
-      ))}
-    </div>
+    <VirtualList
+      items={songs}
+      getKey={(_, i) => keys[i]}
+      estimateSize={ROW_HEIGHT[variant]}
+      className={className}
+      renderItem={(s, i) => <SongRow song={s} index={i} variant={variant} list={songs} {...ctx} />}
+    />
   )
 }

@@ -7,6 +7,7 @@ import AlbumPage from "@/pages/AlbumPage"
 import ArtistPage from "@/pages/ArtistPage"
 import LikedPage from "@/pages/LikedPage"
 import HistoryPage from "@/pages/HistoryPage"
+import DownloadsPage from "@/pages/DownloadsPage"
 import StatsPage from "@/pages/StatsPage"
 import TagPage from "@/pages/TagPage"
 import YoutubePage from "@/pages/YoutubePage"
@@ -32,6 +33,8 @@ export default function Router() {
       return <TagPage key={route.tag} tag={route.tag} />
     case "history":
       return <HistoryPage />
+    case "downloads":
+      return <DownloadsPage />
     case "youtube":
       return <YoutubePage />
     case "stats":

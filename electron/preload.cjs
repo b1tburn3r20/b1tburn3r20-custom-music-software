@@ -64,6 +64,7 @@ contextBridge.exposeInMainWorld("api", {
     get: (range) => invoke("stats:get", range),
     history: (opts) => invoke("stats:history", opts),
     forgotten: (opts) => invoke("stats:forgotten", opts),
+    radioSignals: () => invoke("stats:radio-signals"),
     onChanged: on("stats:changed"),
   },
   sync: {

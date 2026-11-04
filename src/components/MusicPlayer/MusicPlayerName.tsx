@@ -15,11 +15,11 @@ const MusicPlayerName = () => {
     <div className="flex min-w-0 select-none items-center gap-3">
       <Artwork src={m.thumbnail} size="sm" />
       <div className="min-w-0">
-        <div className="truncate font-medium" title={m.title}>
+        <div className="truncate text-sm font-medium" title={m.title}>
           {m.title}
         </div>
         {/* Each part truncates on its own (the artist list gives way first, the album keeps a minimum); the time never shrinks. */}
-        <div className="flex min-w-0 items-center gap-1 text-sm text-muted-foreground">
+        <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
           <span className="min-w-8 shrink-[3] truncate" title={m.artist}>
             {(artists.length ? artists : [m.artist]).map((a, i) => (
               <span key={a}>

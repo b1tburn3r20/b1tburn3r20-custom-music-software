@@ -12,7 +12,8 @@ const LikeSongButton = ({ song }: { song: Song }) => {
   return (
     <IconButton
       icon={hovered && liked ? HeartCrack : Heart}
-      label={liked ? "Remove from Liked Songs" : "Add to Liked Songs"}
+      size="sm"
+      label={liked ? "Remove from Liked Songs (L)" : "Add to Liked Songs (L)"}
       aria-pressed={liked}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}

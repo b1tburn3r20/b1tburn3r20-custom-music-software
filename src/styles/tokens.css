@@ -9,6 +9,10 @@
   --spacing-art-sm: 2.5rem;
   --spacing-art-md: 3.5rem;
   --spacing-art-lg: 12rem;
+  --spacing-art-card: 9rem;
+  /* The song card over a visualizer. Visualizers are dark in every theme, so these don't vary by theme. */
+  --color-visualizer-card: oklch(0 0 0 / 0.2);
+  --color-on-visualizer: oklch(0.98 0 0);
   --spacing-art-hero: min(60vh, 37.5rem);
   --spacing-queue: 25rem;
   --spacing-toast: 18.75rem;

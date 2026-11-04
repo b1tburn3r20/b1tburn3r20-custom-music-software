@@ -7,6 +7,7 @@ const SIZES = {
   sm: "size-art-sm rounded-md",
   md: "size-art-md rounded-md",
   lg: "size-art-lg rounded-lg",
+  card: "size-art-card rounded-lg",
   hero: "size-art-hero rounded-sm",
   fill: "w-full aspect-square rounded-lg",
 } as const

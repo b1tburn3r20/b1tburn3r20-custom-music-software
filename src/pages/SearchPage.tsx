@@ -84,7 +84,7 @@ export default function SearchPage({ q }: { q: string }) {
       )}
       {songHits.length > 0 && (
         <Section title="Songs">
-          <SongList songs={songHits} queueContext={context} />
+          <SongList songs={songHits} startRadio queueContext={context} />
         </Section>
       )}
     </Page>

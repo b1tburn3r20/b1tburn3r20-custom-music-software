@@ -7,6 +7,7 @@ import { usePlayerStore } from "@/stores/usePlayerStore"
 import { playRadio, togglePlay } from "@/player/controls"
 import type { YtVideo } from "@/lib/youtubeApi"
 import type { Song } from "@/types/DirectoryTypes"
+import { SongContextMenu, SongMoreButton } from "@/components/song/SongContextMenu"
 import { DownloadButton } from "./DownloadButton"
 
 /** A YouTube search result: preview, play if already in the library, otherwise download. */
@@ -14,7 +15,7 @@ export const VideoCard = memo(function VideoCard({ video, owned }: { video: YtVi
   const [embed, setEmbed] = useState(false)
   const isCurrent = usePlayerStore((s) => Boolean(owned) && s.currentSongId === owned?.song.id)
   const playing = usePlayerStore((s) => !s.paused) && isCurrent
-  return (
+  const card = (
     <div className="flex w-card flex-col gap-2 rounded-2xl bg-card p-2">
       <div className="relative overflow-hidden rounded-xl">
         {embed && video.embeddable ? (
@@ -44,7 +45,13 @@ export const VideoCard = memo(function VideoCard({ video, owned }: { video: YtVi
           </Button>
         )}
         <DownloadButton videoId={video.id} title={video.title} channel={video.channel} duration={video.duration} owned={Boolean(owned)} className="flex-1" />
+        {owned && <SongMoreButton song={owned.song} ctx={NO_LIST} />}
       </div>
     </div>
   )
+  // Already in the library: the same right-click menu as any song (play, tag, add to playlist…).
+  return owned ? <SongContextMenu song={owned.song} ctx={NO_LIST}>{card}</SongContextMenu> : card
 })
+
+/** A lone search result has no surrounding list: Play starts a radio. */
+const NO_LIST = {}

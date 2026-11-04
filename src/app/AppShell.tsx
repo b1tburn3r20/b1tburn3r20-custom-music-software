@@ -7,11 +7,13 @@ import AddToPlaylistDialog from "@/components/dialogs/AddToPlaylistDialog"
 import PlaylistFormDialog from "@/components/dialogs/PlaylistFormDialog"
 import DeletePlaylistDialog from "@/components/dialogs/DeletePlaylistDialog"
 import TagsDialog from "@/components/dialogs/TagsDialog"
+import ShortcutsDialog from "@/components/dialogs/ShortcutsDialog"
+import ZenSearchDialog from "@/components/dialogs/ZenSearchDialog"
+import { useSettingsStore } from "@/stores/useSettingsStore"
 import { SelectionBar } from "@/components/song/SelectionBar"
 import { useSelectionStore } from "@/stores/useSelectionStore"
 import { useAppStore } from "@/stores/useAppStore"
 import { useEffect, useRef, useState } from "react"
-import { ScrollParentContext } from "./scrollContext"
 import { ErrorBoundary } from "./ErrorBoundary"
 import { navigate } from "@/stores/useAppStore"
 import { useThemeSync } from "./theme"
@@ -21,6 +23,8 @@ import Router from "./Router"
 
 export default function AppShell() {
   const route = useAppStore((s) => s.route)
+  // While the full-screen player covers the app, keep Tab out of what is behind it.
+  const expanded = useSettingsStore((s) => s.playerExpanded)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [viewport, setViewport] = useState<HTMLElement | null>(null)
   useEffect(() => {
@@ -34,16 +38,14 @@ export default function AppShell() {
   }, [route, viewport])
   return (
     <div className="relative flex h-screen w-screen flex-col overflow-hidden">
-      <div className="relative flex min-h-0 flex-1">
+      <div className="relative flex min-h-0 flex-1" inert={expanded}>
         <Sidebar />
         <main className="relative flex min-w-0 w-full flex-col">
           <TopBar />
-          <ScrollArea ref={scrollRef} className="min-h-0 flex-1">
-            <ScrollParentContext.Provider value={viewport}>
-              <ErrorBoundary key={JSON.stringify(route)} label="page" onHome={() => navigate({ name: "home" })}>
-                <Router />
-              </ErrorBoundary>
-            </ScrollParentContext.Provider>
+          <ScrollArea ref={scrollRef} className="min-h-0 flex-1" data-region="main" aria-label="Page">
+            <ErrorBoundary key={JSON.stringify(route)} label="page" onHome={() => navigate({ name: "home" })}>
+              <Router />
+            </ErrorBoundary>
           </ScrollArea>
           <SelectionBar />
         </main>
@@ -62,6 +64,8 @@ export default function AppShell() {
       <PlaylistFormDialog />
       <DeletePlaylistDialog />
       <TagsDialog />
+      <ShortcutsDialog />
+      <ZenSearchDialog />
     </div>
   )
 }

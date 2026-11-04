@@ -2,7 +2,7 @@ import { createRequire } from "module"
 import { describe, expect, it } from "vitest"
 
 const require = createRequire(import.meta.url)
-const { aggregate, sanitizeEvent, forgottenFrom } = require("./plays.cjs")
+const { aggregate, sanitizeEvent, forgottenFrom, radioSignalsFrom } = require("./plays.cjs")
 const DAY = 86_400_000
 const now = 100 * DAY
 const ev = (songId: string, daysAgo: number, listenedMs: number, counted = true) => ({ songId, endedAt: now - daysAgo * DAY, listenedMs, counted })
@@ -43,5 +43,26 @@ describe("forgottenFrom", () => {
     const r = forgottenFrom(events, { minPlays: 10, olderThanDays: 30, limit: 10, now, songInfo: info })
     expect(r.map((x: { songId: string }) => x.songId)).toEqual(["a"]) // b played recently, c too few plays, deleted excluded
     expect(r[0].plays).toBe(12)
+  })
+})
+
+describe("radioSignalsFrom", () => {
+  const MIN = 60_000
+  const at = (songId: string, min: number, extra: object = {}) => ({ songId, endedAt: min * MIN, listenedMs: 200_000, counted: true, ...extra })
+  const songInfo = (id: string) => (id === "deleted" ? null : { artists: [] })
+  it("separates plays from skips", () => {
+    const { songs } = radioSignalsFrom([at("a", 1), at("a", 5, { counted: false, listenedMs: 4000 }), at("a", 9, { counted: false, listenedMs: 40_000 })], { songInfo })
+    expect(songs.a).toEqual({ plays: 1, skips: 1, lastPlayedAt: 9 * MIN, lastSkippedAt: 5 * MIN })
+  })
+  it("links songs heard in the same session, both ways", () => {
+    const { together } = radioSignalsFrom([at("a", 1), at("b", 5), at("c", 200)], { songInfo })
+    expect(together.a).toEqual({ b: 1 })
+    expect(together.b).toEqual({ a: 1 })
+    expect(together.c).toBeUndefined()
+  })
+  it("doesn't learn from radio's own picks, skips or deleted songs", () => {
+    const { together, songs } = radioSignalsFrom([at("a", 1), at("r", 2, { context: { type: "radio" } }), at("s", 3, { counted: false, listenedMs: 2000 }), at("deleted", 4)], { songInfo })
+    expect(together).toEqual({})
+    expect(songs.deleted).toBeUndefined()
   })
 })

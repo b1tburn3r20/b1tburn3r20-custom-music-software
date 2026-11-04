@@ -8,7 +8,7 @@ const { readJson, writeJsonAtomic, createDebouncedSaver } = require("../lib/atom
 const { USER_VERSION, DEFAULT_SETTINGS, emptyUserState, migrateLegacyPlaylists, importRendererLegacy } = require("./migrate.cjs");
 const { backupFiles } = require("./paths.cjs");
 
-const LIMITS = { recentlyPlayed: 100, recentlyDownloaded: 200, recentPlaylists: 20, nameLength: 100, descriptionLength: 500, tagLength: 32, tagsPerSong: 24 };
+const LIMITS = { recentlyPlayed: 100, recentlyDownloaded: 5000, recentPlaylists: 20, nameLength: 100, descriptionLength: 500, tagLength: 32, tagsPerSong: 24 };
 const SETTINGS_KEYS = new Set(Object.keys(DEFAULT_SETTINGS));
 
 class UserError extends Error {
@@ -32,6 +32,7 @@ function createUserStore({ userData, library, emit = () => { } }) {
     likes: user.likes,
     recentlyPlayed: user.recentlyPlayed,
     recentlyDownloaded: user.recentlyDownloaded,
+    downloadedAt: user.downloadedAt,
     recentPlaylists: user.recentPlaylists,
     settings: user.settings,
     notices: user.notices,
@@ -260,7 +261,10 @@ function createUserStore({ userData, library, emit = () => { } }) {
   }
 
   function addRecentlyDownloaded(songId) {
-    user.recentlyDownloaded = [songId, ...user.recentlyDownloaded.filter((s) => s !== songId)].slice(0, LIMITS.recentlyDownloaded);
+    const next = [songId, ...user.recentlyDownloaded.filter((s) => s !== songId)];
+    for (const dropped of next.splice(LIMITS.recentlyDownloaded)) delete user.downloadedAt[dropped];
+    user.recentlyDownloaded = next;
+    user.downloadedAt = { ...user.downloadedAt, [songId]: Date.now() };
     commit();
   }
 
@@ -279,6 +283,7 @@ function createUserStore({ userData, library, emit = () => { } }) {
     user.likes = user.likes.filter((l) => !ids.has(l.songId));
     user.recentlyPlayed = user.recentlyPlayed.filter((r) => !ids.has(r.songId));
     user.recentlyDownloaded = user.recentlyDownloaded.filter((s) => !ids.has(s));
+    user.downloadedAt = Object.fromEntries(Object.entries(user.downloadedAt).filter(([id]) => !ids.has(id)));
     for (const id of ids) delete user.songTags[id];
     for (const pl of user.playlists) if (pl.mirrorMap) for (const [vid, e] of Object.entries(pl.mirrorMap)) if (ids.has(e.songId)) delete pl.mirrorMap[vid];
     commit();

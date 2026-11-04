@@ -7,6 +7,7 @@ import { dialogs, useDialogStore } from "@/stores/useDialogStore"
 import { useUserStore } from "@/stores/useUserStore"
 import { useLibraryStore } from "@/stores/useLibraryStore"
 import { buildTagList } from "@/lib/catalog"
+import { canonicalTag, GENRE_GROUPS, likelyTypoOf, looseKey, tagMatches } from "@/lib/tagPresets"
 import { call, errorMessage } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
@@ -27,6 +28,8 @@ export default function TagsDialog() {
   const [partial, setPartial] = useState<{ name: string; n: number }[]>([])
   const [input, setInput] = useState("")
   const [saving, setSaving] = useState(false)
+  // The misspelling-looking text you pressed Enter on: a second Enter means you meant it.
+  const [typoSeen, setTypoSeen] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const multi = (songs?.length ?? 0) > 1
 
@@ -46,25 +49,43 @@ export default function TagsDialog() {
 
   const known = useMemo(() => buildTagList(library, songTags).filter((t) => t.own), [library, songTags])
   const suggestions = useMemo(() => {
-    const have = new Set([...tags, ...partial.map((p) => p.name)].map(lc))
-    const q = lc(input)
-    return known.filter((t) => !have.has(t.key) && (!q || t.key.includes(q))).slice(0, 16)
+    const have = new Set([...tags, ...partial.map((p) => p.name)].map(looseKey))
+    return known.filter((t) => !have.has(looseKey(t.name)) && tagMatches(t.name, input)).slice(0, 16)
   }, [known, tags, partial, input])
+  // Standard genres you don't use yet (the ones you use are in "Your tags" above).
+  const genres = useMemo(() => {
+    const have = new Set([...tags, ...partial.map((p) => p.name), ...known.map((k) => k.name)].map(looseKey))
+    return GENRE_GROUPS.map((g) => ({ label: g.label, genres: g.genres.filter((name) => !have.has(looseKey(name)) && tagMatches(name, input)) })).filter((g) => g.genres.length)
+  }, [known, tags, partial, input])
+  const ownNames = useMemo(() => known.map((k) => k.name), [known])
+  // What Enter would add: the exact tag or genre, else the first of your tags starting with it.
+  const canonicalInput = canonicalTag(input, ownNames)
+  const isKnownName = looseKey(canonicalInput) !== looseKey(input) || ownNames.some((n) => looseKey(n) === looseKey(input)) || GENRE_GROUPS.some((g) => g.genres.some((n) => looseKey(n) === looseKey(input)))
+  const enterTag = !input.trim() ? null : isKnownName ? canonicalInput : (suggestions.find((s) => s.key.startsWith(lc(input)))?.name ?? canonicalInput)
+
+  const allNames = useMemo(() => [...ownNames, ...GENRE_GROUPS.flatMap((g) => g.genres)], [ownNames])
+  const typoOf = input.trim() && !suggestions.some((s) => s.name === enterTag) ? likelyTypoOf(canonicalInput, allNames) : null
+  const typoConfirmed = typoSeen === looseKey(input)
+  /** Holds back a likely misspelling once, so it can't become a tag by accident. */
+  const stopForTypo = () => {
+    if (!typoOf || typoConfirmed) return false
+    setTypoSeen(looseKey(input))
+    return true
+  }
 
   const add = (t: string) => {
-    const v = t.trim().replace(/\s+/g, " ")
+    const v = canonicalTag(t, ownNames)
     setInput("")
     inputRef.current?.focus()
-    if (!v || tags.some((x) => lc(x) === lc(v))) return
-    const existing = known.find((k) => k.key === lc(v))
-    setTags((cur) => [...cur, existing ? existing.name : v])
-    setPartial((p) => p.filter((x) => lc(x.name) !== lc(v)))
+    if (!v || tags.some((x) => looseKey(x) === looseKey(v))) return
+    setTags((cur) => [...cur, v])
+    setPartial((p) => p.filter((x) => looseKey(x.name) !== looseKey(v)))
   }
   const close = () => dialogs().openTags(null)
 
   const save = async () => {
-    if (!songs) return
-    const final = input.trim() ? [...tags, input.trim()] : tags
+    if (!songs || stopForTypo()) return
+    const final = input.trim() && !tags.some((t) => looseKey(t) === looseKey(canonicalInput)) ? [...tags, canonicalInput] : tags
     const ids = songs.map((s) => s.id)
     setSaving(true)
     try {
@@ -133,8 +154,7 @@ export default function TagsDialog() {
                   return
                 }
                 e.preventDefault()
-                // Enter on a partial word picks the first matching existing tag
-                add(suggestions.find((s) => s.key.startsWith(lc(input)))?.name ?? input)
+                if (!stopForTypo()) add(enterTag ?? input)
               } else if (e.key === "Backspace" && !input && tags.length) setTags(tags.slice(0, -1))
             }}
             placeholder={tags.length ? "Add another…" : "Type a tag, Enter to add"}
@@ -157,17 +177,44 @@ export default function TagsDialog() {
         )}
         {suggestions.length > 0 && (
           <div className="flex flex-wrap gap-2" aria-label="Your tags">
-            {suggestions.map((t, i) => (
+            {suggestions.map((t) => (
               <button
                 key={t.key}
                 type="button"
                 onClick={() => add(t.name)}
-                className={cn("inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-sm text-muted-foreground hover:border-primary hover:text-foreground", input && i === 0 && "border-primary text-foreground")}
+                className={cn("inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-sm text-muted-foreground hover:border-primary hover:text-foreground", enterTag === t.name && "border-primary text-foreground")}
               >
                 <Plus className="size-3" /> {t.name} <span className="text-xs opacity-60">{t.count}</span>
               </button>
             ))}
           </div>
+        )}
+        {genres.length > 0 && (
+          <div className="flex max-h-56 flex-col gap-2 overflow-y-auto border-t border-border/60 pt-3" aria-label="Genres">
+            {genres.map((g) => (
+              <div key={g.label} className="flex flex-col gap-1.5">
+                <p className="text-xs text-muted-foreground">{g.label}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {g.genres.map((name) => (
+                    <button key={name} type="button" onClick={() => add(name)} className={cn("inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground hover:border-primary hover:text-foreground", enterTag === name && "border-primary text-foreground")}>
+                      <Plus className="size-3" aria-hidden /> {name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {typoOf ? (
+          <p className={cn("text-xs", typoConfirmed ? "text-foreground" : "text-muted-foreground")}>
+            Did you mean{" "}
+            <button type="button" onClick={() => add(typoOf)} className="font-medium text-foreground underline">
+              {typoOf}
+            </button>
+            ? {typoConfirmed ? `Press Enter again to create “${canonicalInput}” anyway.` : `Enter twice keeps “${canonicalInput}”.`}
+          </p>
+        ) : (
+          input.trim() && !isKnownName && !suggestions.some((s) => s.name === enterTag) && <p className="text-xs text-muted-foreground">Enter creates a new tag “{canonicalInput}”.</p>
         )}
       </div>
     </Modal>

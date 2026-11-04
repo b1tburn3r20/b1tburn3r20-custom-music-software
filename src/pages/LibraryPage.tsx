@@ -55,7 +55,7 @@ export default function LibraryPage({ tab = "albums" }: { tab?: "albums" | "arti
             {tags.length ? <CardGrid>{tags.map((t) => <TagCard key={t.key} name={t.name} count={t.count} own={t.own} thumbnail={t.thumbnail} />)}</CardGrid> : <EmptyState icon={Library} title="No tags yet" hint="Right-click a song and choose Tags… to tag it with a mood or genre like “somber” or “rap”." />}
           </TabsContent>
           <TabsContent value="songs" className="pt-4">
-            <SongList songs={byTitle} queueContext={CONTEXT} />
+            <SongList songs={byTitle} startRadio queueContext={CONTEXT} />
           </TabsContent>
         </Tabs>
       </Section>

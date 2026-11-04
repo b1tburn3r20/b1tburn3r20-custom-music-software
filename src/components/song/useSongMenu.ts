@@ -2,7 +2,7 @@
 // the app (library, playlists, albums, artist, search, queue, history, liked,
 // downloads) renders these entries.
 import { useMemo } from "react"
-import { Disc3, FolderOpen, Heart, HeartOff, ListEnd, ListMusic, ListPlus, ListStart, Mic2, Play, Plus, Tags, Trash2, X } from "lucide-react"
+import { Disc3, FolderOpen, Heart, HeartOff, ListEnd, ListMusic, ListPlus, ListStart, Mic2, Play, Plus, Radio, Tags, Trash2, X } from "lucide-react"
 import type { Song } from "@/types/DirectoryTypes"
 import type { QueueContext } from "@/player/queue"
 import { addToQueue, playFromList, playNext, playRadio, removeFromQueue } from "@/player/controls"
@@ -16,6 +16,11 @@ import type { MenuEntry } from "./menu"
 export type SongContext = {
   /** The list the song is shown in; Play queues this list. Omit for a radio queue. */
   list?: readonly Song[]
+  /**
+   * For lists you browse rather than listen through (recent downloads, search results,
+   * all songs): their order means nothing, so playing a song starts its radio instead.
+   */
+  startRadio?: boolean
   queueContext?: QueueContext | null
   /** Shown inside this playlist → adds "Remove from playlist". */
   playlistId?: string
@@ -29,7 +34,7 @@ const EMPTY: never[] = []
 const EMPTY_TAGS: Record<string, string[]> = {}
 
 export function playSongInContext(song: Song, ctx: SongContext) {
-  if (ctx.list && ctx.list.length) playFromList(ctx.list, song, ctx.queueContext ?? null)
+  if (ctx.list && ctx.list.length && !ctx.startRadio) playFromList(ctx.list, song, ctx.queueContext ?? null)
   else playRadio(song)
 }
 
@@ -50,6 +55,7 @@ export function useSongMenu(song: Song, ctx: SongContext, enabled = true): MenuE
       { kind: "item", key: "play", label: "Play", icon: Play, onSelect: () => playSongInContext(song, ctx) },
       { kind: "item", key: "next", label: "Play next", icon: ListStart, onSelect: () => playNext([song]) },
       { kind: "item", key: "queue", label: "Add to queue", icon: ListEnd, onSelect: () => addToQueue([song]) },
+      { kind: "item", key: "radio", label: "Start radio", icon: Radio, onSelect: () => playRadio(song) },
       { kind: "separator", key: "s1" },
       {
         kind: "sub",

@@ -4,14 +4,11 @@ import { useLibraryStore } from "@/stores/useLibraryStore"
 import { useUserStore } from "@/stores/useUserStore"
 import { useSettingsStore } from "@/stores/useSettingsStore"
 import { recordRecentPlaylist, updateSettings } from "@/lib/actions"
-import { radioFor } from "@/lib/catalog"
 import { debounce } from "@/lib/debounce"
 import type { Song } from "@/types/DirectoryTypes"
 import * as Q from "./queue"
-import { advance, currentTime, getAudio, restartCurrent, startEngine, RADIO_BATCH } from "./engine"
+import { advance, currentTime, getAudio, restartCurrent, startEngine, RADIO_BATCH, radioBatch } from "./engine"
 import { toast } from "sonner"
-import { useSelectionStore } from "@/stores/useSelectionStore"
-import { dialogs } from "@/stores/useDialogStore"
 
 const store = () => usePlayerStore.getState()
 
@@ -35,17 +32,22 @@ export function playContext(songs: readonly (Song | string)[], startIndex: numbe
   expandIfWanted()
 }
 
-/** Play `song` from `list` (the list it was clicked in). */
+/**
+ * Play `song` from `list` (the list it was clicked in), in list order: the songs
+ * above it are history and the songs below play next. Picking a specific song
+ * turns shuffle off (otherwise the rest of the list would be scrambled); use
+ * "Shuffle play" to shuffle a list.
+ */
 export function playFromList(list: readonly Song[], song: Song, context: Q.QueueContext | null) {
   const idx = list.findIndex((s) => s.id === song.id)
+  if (store().queue.shuffle) setShuffle(false)
   playContext(list, Math.max(0, idx), context)
 }
 
 /** Single song with no surrounding list: start a radio queue seeded by it. */
 export function playRadio(seed: Song) {
-  const lib = useLibraryStore.getState()
-  // Start small; the engine tops the queue up as you get near the end.
-  const more = radioFor(lib.songs, seed, new Set([seed.id]), RADIO_BATCH - 1, Math.random, useUserStore.getState().songTags)
+  // The engine tops the queue up as you get near the end.
+  const more = radioBatch(seed, new Set([seed.id]), RADIO_BATCH, [seed.id])
   playContext([seed, ...more], 0, { type: "radio", id: seed.id, label: `${seed.metadata.title} radio` })
 }
 
@@ -131,6 +133,21 @@ export function setVolume(volume: number) {
   persistVolume(Math.round(volume))
 }
 
+let volumeBeforeMute = 50
+/** M: mute, and unmute back to the previous volume. */
+export function toggleMute() {
+  const v = store().volume
+  if (v > 0) {
+    volumeBeforeMute = v
+    setVolume(0)
+  } else setVolume(volumeBeforeMute || 50)
+}
+
+/** Seek relative to the current position (keyboard ←/→). */
+export function seekBy(seconds: number) {
+  seek(currentTime() + seconds)
+}
+
 let initialized = false
 /** Start the engine and apply persisted settings (volume, repeat, shuffle). Call once. */
 export function initPlayer() {
@@ -151,25 +168,7 @@ export function initPlayer() {
   })
   if (useUserStore.getState().loaded) applySettings()
   startEngine({ next, prev, togglePlay })
-  window.addEventListener("keydown", (e) => {
-    // T: tag the playing song (song rows and multi-selection handle their own T)
-    if (e.key.toLowerCase() === "t" && !e.ctrlKey && !e.metaKey && !e.altKey && !e.repeat) {
-      const t = e.target as HTMLElement | null
-      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable || t.closest("[role=dialog],[role=menu],[data-song-row]"))) return
-      if (useSelectionStore.getState().ids.size) return
-      const song = store().currentlyPlaying
-      if (song) {
-        e.preventDefault()
-        dialogs().openTags([song])
-      }
-      return
-    }
-    if (e.code !== "Space" || e.repeat) return
-    const t = e.target as HTMLElement | null
-    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable || t.closest("[role=dialog],[role=menu]"))) return
-    e.preventDefault()
-    togglePlay()
-  })
+  // Keyboard shortcuts live in src/app/shortcuts.ts.
   // Deleted songs leave the queue immediately.
   useLibraryStore.subscribe((lib, prevLib) => {
     if (lib.songsById === prevLib.songsById) return

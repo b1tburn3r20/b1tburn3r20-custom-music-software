@@ -1,4 +1,4 @@
-import { BarChart3, Heart, Home, Library, ListMusic, ListPlus, Pencil, Play, Shuffle, Trash2, Youtube, History } from "lucide-react"
+import { BarChart3, Download, Heart, Home, Library, ListMusic, ListPlus, Pencil, Play, Shuffle, Trash2, Youtube, History } from "lucide-react"
 import { memo } from "react"
 import type { LucideIcon } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -18,7 +18,7 @@ import { playContext, playShuffled } from "@/player/controls"
 import type { Playlist } from "@/types/api"
 import { cn } from "@/lib/utils"
 
-function NavButton({ icon: Icon, label, route, active }: { icon: LucideIcon; label: string; route: Route; active: boolean }) {
+function NavButton({ icon: Icon, label, route, active, shortcut }: { icon: LucideIcon; label: string; route: Route; active: boolean; shortcut?: string }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -32,7 +32,10 @@ function NavButton({ icon: Icon, label, route, active }: { icon: LucideIcon; lab
           <Icon className="size-6" aria-hidden />
         </button>
       </TooltipTrigger>
-      <TooltipContent side="right">{label}</TooltipContent>
+      <TooltipContent side="right">
+        {label}
+        {shortcut && <kbd className="ml-2 opacity-70">{shortcut}</kbd>}
+      </TooltipContent>
     </Tooltip>
   )
 }
@@ -88,19 +91,20 @@ export default function Sidebar() {
   const playlists = useUserStore((s) => s.playlists)
   return (
     <TooltipProvider delayDuration={200}>
-      <nav aria-label="Main" className="flex w-fit flex-col border-r border-border/40 px-4 py-4">
+      <nav aria-label="Main" data-region="nav" className="flex w-fit flex-col border-r border-border/40 px-4 py-4">
         <div className="flex flex-col gap-2">
-          <NavButton icon={Home} label="Home" route={{ name: "home" }} active={route.name === "home"} />
-          <NavButton icon={Library} label="Library" route={{ name: "library" }} active={route.name === "library"} />
-          <NavButton icon={Youtube} label="YouTube" route={{ name: "youtube" }} active={route.name === "youtube"} />
-          <NavButton icon={History} label="History" route={{ name: "history" }} active={route.name === "history"} />
-          <NavButton icon={BarChart3} label="Stats" route={{ name: "stats" }} active={route.name === "stats"} />
+          <NavButton icon={Home} label="Home" route={{ name: "home" }} active={route.name === "home"} shortcut="Ctrl+1" />
+          <NavButton icon={Library} label="Library" route={{ name: "library" }} active={route.name === "library"} shortcut="Ctrl+2" />
+          <NavButton icon={Youtube} label="YouTube" route={{ name: "youtube" }} active={route.name === "youtube"} shortcut="Ctrl+3" />
+          <NavButton icon={History} label="History" route={{ name: "history" }} active={route.name === "history"} shortcut="Ctrl+4" />
+          <NavButton icon={Download} label="Downloads" route={{ name: "downloads" }} active={route.name === "downloads"} shortcut="Ctrl+5" />
+          <NavButton icon={BarChart3} label="Stats" route={{ name: "stats" }} active={route.name === "stats"} shortcut="Ctrl+6" />
         </div>
         <Separator className="my-4" />
         <div className="flex flex-col gap-2">
           <div className="size-12"><DiceButton kind="song" size="small" /></div>
           <div className="size-12"><DiceButton kind="playlist" size="small" /></div>
-          <NavButton icon={Heart} label="Liked Songs" route={{ name: "liked" }} active={route.name === "liked"} />
+          <NavButton icon={Heart} label="Liked Songs" route={{ name: "liked" }} active={route.name === "liked"} shortcut="Ctrl+7" />
         </div>
         <Separator className="my-4" />
         <Tooltip>
@@ -109,7 +113,7 @@ export default function Sidebar() {
               <ListPlus className="size-6" />
             </button>
           </TooltipTrigger>
-          <TooltipContent side="right">New playlist</TooltipContent>
+          <TooltipContent side="right">New playlist <kbd className="ml-2 opacity-70">Ctrl+N</kbd></TooltipContent>
         </Tooltip>
         <ScrollArea className="min-h-0 flex-1">
           <div className="flex flex-col gap-2 p-0.5">

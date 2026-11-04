@@ -132,6 +132,7 @@ function registerStatsIpc({ plays }) {
   handle("stats:get", (range) => plays.stats(["week", "month", "all"].includes(range) ? range : "all"));
   handle("stats:history", (opts) => plays.history(opts || {}));
   handle("stats:forgotten", (opts) => plays.forgotten(opts || {}));
+  handle("stats:radio-signals", () => plays.radioSignals());
 }
 
 module.exports = { registerLibraryIpc, registerStatsIpc, broadcast, handle, AppError };

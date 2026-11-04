@@ -108,8 +108,13 @@ export async function rescanLibrary() {
 }
 
 // ---------- settings ----------
-export function updateSettings(patch: Partial<Settings>) {
-  return attempt("Couldn't save settings", () => call(window.api.user.updateSettings(patch)))
+export async function updateSettings(patch: Partial<Settings>) {
+  const saved = await attempt("Couldn't save settings", () => call(window.api.user.updateSettings(patch)))
+  // Main ignores keys it doesn't know. That only happens when the UI is newer than the
+  // running main process (e.g. after a hot reload in dev): say so instead of doing nothing.
+  const dropped = saved ? Object.keys(patch).filter((k) => !(k in saved)) : []
+  if (dropped.length) toast.error("Couldn't save that setting", { description: "The app was updated while running. Restart it to use this setting." })
+  return saved
 }
 
 // ---------- tags ----------
@@ -120,6 +125,10 @@ export async function addTagToSongs(songIds: string[], tag: string) {
   const t = await attempt("Couldn't add tag", () => call(window.api.user.changeTag(songIds, tag, true)))
   if (t) toast.success(`Tagged ${plural(songIds.length, "song")} “${t}”`)
   return t
+}
+/** For controls that show the result themselves (no toast on success). */
+export async function setSongTag(songId: string, tag: string, on: boolean) {
+  return attempt("Couldn't change tag", () => call(window.api.user.changeTag([songId], tag, on)))
 }
 export async function removeTagFromSongs(songIds: string[], tag: string) {
   return attempt("Couldn't remove tag", () => call(window.api.user.changeTag(songIds, tag, false)))

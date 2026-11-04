@@ -17,7 +17,7 @@ type QueueRow = { item: QueueItem; pos: number; song: Song }
 
 function QueueRows({ rows, currentUid, currentPos, collapse }: { rows: QueueRow[]; currentUid: string | null; currentPos: number; collapse: () => void }) {
   const ref = useRef<HTMLDivElement>(null)
-  const v = useVirtualizer({ count: rows.length, getScrollElement: () => ref.current, estimateSize: () => 52, overscan: 10 })
+  const v = useVirtualizer({ count: rows.length, getScrollElement: () => ref.current, estimateSize: () => 68, overscan: 10 })
   // Keep the current song in view when it changes.
   const currentIndex = rows.findIndex((r) => r.item.uid === currentUid)
   useEffect(() => {
@@ -33,6 +33,7 @@ function QueueRows({ rows, currentUid, currentPos, collapse }: { rows: QueueRow[
               <SongRow
                 song={song}
                 variant="compact"
+                showTags
                 queueUid={item.uid}
                 isCurrent={item.uid === currentUid}
                 onActivate={() => (item.uid === currentUid ? togglePlay() : jumpTo(item.uid))}

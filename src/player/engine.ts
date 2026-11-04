@@ -6,7 +6,9 @@ import { usePlaybackClock, usePlayerStore } from "@/stores/usePlayerStore"
 import { useLibraryStore } from "@/stores/useLibraryStore"
 import { useUserStore } from "@/stores/useUserStore"
 import { recordRecentlyPlayed } from "@/lib/actions"
-import { radioFor } from "@/lib/catalog"
+import { radioFor } from "@/lib/radio"
+import { useStatsStore } from "@/stores/useStatsStore"
+import type { Song } from "@/types/DirectoryTypes"
 import * as Q from "./queue"
 import { ListenTracker } from "./listenTracker"
 import { isResumable, positionToStore, resumePosition } from "./resume"
@@ -21,6 +23,7 @@ let lastClock = 0
 let ignorePauseUntil = 0
 
 export const getAudio = () => audio
+export const getLoadedSongId = () => loadedSongId
 export const currentTime = () => audio?.currentTime ?? 0
 
 const mediaUrl = (songId: string) => `media://song/${encodeURIComponent(songId)}`
@@ -133,20 +136,31 @@ function load(songId: string | null) {
   updateMediaSession()
 }
 
-/** Radio grows lazily: a few songs at a time, topped up near the end of the queue. */
-export const RADIO_BATCH = 5
-const RADIO_LOOKAHEAD = 2
+/** Radio loads this many songs at a time, and tops up before the queue runs low. */
+export const RADIO_BATCH = 20
+const RADIO_LOOKAHEAD = 5
 
-/** Appends a few "radio" songs similar to the current one. Returns false when nothing could be added. */
+/** The next radio songs for a seed, using everything known about your taste. */
+export function radioBatch(seed: Song, exclude: Set<string>, count: number, recentIds: string[]): Song[] {
+  const lib = useLibraryStore.getState()
+  const user = useUserStore.getState()
+  return radioFor(lib.songs, seed, exclude, count, Math.random, user.songTags, {
+    signals: useStatsStore.getState().radioSignals,
+    likedIds: user.likedIds,
+    playlists: user.playlists,
+    recent: recentIds.map((id) => lib.songsById[id]).filter(Boolean),
+  })
+}
+
+/** Appends "radio" songs based on the radio's seed. Returns false when nothing could be added. */
 export function appendRadio(count = RADIO_BATCH): boolean {
   const { queue, setQueue } = usePlayerStore.getState()
   const lib = useLibraryStore.getState()
-  // A radio keeps its original seed, so its tags keep leading the mix; autoplay after a list follows the last song.
-  const seedId = queue.context?.type === "radio" && queue.context.id ? queue.context.id : Q.currentSongId(queue)
+  const seedId = Q.radioSeedId(queue)
   const seed = (seedId && lib.songsById[seedId]) || lib.songsById[Q.currentSongId(queue) ?? ""] || null
   if (!seed) return false
   const exclude = new Set(queue.items.map((i) => i.songId))
-  const more = radioFor(lib.songs, seed, exclude, count, Math.random, useUserStore.getState().songTags)
+  const more = radioBatch(seed, exclude, count, Q.songIdsInPlayOrder(queue).slice(-2))
   if (!more.length) return false
   setQueue(Q.addToQueue(queue, more.map((s) => s.id), "radio"))
   return true
@@ -174,7 +188,7 @@ export function advance({ auto }: { auto: boolean }) {
   usePlayerStore.getState().setQueue(r.queue)
 }
 
-/** In a radio queue (or once autoplay has taken over), add a few more songs when only a couple are left. */
+/** In a radio queue (or once autoplay has taken over), add more songs when only a few are left. */
 function topUpRadio(queue: Q.QueueState) {
   const cur = Q.currentItem(queue)
   if (!cur) return
@@ -223,6 +237,8 @@ export function startEngine(controls: { next: () => void; prev: () => void; togg
   if (started) return
   started = true
   audio = new Audio()
+  // media:// is another origin; CORS mode lets the visualizer read the audio (it sends ACAO: *).
+  audio.crossOrigin = "anonymous"
   audio.preload = "auto"
   audio.volume = usePlayerStore.getState().volume / 100
 

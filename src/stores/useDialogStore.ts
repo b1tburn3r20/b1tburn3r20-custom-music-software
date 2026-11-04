@@ -10,6 +10,10 @@ type DialogState = {
   playlistForm: PlaylistFormState | null
   playlistToDelete: string | null
   tagSongs: Song[] | null
+  shortcutsOpen: boolean
+  openShortcuts: (open: boolean) => void
+  zenSearchOpen: boolean
+  openZenSearch: (open: boolean) => void
   openTags: (songs: Song[] | null) => void
   confirmDeleteSong: (song: Song | null) => void
   openAddToPlaylist: (songs: Song[] | null) => void
@@ -23,6 +27,10 @@ export const useDialogStore = create<DialogState>((set) => ({
   playlistForm: null,
   playlistToDelete: null,
   tagSongs: null,
+  shortcutsOpen: false,
+  openShortcuts: (shortcutsOpen) => set({ shortcutsOpen }),
+  zenSearchOpen: false,
+  openZenSearch: (zenSearchOpen) => set({ zenSearchOpen }),
   openTags: (tagSongs) => set({ tagSongs }),
   confirmDeleteSong: (songToDelete) => set({ songToDelete }),
   openAddToPlaylist: (addToPlaylistSongs) => set({ addToPlaylistSongs }),

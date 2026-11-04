@@ -88,6 +88,50 @@ function forgottenFrom(events, { minPlays, olderThanDays, limit, now, songInfo }
     .slice(0, limit);
 }
 
+const SESSION_GAP = 30 * 60 * 1000;
+const TOGETHER_WINDOW = 4;
+const TOGETHER_LIMIT = 25;
+const SKIP_UNDER_MS = 30_000;
+
+/**
+ * What radio learns from your listening. Per song: plays, skips (given up on within
+ * 30 s) and when. "together": songs you chose to hear close to each other in a
+ * session. Radio's own suggestions don't count, or it would only reinforce itself.
+ */
+function radioSignalsFrom(events, { songInfo }) {
+  const songs = {};
+  const sorted = [...events].filter((e) => songInfo(e.songId)).sort((a, b) => a.endedAt - b.endedAt);
+  const counts = new Map();
+  const bump = (a, b) => {
+    const m = counts.get(a) || new Map();
+    m.set(b, (m.get(b) || 0) + 1);
+    counts.set(a, m);
+  };
+  let window = [];
+  for (const e of sorted) {
+    const s = (songs[e.songId] ||= { plays: 0, skips: 0, lastPlayedAt: 0, lastSkippedAt: 0 });
+    if (e.counted) s.plays++;
+    else if (e.listenedMs < SKIP_UNDER_MS) {
+      s.skips++;
+      s.lastSkippedAt = Math.max(s.lastSkippedAt, e.endedAt);
+    }
+    s.lastPlayedAt = Math.max(s.lastPlayedAt, e.endedAt);
+    if (!e.counted || e.context?.type === "radio") continue;
+    window = window.filter((w) => e.endedAt - w.endedAt < SESSION_GAP).slice(-TOGETHER_WINDOW);
+    for (const w of window) {
+      if (w.songId === e.songId) continue;
+      bump(w.songId, e.songId);
+      bump(e.songId, w.songId);
+    }
+    window.push(e);
+  }
+  const together = {};
+  for (const [id, m] of counts) {
+    together[id] = Object.fromEntries([...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, TOGETHER_LIMIT));
+  }
+  return { songs, together };
+}
+
 function createPlaysStore({ userData, songInfo }) {
   const file = path.join(userData, "plays.jsonl");
   let events = [];
@@ -159,7 +203,12 @@ function createPlaysStore({ userData, songInfo }) {
     return forgottenFrom(events, { minPlays, olderThanDays, limit, now, songInfo });
   }
 
-  return { load, record, purgeSongs, stats, history, invalidate, forgotten };
+  function radioSignals() {
+    if (!cache.has("radio-signals")) cache.set("radio-signals", radioSignalsFrom(events, { songInfo }));
+    return cache.get("radio-signals");
+  }
+
+  return { load, record, purgeSongs, stats, history, invalidate, forgotten, radioSignals };
 }
 
-module.exports = { createPlaysStore, aggregate, sanitizeEvent, forgottenFrom };
+module.exports = { createPlaysStore, aggregate, sanitizeEvent, forgottenFrom, radioSignalsFrom };

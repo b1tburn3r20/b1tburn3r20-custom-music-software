@@ -4,6 +4,9 @@ import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/base/Page"
 import { useDownloadStore, isActive } from "@/stores/useDownloadStore"
 import { call } from "@/lib/api"
+import type { DownloadItem } from "@/types/api"
+import { VirtualList } from "@/components/base/VirtualList"
+import { cn } from "@/lib/utils"
 import { AuthBanner } from "./AuthBanner"
 import { isAuthError } from "./downloadActions"
 
@@ -29,37 +32,41 @@ export function DownloadsList() {
           Clear finished
         </Button>
       </div>
-      <ul className="flex flex-col divide-y divide-border/60 rounded-xl border border-border/60 bg-card">
-        {items.map((i) => (
-          <li key={i.videoId} className="flex items-center gap-3 px-3 py-2 text-sm">
-            {i.status === "done" || i.status === "skipped" ? (
-              <CheckCircle2 className="size-4 text-success" aria-label="done" />
-            ) : i.status === "error" ? (
-              <XCircle className="size-4 text-destructive" aria-label="failed" />
-            ) : i.status === "cancelled" ? (
-              <CircleSlash className="size-4 text-muted-foreground" aria-label="cancelled" />
-            ) : (
-              <Loader2 className="size-4 animate-spin text-muted-foreground" aria-label="in progress" />
-            )}
-            <div className="min-w-0 flex-1">
-              <p className="truncate">{i.title}</p>
-              <p className="truncate text-xs text-muted-foreground">
-                {i.status === "downloading" && (i.note === "finishing…" ? "Finishing — waiting for earlier downloads to keep the order" : `${Math.round(i.percent)}%`)}
-                {i.status === "queued" && "Waiting…"}
-                {i.status === "done" && (i.note === "downloaded without sign-in" ? "Saved to your library (downloaded without sign-in — see the notice above)" : "Saved to your library")}
-                {i.status === "skipped" && (i.note === "matched title, artist and length" ? "Already in your library (matched title, artist and length)" : "Already in your library")}
-                {i.status === "cancelled" && "Cancelled"}
-                {i.status === "error" && i.error?.message}
-              </p>
-            </div>
-            {isActive(i) && (
-              <Button size="sm" variant="ghost" onClick={() => window.api.youtube.cancel(i.videoId)}>
-                Cancel
-              </Button>
-            )}
-          </li>
-        ))}
-      </ul>
+      <div className="min-w-0 overflow-hidden rounded-xl border border-border/60 bg-card">
+        <VirtualList items={items} getKey={(i) => i.videoId} estimateSize={53} renderItem={(i, n) => <DownloadRow item={i} first={n === 0} />} />
+      </div>
+    </div>
+  )
+}
+
+function DownloadRow({ item: i, first }: { item: DownloadItem; first: boolean }) {
+  return (
+    <div className={cn("flex items-center gap-3 px-3 py-2 text-sm", !first && "border-t border-border/60")}>
+      {i.status === "done" || i.status === "skipped" ? (
+        <CheckCircle2 className="size-4 shrink-0 text-success" aria-label="done" />
+      ) : i.status === "error" ? (
+        <XCircle className="size-4 shrink-0 text-destructive" aria-label="failed" />
+      ) : i.status === "cancelled" ? (
+        <CircleSlash className="size-4 shrink-0 text-muted-foreground" aria-label="cancelled" />
+      ) : (
+        <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" aria-label="in progress" />
+      )}
+      <div className="min-w-0 flex-1">
+        <p className="truncate" title={i.title}>{i.title}</p>
+        <p className="truncate text-xs text-muted-foreground">
+          {i.status === "downloading" && (i.note === "finishing…" ? "Finishing — waiting for earlier downloads to keep the order" : `${Math.round(i.percent)}%`)}
+          {i.status === "queued" && "Waiting…"}
+          {i.status === "done" && (i.note === "downloaded without sign-in" ? "Saved to your library (downloaded without sign-in — see the notice above)" : "Saved to your library")}
+          {i.status === "skipped" && (i.note === "matched title, artist and length" ? "Already in your library (matched title, artist and length)" : "Already in your library")}
+          {i.status === "cancelled" && "Cancelled"}
+          {i.status === "error" && i.error?.message}
+        </p>
+      </div>
+      {isActive(i) && (
+        <Button size="sm" variant="ghost" onClick={() => window.api.youtube.cancel(i.videoId)}>
+          Cancel
+        </Button>
+      )}
     </div>
   )
 }

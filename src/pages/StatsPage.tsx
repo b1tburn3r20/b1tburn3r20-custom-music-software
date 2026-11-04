@@ -87,7 +87,7 @@ export default function StatsPage() {
             <Section title="Most played songs" className="pt-0">
               <div className="flex flex-col">
                 {top.map((t, i) => (
-                  <SongRow key={t.songId} song={t.song} index={i} list={topSongs} queueContext={context} badge={`${t.plays} ${t.plays === 1 ? "play" : "plays"} · ${formatListening(t.ms)}`} />
+                  <SongRow key={t.songId} song={t.song} index={i} startRadio list={topSongs} queueContext={context} badge={`${t.plays} ${t.plays === 1 ? "play" : "plays"} · ${formatListening(t.ms)}`} />
                 ))}
               </div>
             </Section>
