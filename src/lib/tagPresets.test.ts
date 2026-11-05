@@ -57,6 +57,17 @@ describe("tagFamily", () => {
   })
 })
 
+describe("mood tags", () => {
+  it("are offered, in their standard spelling", () => {
+    expect(canonicalTag("Chill")).toBe("chill")
+    expect(canonicalTag("feel good")).toBe("feel-good")
+  })
+  it("don't count as a genre family, so radio doesn't treat all moods as related", () => {
+    for (const mood of ["chill", "party", "sad", "workout"]) expect(tagFamily(mood)).toBeNull()
+    expect(tagFamily("rock")).not.toBeNull()
+  })
+})
+
 describe("GENRE_GROUPS", () => {
   it("has no two names that count as the same tag", () => {
     const keys = GENRE_GROUPS.flatMap((g) => g.genres).map(looseKey)

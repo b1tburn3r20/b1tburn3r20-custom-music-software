@@ -14,6 +14,7 @@ export default function DeletePlaylistDialog() {
     <Modal
       open={Boolean(id && pl)}
       onClose={close}
+      size="sm"
       title={`Delete “${pl?.name ?? ""}”?`}
       description={`The playlist (${n} ${n === 1 ? "song" : "songs"}) is removed. The songs stay in your library.`}
       footer={

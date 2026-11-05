@@ -13,6 +13,7 @@ import { playRadio } from "@/player/controls"
 import { cn } from "@/lib/utils"
 import { ListButton } from "@/components/base/Layout"
 import AppSettings from "./settings/SettingsDialog"
+import { FullscreenButton } from "./FullscreenButton"
 
 const LIMITS = { artists: 3, albums: 3, songs: 5 }
 
@@ -216,6 +217,7 @@ export default function TopBar() {
       <div className="mx-auto w-full max-w-xl">
         <SearchBox />
       </div>
+      <FullscreenButton />
       <IconButton icon={Keyboard} label="Keyboard shortcuts (Ctrl+/)" size="md" className="bg-muted/60" onClick={() => dialogs().openShortcuts(true)} />
       <AppSettings />
     </div>

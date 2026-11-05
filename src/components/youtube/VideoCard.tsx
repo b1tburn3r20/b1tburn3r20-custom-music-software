@@ -13,17 +13,19 @@ import { DownloadButton } from "./DownloadButton"
 /** A YouTube search result: preview, play if already in the library, otherwise download. */
 export const VideoCard = memo(function VideoCard({ video, owned }: { video: YtVideo; owned: { song: Song; exact: boolean } | null }) {
   const [embed, setEmbed] = useState(false)
+  // Only false means no: a video opened from a link doesn't say either way.
+  const canPreview = video.embeddable !== false
   const isCurrent = usePlayerStore((s) => Boolean(owned) && s.currentSongId === owned?.song.id)
   const playing = usePlayerStore((s) => !s.paused) && isCurrent
   const card = (
     <div className="flex w-card flex-col gap-2 rounded-2xl bg-card p-2">
       <div className="relative overflow-hidden rounded-xl">
-        {embed && video.embeddable ? (
+        {embed && canPreview ? (
           <iframe className="aspect-video w-full" src={`https://www.youtube.com/embed/${video.id}?autoplay=1`} allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen loading="lazy" title={video.title} />
         ) : (
-          <button type="button" className="group relative block w-full" onClick={() => video.embeddable && setEmbed(true)} aria-label={video.embeddable ? `Preview ${video.title}` : undefined} disabled={!video.embeddable}>
+          <button type="button" className="group relative block w-full" onClick={() => canPreview && setEmbed(true)} aria-label={canPreview ? `Preview ${video.title}` : undefined} disabled={!canPreview}>
             <Artwork src={video.thumbnail} className="aspect-video h-auto w-full rounded-none" size="fill" />
-            {video.embeddable && (
+            {canPreview && (
               <span className="absolute inset-0 flex items-center justify-center bg-scrim opacity-0 transition-opacity group-hover:opacity-100">
                 <span className="rounded-full bg-youtube p-3 text-destructive-foreground">
                   <Play className="size-6 fill-current" />

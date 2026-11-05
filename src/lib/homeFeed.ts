@@ -4,6 +4,23 @@ import type { Song } from "@/types/DirectoryTypes"
 import { realGenre, songArtists, type TagMap } from "@/lib/catalog"
 import { canonicalTag } from "@/lib/tagPresets"
 
+export type ShelfItem<P, A> = { kind: "playlist"; item: P } | { kind: "album"; item: A }
+
+/**
+ * The home page's playlists row: the ones you opened recently first, then, to fill it up,
+ * a random mix of your other playlists and albums. Empty playlists aren't used as filler.
+ */
+export function fillShelf<P extends { id: string; songIds: readonly string[] }, A>(recent: readonly P[], playlists: readonly P[], albums: readonly A[], max: number, rand: () => number = Math.random): ShelfItem<P, A>[] {
+  const out: ShelfItem<P, A>[] = recent.slice(0, max).map((item) => ({ kind: "playlist", item }))
+  const seen = new Set(recent.map((p) => p.id))
+  const filler: ShelfItem<P, A>[] = [...playlists.filter((p) => !seen.has(p.id) && p.songIds.length).map((item) => ({ kind: "playlist" as const, item })), ...albums.map((item) => ({ kind: "album" as const, item }))]
+  for (let i = filler.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1))
+    ;[filler[i], filler[j]] = [filler[j], filler[i]]
+  }
+  return [...out, ...filler.slice(0, Math.max(0, max - out.length))]
+}
+
 type Daily = { day: string; ms: number }[]
 type Played = { songId: string; plays: number }
 type Liked = { songId: string; likedAt: number }

@@ -1,6 +1,8 @@
 // The playback engine: owns the single <audio> element for the whole app.
 // React components never create Audio objects; they read state from
 // usePlayerStore / usePlaybackClock and call the functions in ./controls.
+import { followedSongIds } from "@/lib/followedArtists"
+import { useYoutubeAccount } from "@/components/youtube/accessStore"
 import { toast } from "sonner"
 import { usePlaybackClock, usePlayerStore } from "@/stores/usePlayerStore"
 import { useLibraryStore } from "@/stores/useLibraryStore"
@@ -147,6 +149,7 @@ export function radioBatch(seed: Song, exclude: Set<string>, count: number, rece
   return radioFor(lib.songs, seed, exclude, count, Math.random, user.songTags, {
     signals: useStatsStore.getState().radioSignals,
     likedIds: user.likedIds,
+    followedIds: followedSongIds(lib.songs, useYoutubeAccount.getState().account?.subscriptions ?? []),
     playlists: user.playlists,
     recent: recentIds.map((id) => lib.songsById[id]).filter(Boolean),
   })

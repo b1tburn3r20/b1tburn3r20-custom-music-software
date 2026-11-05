@@ -1,5 +1,6 @@
 import { useMemo } from "react"
-import { Library } from "lucide-react"
+import { Library, Mic2, Music } from "lucide-react"
+import { AddMusicActions } from "@/components/base/GettingStarted"
 import { Page, PageHeader, Section, CardGrid, EmptyState } from "@/components/base/Page"
 import { PlayAllButton, ShuffleAllButton } from "@/components/base/HeaderActions"
 import { SongList } from "@/components/song/SongRow"
@@ -22,6 +23,7 @@ export default function LibraryPage({ tab = "albums" }: { tab?: "albums" | "arti
   const songTags = useUserStore((s) => s.songTags)
   const tags = useMemo(() => buildTagList(songs, songTags), [songs, songTags])
   const byTitle = useMemo(() => [...songs].sort((a, b) => a.metadata.title.localeCompare(b.metadata.title)), [songs])
+  const songCount = byTitle.length
   return (
     <Page>
       <PageHeader
@@ -46,16 +48,16 @@ export default function LibraryPage({ tab = "albums" }: { tab?: "albums" | "arti
             <TabsTrigger value="tags">Tags</TabsTrigger>
           </TabsList>
           <TabsContent value="albums" className="pt-4">
-            {albums.length ? <CardGrid>{albums.map((a) => <AlbumCard key={a.key} album={a} />)}</CardGrid> : <EmptyState icon={Library} title="No albums yet" hint="Songs with album tags show up here." />}
+            {albums.length ? <CardGrid>{albums.map((a) => <AlbumCard key={a.key} album={a} />)}</CardGrid> : <EmptyState icon={Library} title="No albums yet" hint="Songs with album tags show up here." action={songCount ? undefined : <AddMusicActions />} />}
           </TabsContent>
           <TabsContent value="artists" className="pt-4">
-            <CardGrid>{artists.map((a) => <ArtistCard key={a.key} name={a.name} thumbnail={a.thumbnail} songCount={a.songCount} />)}</CardGrid>
+            {artists.length ? <CardGrid>{artists.map((a) => <ArtistCard key={a.key} name={a.name} thumbnail={a.thumbnail} songCount={a.songCount} />)}</CardGrid> : <EmptyState icon={Mic2} title="No artists yet" hint="Artists appear here once you have some songs." action={<AddMusicActions />} />}
           </TabsContent>
           <TabsContent value="tags" className="pt-4">
-            {tags.length ? <CardGrid>{tags.map((t) => <TagCard key={t.key} name={t.name} count={t.count} own={t.own} thumbnail={t.thumbnail} />)}</CardGrid> : <EmptyState icon={Library} title="No tags yet" hint="Right-click a song and choose Tags… to tag it with a mood or genre like “somber” or “rap”." />}
+            {tags.length ? <CardGrid>{tags.map((t) => <TagCard key={t.key} name={t.name} count={t.count} own={t.own} thumbnail={t.thumbnail} />)}</CardGrid> : <EmptyState icon={Library} title="No tags yet" hint="Right-click a song and choose Tags… to tag it with a mood or genre like “somber” or “rap”." action={songCount ? undefined : <AddMusicActions />} />}
           </TabsContent>
           <TabsContent value="songs" className="pt-4">
-            <SongList songs={byTitle} startRadio queueContext={CONTEXT} />
+            {byTitle.length ? <SongList songs={byTitle} startRadio queueContext={CONTEXT} /> : <EmptyState icon={Music} title="No songs yet" hint="Add MP3 files to your music folder, then rescan." action={<AddMusicActions />} />}
           </TabsContent>
         </Tabs>
       </Section>

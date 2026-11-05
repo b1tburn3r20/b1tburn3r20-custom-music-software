@@ -91,10 +91,16 @@ const LaxPlayer = () => {
       }
     }, zenTimeout)
 
+    // Tabbing counts as being here too, or the hidden queue could never be reached by keyboard.
+    const handleTab = (e: KeyboardEvent) => {
+      if (e.key === "Tab") handleMouseMove()
+    }
     document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('keydown', handleTab)
     return () => {
       clearTimeout(timeout)
       document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('keydown', handleTab)
     }
   }, [expanded, zenEnabled, zenTimeout, setIsIdle])
   useEffect(() => {
@@ -134,7 +140,7 @@ const LaxPlayer = () => {
       data-region="zen"
       className={`absolute inset-x-0 top-0 z-zen h-screen w-screen transition-transform duration-slow ease-standard ${expanded ? "translate-y-0" : "translate-y-full"} ${isIdle ? "cursor-none" : ""}`}
     >
-      <div className={`relative flex h-screen w-screen flex-col overflow-hidden transition-all duration-ambient bg-background`} onDoubleClick={handleDoubleClick} style={backgroundStyle}>
+      <div className={`relative flex h-screen w-screen flex-col overflow-clip transition-all duration-ambient bg-background`} onDoubleClick={handleDoubleClick} style={backgroundStyle}>
         {visualize ? (
           // The track info sits on its own translucent panel, so no darkening overlay is needed.
           <Visualizer scene={scene} artwork={m?.thumbnail} colorKey={activeSong?.id ?? "visualizer"} active={expanded} onTempo={setBpm} />
@@ -182,7 +188,7 @@ const LaxPlayer = () => {
           </div>
         </div>
         <div className="flex w-full justify-end">
-          <div data-queue className={`z-zen-queue w-fit transition-transform duration-gentle ease-standard ${isIdle ? "translate-x-full" : "translate-x-0"}`}>
+          <div data-queue inert={isIdle} className={`z-zen-queue w-fit transition-transform duration-gentle ease-standard ${isIdle ? "translate-x-full" : "translate-x-0"}`}>
             <MusicQueue />
           </div>
         </div>

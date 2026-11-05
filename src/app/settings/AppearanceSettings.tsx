@@ -23,7 +23,6 @@ export default function AppearanceSettings() {
             aria-checked={selected}
             onClick={() => choose(t.id)}
             data-theme={t.id}
-            data-mode={t.mode}
             className={cn("relative flex flex-col gap-3 rounded-xl border-2 bg-background p-3 text-left text-foreground outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring", selected ? "border-primary" : "border-border hover:border-muted-foreground")}
           >
             <div className="flex h-16 gap-2 overflow-hidden rounded-lg bg-card p-2" aria-hidden>

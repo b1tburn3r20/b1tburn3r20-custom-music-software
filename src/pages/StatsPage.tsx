@@ -69,7 +69,7 @@ export default function StatsPage() {
         {error && <p role="alert" className="mt-4 text-sm text-destructive">{error}</p>}
       </Section>
       {stats && stats.totalMs === 0 ? (
-        <EmptyState icon={BarChart3} title="No listening recorded in this period" hint="Play some music and your stats will show up here." />
+        <EmptyState icon={BarChart3} title="No listening recorded in this period" hint="Play some music and your stats will show up here." action={<Button variant="secondary" onClick={() => navigate({ name: "library" })}>Go to your library</Button>} />
       ) : stats ? (
         <>
           <Section className="pt-0">

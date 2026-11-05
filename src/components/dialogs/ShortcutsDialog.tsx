@@ -19,8 +19,8 @@ export default function ShortcutsDialog() {
   const open = useDialogStore((s) => s.shortcutsOpen)
   const close = () => useDialogStore.getState().openShortcuts(false)
   return (
-    <Modal open={open} onClose={close} title="Keyboard shortcuts" description="Everything in the app works from the keyboard. Shortcuts pause while you type in a text field. Ctrl+/ or Esc closes this." size="lg">
-      <div className="grid max-h-[65vh] grid-cols-1 gap-x-8 gap-y-6 overflow-y-auto pr-1 md:grid-cols-2">
+    <Modal open={open} onClose={close} title="Keyboard shortcuts" description="Everything in the app works from the keyboard. Shortcuts pause while you type in a text field. Ctrl+/ or Esc closes this.">
+      <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
         {SHORTCUTS.map((g) => (
           <section key={g.title} aria-label={g.title}>
             <h3 className="mb-2 text-sm font-semibold text-muted-foreground">{g.title}</h3>

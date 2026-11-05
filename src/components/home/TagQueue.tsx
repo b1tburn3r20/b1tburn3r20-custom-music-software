@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react"
-import { Check, Plus, Tags, X } from "lucide-react"
+import { Check, Plus, Sparkles, Tags, X } from "lucide-react"
+import { openSettings } from "@/app/settings/settingsStore"
 import { HomeSection } from "@/components/home/HomeSection"
 import { useColumns } from "@/hooks/useColumns"
 import { SongRow } from "@/components/song/SongRow"
@@ -97,9 +98,14 @@ export function TagQueue() {
     <HomeSection
       title="Songs to tag"
       action={
-        <Button variant="ghost" size="sm" onClick={next}>
-          Next
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="sm" onClick={() => openSettings("ai")}>
+            <Sparkles /> Tag with AI
+          </Button>
+          <Button variant="ghost" size="sm" onClick={next}>
+            Next
+          </Button>
+        </div>
       }
     >
       <div className="mb-2 flex items-center gap-3 px-1 text-xs text-muted-foreground">

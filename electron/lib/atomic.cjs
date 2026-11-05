@@ -7,6 +7,21 @@ const path = require("path");
 
 const chains = new Map();
 
+// Windows: antivirus and search indexers briefly hold files open, which makes a rename fail.
+const RENAME_RETRY_CODES = new Set(["EPERM", "EBUSY", "EACCES"]);
+const RENAME_RETRY_DELAYS_MS = [50, 100, 200, 400, 800];
+
+async function renameWithRetry(from, to) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fs.rename(from, to);
+    } catch (err) {
+      if (!RENAME_RETRY_CODES.has(err.code) || attempt >= RENAME_RETRY_DELAYS_MS.length) throw err;
+      await new Promise((r) => setTimeout(r, RENAME_RETRY_DELAYS_MS[attempt]));
+    }
+  }
+}
+
 async function writeFileAtomic(file, contents) {
   const prev = chains.get(file) || Promise.resolve();
   const next = prev
@@ -15,7 +30,12 @@ async function writeFileAtomic(file, contents) {
       await fs.mkdir(path.dirname(file), { recursive: true });
       const tmp = `${file}.tmp-${process.pid}`;
       await fs.writeFile(tmp, contents, "utf-8");
-      await fs.rename(tmp, file);
+      try {
+        await renameWithRetry(tmp, file);
+      } catch (err) {
+        await fs.unlink(tmp).catch(() => { });
+        throw err;
+      }
     });
   chains.set(file, next);
   try {
@@ -59,14 +79,24 @@ function createDebouncedSaver(saveFn, delayMs = 400) {
     if (!pending) return;
     const p = pending;
     pending = null;
-    await saveFn();
-    p.resolve();
+    // Always settle: whoever awaits schedule() must not hang forever because one save failed.
+    try {
+      await saveFn();
+      p.resolve();
+    } catch (err) {
+      p.reject(err);
+      throw err;
+    }
   };
   const schedule = () => {
     if (!pending) {
-      let resolve;
-      const promise = new Promise((r) => (resolve = r));
-      pending = { promise, resolve };
+      let resolve, reject;
+      const promise = new Promise((res, rej) => {
+        resolve = res;
+        reject = rej;
+      });
+      promise.catch(() => { }); // many callers don't await; the timer below logs the failure
+      pending = { promise, resolve, reject };
     }
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => flush().catch((e) => console.error("[store] save failed:", e)), delayMs);

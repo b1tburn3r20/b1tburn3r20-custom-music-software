@@ -39,7 +39,65 @@ describe("JS challenge failures", () => {
     const e = y.classifyError(stderr, { authMode: "file" })
     expect(e.code).toBe("YTDLP_JS_CHALLENGE")
     expect(e.message).toMatch(/0\.5\.0.*0\.8\.0/)
-    expect(e.message).toMatch(/pacman -Syu/)
+    expect(e.message).toMatch(/Update yt-dlp/)
+    expect(e.message).not.toMatch(/pacman|-Syu|system/i)
+  })
+})
+
+describe("a 401 from YouTube", () => {
+  // The exact line yt-dlp printed for this, on a real run.
+  const LINE = "ERROR: [youtube:tab] playlists: Unable to download API page: HTTP Error 401: Unauthorized (caused by <HTTPError 401: Unauthorized>)"
+  it("means the sign-in wasn't accepted, not a failed download", () => {
+    const e = y.classifyError(LINE, { authMode: "file" })
+    expect(e.code).toBe("AUTH_EXPIRED")
+    expect(e.message).not.toMatch(/HTTP|401|caused by/)
+  })
+  it("asks to sign in when nothing is set up", () => {
+    expect(y.classifyError(LINE).code).toBe("SIGN_IN_REQUIRED")
+  })
+})
+
+describe("hasSignInCookies", () => {
+  const line = (name: string, domain = ".youtube.com") => [domain, "TRUE", "/", "TRUE", "1999999999", name, "value"].join("\t")
+  it.each(["SAPISID", "APISID", "__Secure-1PAPISID", "__Secure-3PAPISID", "LOGIN_INFO"])("recognises %s", (name) => {
+    expect(y.hasSignInCookies(line(name))).toBe(true)
+    expect(y.hasSignInCookies(line(name, "#HttpOnly_.youtube.com"))).toBe(true)
+  })
+  it("sees a signed-out export for what it is", () => {
+    expect(y.hasSignInCookies([line("PREF"), line("VISITOR_INFO1_LIVE"), line("YSC")].join("\n"))).toBe(false)
+  })
+  it("doesn't count another site's cookie of the same name", () => {
+    expect(y.hasSignInCookies(line("SAPISID", ".google.com"))).toBe(false)
+    expect(y.hasSignInCookies(line("SAPISID", ".notyoutube.com"))).toBe(false)
+  })
+  it("isn't fooled by the name appearing as a value", () => {
+    expect(y.hasSignInCookies([".youtube.com", "TRUE", "/", "TRUE", "1999999999", "PREF", "SAPISID"].join("\t"))).toBe(false)
+  })
+})
+
+describe("youtubeCookiesOnly", () => {
+  const line = (domain: string, name = "SID") => [domain, "TRUE", "/", "TRUE", "1999999999", name, "secret"].join("\t")
+  const keep = (text: string) => y.youtubeCookiesOnly(text) as string
+
+  it("keeps YouTube and Google sign-in cookies, including HttpOnly ones", () => {
+    const out = keep([line(".youtube.com"), line("#HttpOnly_.youtube.com", "HSID"), line(".google.com", "NID"), line("accounts.google.com", "LSID")].join("\n"))
+    expect(out.split("\n").filter((l) => l.includes("\t"))).toHaveLength(4)
+  })
+  it("drops every other site's sessions", () => {
+    const out = keep([line(".youtube.com"), line(".mybank.com", "BANK"), line("mail.example.org", "MAIL")].join("\n"))
+    expect(out).not.toContain("BANK")
+    expect(out).not.toContain("MAIL")
+  })
+  it("isn't fooled by look-alike domains", () => {
+    const out = keep([line("notyoutube.com", "A"), line("youtube.com.evil.net", "B"), line(".evilgoogle.com", "C")].join("\n"))
+    expect(out.split("\n").filter((l) => l.includes("\t"))).toHaveLength(0)
+  })
+  it("starts with the line yt-dlp requires, and handles Windows line endings", () => {
+    const out = keep("# Netscape HTTP Cookie File\r\n# a comment\r\n" + line(".youtube.com") + "\r\n")
+    expect(out.split("\n")[0]).toBe("# Netscape HTTP Cookie File")
+    expect(out).not.toContain("\r")
+    expect(out).not.toContain("a comment")
+    expect(out).toContain("secret")
   })
 })
 

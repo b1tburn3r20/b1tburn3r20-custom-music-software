@@ -1,16 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { parseISODuration, parseYoutubeUrl } from "./youtubeApi"
-
-describe("parseISODuration", () => {
-  it("handles hours, minutes, seconds and days", () => {
-    expect(parseISODuration("PT4M12S")).toBe(252)
-    expect(parseISODuration("PT1H2M3S")).toBe(3723)
-    expect(parseISODuration("PT2H")).toBe(7200)
-    expect(parseISODuration("P1DT1S")).toBe(86401)
-    expect(parseISODuration("PT45S")).toBe(45)
-    expect(parseISODuration("")).toBe(0)
-  })
-})
+import { parseYoutubeUrl } from "./youtubeApi"
 
 describe("parseYoutubeUrl", () => {
   it("extracts video and playlist ids", () => {

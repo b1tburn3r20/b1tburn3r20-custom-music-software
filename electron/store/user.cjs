@@ -54,6 +54,8 @@ function createUserStore({ userData, library, emit = () => { } }) {
     if (data) {
       const base = emptyUserState();
       user = { ...base, ...data, settings: { ...base.settings, ...data.settings, youtubeAuth: { ...base.settings.youtubeAuth, ...(data.settings && data.settings.youtubeAuth) } } };
+      // This setting is new, so its default would send every existing user through first-run setup.
+      if (!(data.settings && data.settings.onboarding) && (library.rootDir || library.visibleSongs().length)) user.settings.onboarding = { status: "done", step: "folder" };
       return report;
     }
     const legacy = await readJson(path.join(userData, "playlists.json"), null).catch((e) => {
@@ -66,6 +68,7 @@ function createUserStore({ userData, library, emit = () => { } }) {
       user.playlists = playlists;
       report.migrated = true;
       report.playlists = r;
+      user.settings.onboarding = { status: "done", step: "folder" }; // not a new user
       console.info(`[user] migrated ${r.playlists} playlists (${r.songs} songs, ${r.unresolved.length} unresolved, renamed: ${r.renamed.length})`);
     }
     await writeJsonAtomic(file, user);

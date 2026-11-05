@@ -69,7 +69,8 @@ export default function TagPage({ tag }: { tag: string }) {
       <Modal
         open={renaming}
         onClose={() => setRenaming(false)}
-        title="Rename tag"
+        size="sm"
+      title="Rename tag"
         description="Renaming to an existing tag merges them."
         onSubmit={doRename}
         footer={

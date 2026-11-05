@@ -4,6 +4,8 @@ import { useUserStore } from "@/stores/useUserStore"
 import { useSettingsStore } from "@/stores/useSettingsStore"
 import { startDownloadSync } from "@/stores/useDownloadStore"
 import { startStatsSync } from "@/stores/useStatsStore"
+import { selectMusicFolder } from "@/lib/actions"
+import { startYoutubeAccessSync } from "@/components/youtube/accessStore"
 import { toast } from "sonner"
 
 // Mirror the persisted UI settings into the (non-persisted) settings store used by the views.
@@ -80,9 +82,23 @@ export async function bootstrapData() {
   }
   try {
     startDownloadSync()
+    void startYoutubeAccessSync()?.catch((err) => console.warn("[bootstrap] couldn't read YouTube access:", err))
     startStatsSync()
     await importLegacyLocalStorage()
   } catch (err) {
     toast.error("Couldn't import old likes/history", { description: `${(err as Error).message}. Nothing was deleted; it will retry next launch.` })
+  }
+  // After the legacy import, which can restore a folder of its own: this only fills in a missing one.
+  try {
+    const folder = await call(window.api.library.ensureDefaultFolder())
+    if (folder.error) {
+      toast.error("Couldn't use your Music folder", {
+        description: `${folder.error} Choose a different folder to save and play music.`,
+        duration: Infinity,
+        action: { label: "Choose folder", onClick: () => void selectMusicFolder() },
+      })
+    }
+  } catch (err) {
+    console.warn("[bootstrap] default music folder failed:", err)
   }
 }

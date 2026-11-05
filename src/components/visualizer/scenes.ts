@@ -14,7 +14,7 @@ export type Scene = {
   draw(ctx: CanvasRenderingContext2D, f: AudioFrame, p: Palette): void
 }
 
-export type SceneId = "tunnel" | "orbit" | "nebula" | "tundra" | "nighttime" | "drift"
+export type SceneId = "tunnel" | "orbit" | "nighttime" | "drift"
 export type SceneInfo = {
   id: SceneId
   label: string
@@ -25,17 +25,12 @@ export type SceneInfo = {
 export const SCENES: SceneInfo[] = [
   { id: "tunnel", label: "Tunnel", description: "The waveform as a ring that echoes into an endless, spinning tunnel.", calm: false },
   { id: "orbit", label: "Orbit", description: "Thousands of dots in tilted rings around nothing, like the disc of a black hole. They race when the song is at its fullest.", calm: false },
-  { id: "nebula", label: "Nebula", description: "Clouds of sparks that burst on the beat and drift on currents.", calm: false },
-  { id: "tundra", label: "Tundra", description: "Racing high over spiky polygon ice and mountains that rise to meet you. Faster with faster songs.", calm: false },
   { id: "nighttime", label: "Nighttime", description: "Gliding over moonlit ice under the northern lights. The music sets the pace.", calm: true },
   { id: "drift", label: "Drift", description: "Soft glows in the colors of the cover art, flowing gently with the song.", calm: true },
 ]
 
 const hsl = (h: number, s: number, l: number, a = 1) => `hsla(${h % 360}, ${s}%, ${l}%, ${a})`
-const bg = (p: Palette, a = 1) => hsl(p.h, Math.min(60, p.s), 4, a)
 
-/** Hue that wanders around the album color so long songs don't look static. */
-const hueAt = (p: Palette, f: AudioFrame, offset = 0) => (p.h + Math.sin(f.time * 0.07) * 35 + offset + 360) % 360
 
 /** The cover's own colors (see albumColors), or the theme's fallback color with no readable cover. */
 function coverColors(p: Palette): Hsl[] {
@@ -187,6 +182,16 @@ export function orbitSpeed(fullness: number, bpm: number | null) {
   const tempo = bpm ? Math.min(1.8, Math.max(0.6, bpm / 120)) : 1
   return (ORBIT_DRIFT_SPEED + (ORBIT_TOP_SPEED - ORBIT_DRIFT_SPEED) * Math.pow(fullness, 3)) * tempo
 }
+/**
+ * The outer ring's radius. It's sized from the screen's short side, as if fitting a square:
+ * a wide screen adds empty space around the rings, not bigger rings. They grow with speed
+ * (`scale`), which on a wide screen stops where they'd leave it. A tall screen lets them
+ * run off the sides at full speed.
+ */
+export function orbitRadius(w: number, h: number, reachX: number, reachY: number, scale = 1) {
+  const radius = ((Math.min(w, h) * 0.5) / Math.max(reachX, reachY)) * scale
+  return w > h ? Math.min(radius, (w * 0.5) / reachX, (h * 0.5) / reachY) : radius
+}
 /** The rings grow with speed, up to 1.5x at full speed. */
 export const orbitScale = (speed: number) => 1 + 0.5 * Math.min(1, speed / ORBIT_TOP_SPEED)
 /** Peak chaos and the white hole snap on and off within a few frames: the illusion only works if it's fast. */
@@ -322,7 +327,7 @@ function orbit(): Scene {
       // Fit the ellipse at its current angle.
       const reachX = Math.hypot(cosR, sinT * sinR)
       const reachY = Math.hypot(sinR, sinT * cosR)
-      const outer = Math.min((w * 0.5) / reachX, (h * 0.5) / reachY) * orbitScale(speed)
+      const outer = orbitRadius(w, h, reachX, reachY, orbitScale(speed))
       const cx = w / 2
       const cy = h / 2
       const pixel = Math.max(1.2, Math.min(w, h) / 500)
@@ -397,80 +402,6 @@ function orbit(): Scene {
         if (l === ORB_LAYER && orb > 0.01) drawOrb(ctx, cx, cy, Math.min(w, h) * 0.035 * Math.sqrt(orb), orb, f.time)
       }
       ctx.globalAlpha = 1
-    },
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Nebula: particles born at the center, pushed out by the bass and carried by a
-// slowly turning flow field.
-function nebula(): Scene {
-  const MAX = 2400
-  const px = new Float32Array(MAX)
-  const py = new Float32Array(MAX)
-  const vx = new Float32Array(MAX)
-  const vy = new Float32Array(MAX)
-  const life = new Float32Array(MAX)
-  const hue = new Float32Array(MAX)
-  let next = 0
-  let w = 0
-  let h = 0
-  let scale = 1
-  const spawn = (f: AudioFrame, p: Palette, burst: boolean) => {
-    const i = next
-    next = (next + 1) % MAX
-    const a = Math.random() * Math.PI * 2
-    const speed = (burst ? 3 + Math.random() * 9 : 0.5 + Math.random() * 2) * (1 + f.bass * 2) * scale
-    const r = Math.random() * 20 * scale
-    px[i] = w / 2 + Math.cos(a) * r
-    py[i] = h / 2 + Math.sin(a) * r
-    vx[i] = Math.cos(a) * speed
-    vy[i] = Math.sin(a) * speed
-    life[i] = 1
-    hue[i] = hueAt(p, f, (Math.random() - 0.5) * 70 + (burst ? 30 : 0))
-  }
-  return {
-    resize(nw, nh) {
-      w = nw
-      h = nh
-      scale = Math.min(w, h) / 900
-      life.fill(0)
-    },
-    draw(ctx, f, p) {
-      ctx.globalCompositeOperation = "source-over"
-      ctx.fillStyle = bg(p, 0.18)
-      ctx.fillRect(0, 0, w, h)
-      const steady = Math.floor(2 + f.level * 22)
-      for (let i = 0; i < steady; i++) spawn(f, p, false)
-      if (f.beat > 0.95) for (let i = 0; i < 160 + f.bass * 200; i++) spawn(f, p, true)
-
-      ctx.globalCompositeOperation = "lighter"
-      const t = f.time * 0.25
-      const field = 0.0025 / scale
-      const push = 0.08 + f.mid * 0.25
-      const size = (1.2 + f.treble * 2.5) * Math.max(1, scale)
-      for (let i = 0; i < MAX; i++) {
-        if (life[i] <= 0) continue
-        const a = Math.sin(px[i] * field + t) * Math.cos(py[i] * field - t * 0.8) * Math.PI * 2
-        vx[i] = vx[i] * 0.975 + Math.cos(a) * push
-        vy[i] = vy[i] * 0.975 + Math.sin(a) * push
-        px[i] += vx[i]
-        py[i] += vy[i]
-        life[i] -= 0.004 + (1 - f.level) * 0.004
-        if (px[i] < -20 || px[i] > w + 20 || py[i] < -20 || py[i] > h + 20) life[i] = 0
-        const l = life[i]
-        ctx.fillStyle = hsl(hue[i], 85, 45 + l * 25, l * 0.8)
-        const s = size * (0.5 + l)
-        ctx.fillRect(px[i] - s / 2, py[i] - s / 2, s, s)
-      }
-      // Soft core glow that breathes with the bass.
-      const r = Math.min(w, h) * (0.08 + f.bass * 0.12 + f.beat * 0.05)
-      const g = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, r)
-      g.addColorStop(0, hsl(hueAt(p, f), 80, 60, 0.25 + f.bass * 0.3))
-      g.addColorStop(1, hsl(hueAt(p, f), 80, 40, 0))
-      ctx.fillStyle = g
-      ctx.fillRect(w / 2 - r, h / 2 - r, r * 2, r * 2)
-      ctx.globalCompositeOperation = "source-over"
     },
   }
 }
@@ -729,388 +660,12 @@ function drift(): Scene {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Terrain level-of-detail with geomorphing (used by Tundra; exported for tests).
-
-const mod = (a: number, m: number) => ((a % m) + m) % m
-
-/**
- * Height of grid vertex (j, k) as drawn in a mesh whose cells are `step` vertices
- * wide. Within `morph` world units before the boundary to the next, twice-as-coarse
- * level (`toBoundary` = distance left), vertices the coarser mesh doesn't have
- * glide onto the coarser surface, so switching levels never pops and the two
- * meshes meet without cracks. `toBoundary` null = no coarser level.
- *
- * The coarse mesh splits cell (jc..jc+S, kc..kc+S) along the diagonal from
- * near-left to far-right when ((jc + S) / S + kc / S) is odd, otherwise along the
- * other diagonal (cells are numbered by their right-hand column).
- */
-export function lodHeight(vh: (j: number, k: number) => number, j: number, k: number, step: number, toBoundary: number | null, morph: number): number {
-  const y = vh(j, k)
-  if (toBoundary === null) return y
-  const s = step
-  const S = s * 2
-  const jm = mod(j, S)
-  const km = mod(k, S)
-  if (!jm && !km) return y // also a vertex of the coarser mesh
-  const t = Math.min(1, Math.max(0, 1 - toBoundary / morph))
-  if (t <= 0) return y
-  let target: number
-  if (!km) target = (vh(j - s, k) + vh(j + s, k)) / 2
-  else if (!jm) target = (vh(j, k - s) + vh(j, k + s)) / 2
-  else {
-    const jc = j - s
-    const kc = k - s
-    const odd = ((jc + S) / S + kc / S) & 1
-    target = odd ? (vh(jc, kc) + vh(jc + S, kc + S)) / 2 : (vh(jc, kc + S) + vh(jc + S, kc)) / 2
-  }
-  const e = t * t * (3 - 2 * t)
-  return y + (target - y) * e
-}
-
-// ---------------------------------------------------------------------------
-// Tundra: low-poly arctic, seen from high up. Racing over a deep, spiky, faceted
-// ice landscape: wide valleys, sharp ice spikes in the ground itself, and now and
-// then a mountain range that rises up to meet you (the camera climbs to clear it).
-// Everything is flat-shaded triangles, no curves. Fast by default, faster with
-// faster tempos, with a surge forward on every beat.
-type V3 = [number, number, number]
-function tundra(): Scene {
-  let w = 0
-  let h = 0
-  const dtOf = clock()
-  let travel = 0
-  let speed = 20
-  let surge = 0
-  let camY = 16
-  const CELL = 1.6 // terrain triangle size near you (world units)
-  // Distant terrain uses bigger cells (the detail is lost in the haze anyway). Each
-  // level's cells are twice the size of the previous one, out to `until`.
-  const LODS = [
-    { step: 1, until: 45 },
-    { step: 2, until: 95 },
-    { step: 4, until: 150 },
-    { step: 8, until: 215 },
-    { step: 16, until: 480 },
-  ]
-  /** Before a level boundary, extra vertices glide onto the coarser shape over this distance, so nothing pops. */
-  const MORPH = 16
-  const Z_NEAR = 1.2
-  const Z_FAR = LODS[LODS.length - 1].until
-  // Fog thickens with distance and is total from FOG_END on, well before the far
-  // edge, so new terrain is born invisible inside the haze and slowly emerges.
-  const FOG_DEPTH = 85 // how quickly the haze thickens (exponential fog)
-  const FOG_END = 400
-  const FOG_NORM = 1 - Math.exp(-FOG_END / FOG_DEPTH)
-  // High up, the ground seems to move slower, so these are gentler than when flying low.
-  const CRUISE = 8 // base speed (world units / s)
-  const PER_BPM = 0.1 // extra speed per beat-per-minute (120 bpm ≈ 2.5x the base speed)
-  const MIN_ALT = 14 // how high we fly over the plains
-  const CLEARANCE = 3 // how close the highest possible spike may come under us
-  const PEAK = 7.2 // most a vertex rises above `land` (jitter + ice spike), see `vh`
-  const CLIMB = 0.4 // steepest climb (height gained per unit travelled)
-  const LOOKAHEAD = 150 // how far ahead the camera plans its climbs
-  const NEAR = 8 // terrain this close must already be fully cleared
-  const GRID = 4 // spacing of the terrain samples the camera looks at
-  /** Height of the haze band above the horizon: hides where the farthest (fully fogged) terrain could rise. */
-  const BAND = 0.05
-  const SUN = normalize([0.35, 0.55, 0.76]) // low, ahead and to the right
-  const HAZE = { h: 198, s: 45, l: 93 }
-
-  function normalize(v: V3): V3 {
-    const n = Math.hypot(v[0], v[1], v[2]) || 1
-    return [v[0] / n, v[1] / n, v[2] / n]
-  }
-  const hash = (a: number, b: number) => {
-    let n = (a * 374761393 + b * 668265263) | 0
-    n = Math.imul(n ^ (n >>> 13), 1274126177)
-    return ((n ^ (n >>> 16)) & 0xffff) / 0xffff
-  }
-  /** Smooth landscape: rolling valleys plus sharp ridged mountain ranges that sometimes rise very high. */
-  const land = (x: number, z: number) => {
-    const valleys = noise2(x * 0.025, z * 0.025) * 7
-    const ridge = 1 - Math.abs(noise2(x * 0.014 + 5, z * 0.014 - 3))
-    const range = Math.pow(ridge, 5) * 26 * (0.6 + 0.4 * noise2(x * 0.006, z * 0.006 + 40))
-    const crags = Math.pow(1 - Math.abs(noise2(x * 0.11, z * 0.11)), 2) * 2.2
-    return valleys + range + crags
-  }
-  /**
-   * Height at a terrain vertex: the landscape plus spiky jitter. Every few vertices
-   * shoot up into a sharp ice spike. Spikes only sit on even vertices so they
-   * survive the coarser distant mesh instead of popping in.
-   */
-  const vh = (j: number, k: number) => {
-    const x = j * CELL
-    const z = k * CELL
-    let y = land(x, z) + (hash(j, k) - 0.5) * 1.4
-    if (!(j & 1) && !(k & 1) && hash(k, j) > 0.86) y += 2 + hash(j + 7, k) * 4.5
-    return y
-  }
-  /** How directly a face with normal `n` faces the sun, 0..1. */
-  const lightOf = (n: V3) => Math.max(0, n[0] * SUN[0] + n[1] * SUN[1] + n[2] * SUN[2])
-  /** Ice color for light level `lit` at depth `z`, fading into the haze with distance. */
-  const shade = (lit: number, z: number) => {
-    const fog = Math.min(1, (1 - Math.exp(-Math.max(0, z) / FOG_DEPTH)) / FOG_NORM)
-    const l = 58 + lit * (99 - 58)
-    // Mid-distance ice is greyer than the haze; at full fog it matches the haze exactly.
-    const s = 50 * (1 - fog * 0.6) + (HAZE.s - 20) * Math.pow(fog, 6)
-    return hsl(207 + (HAZE.h - 207) * fog, s, l + (HAZE.l - l) * fog)
-  }
-  const faceNormal = (a: V3, b: V3, c: V3): V3 => {
-    const u: V3 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]]
-    const v: V3 = [c[0] - a[0], c[1] - a[1], c[2] - a[2]]
-    const n = normalize([u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]])
-    return n[1] < 0 ? [-n[0], -n[1], -n[2]] : n // ground always faces up, whatever the winding
-  }
-
-  const WIND = 90
-  const wx = new Float32Array(WIND)
-  const wy = new Float32Array(WIND) // height relative to the camera
-  const wz = new Float32Array(WIND)
-  const placeWind = (i: number, anywhere: boolean) => {
-    wz[i] = anywhere ? Z_NEAR + Math.random() * 30 : 15 + Math.random() * 15
-    wx[i] = (Math.random() - 0.5) * wz[i] * 1.6
-    wy[i] = (Math.random() - 0.5) * wz[i] * 0.8
-  }
-  for (let i = 0; i < WIND; i++) placeWind(i, true)
-
-  return {
-    resize(nw, nh) {
-      w = nw
-      h = nh
-    },
-    draw(ctx, f) {
-      const dt = dtOf(f)
-      // Until the tempo locks, loudness stands in for it (quiet ≈ 60 bpm, loud ≈ 140).
-      const tempo = f.bpm ?? 60 + f.level * 80
-      const cruise = CRUISE + tempo * PER_BPM
-      if (f.beat > 0.95) surge = 1
-      surge *= Math.pow(0.04, dt) // fades over about one beat
-      speed += (cruise * (0.8 + surge * 0.45) - speed) * Math.min(1, dt * 5)
-      travel += speed * dt
-
-      // Altitude: cruise high; climb early and steadily for mountains far ahead, so
-      // we're above every spike long before reaching it. Each terrain sample asks for
-      // its height (plus margin) by the time we get within NEAR of it, climbing at
-      // most CLIMB per unit travelled. Samples sit on a grid fixed to the world, so a
-      // peak is tracked the whole way in, never discovered late. `plan` (with extra
-      // clearance) is followed smoothly; `floor` is a hard limit that only matters if
-      // the follow ever lags too far behind.
-      let plan = MIN_ALT
-      let floor = MIN_ALT
-      for (let gz = Math.ceil(travel / GRID) * GRID; gz <= travel + LOOKAHEAD; gz += GRID) {
-        const dz = gz - travel
-        const half = 4 + Math.min(dz, 30) * 1.5 // the view's half-width there, with a margin
-        let top = -Infinity
-        for (let gx = -Math.ceil(half / GRID) * GRID; gx <= half + GRID; gx += GRID) top = Math.max(top, land(gx, gz))
-        const need = top + PEAK - Math.max(0, dz - NEAR) * CLIMB
-        plan = Math.max(plan, need + CLEARANCE)
-        if (dz <= 12) floor = Math.max(floor, need + 0.5)
-      }
-      camY += (plan - camY) * Math.min(1, dt * (plan > camY ? 8 : 0.5))
-      camY = Math.max(camY, floor)
-
-      const horizon = h * 0.36 + Math.sin(f.time * 0.31) * h * 0.008
-      const focal = h * 0.62
-      const bank = Math.sin(f.time * 0.23) * 0.04 + Math.sin(f.time * 0.11 + 1) * 0.02
-      const x0 = -w * 0.2
-      const x1 = w * 1.2
-      const project = (p: V3): [number, number] => {
-        const z = p[2] - travel
-        return [w / 2 + (p[0] / z) * focal, horizon + ((camY - p[1]) / z) * focal]
-      }
-
-      ctx.save()
-      ctx.translate(w / 2, h / 2)
-      ctx.rotate(bank)
-      ctx.translate(-w / 2, -h / 2)
-      ctx.globalCompositeOperation = "source-over"
-      ctx.globalAlpha = 1
-      ctx.lineWidth = 1
-      ctx.lineCap = "butt"
-
-      // Sky
-      const sky = ctx.createLinearGradient(0, -h * 0.2, 0, horizon)
-      sky.addColorStop(0, hsl(212, 70, 56))
-      sky.addColorStop(0.7, hsl(203, 70, 80))
-      sky.addColorStop(1, hsl(HAZE.h, HAZE.s, HAZE.l))
-      ctx.fillStyle = sky
-      ctx.fillRect(x0, -h * 0.2, x1 - x0, horizon + h * 0.2 + 2)
-      // Sun: nested hexagons, no curves.
-      const sunX = w * 0.68
-      const sunY = horizon - h * 0.12
-      for (const [r, a] of [[h * 0.16, 0.18], [h * 0.09, 0.35], [h * 0.045, 1]] as const) {
-        ctx.beginPath()
-        for (let i = 0; i < 6; i++) {
-          const ang = (i / 6) * Math.PI * 2 + Math.PI / 6
-          ctx.lineTo(sunX + Math.cos(ang) * r, sunY + Math.sin(ang) * r)
-        }
-        ctx.closePath()
-        ctx.fillStyle = hsl(48, 100, 94, a)
-        ctx.fill()
-      }
-
-      // Mountains: a zigzag of summits and valleys. Each summit is two flat facets
-      // meeting at a ridge, the sunward one lit and the other in shadow.
-      for (let layer = 0; layer < 2; layer++) {
-        const drift = travel * (0.002 + layer * 0.004)
-        const step = w / (7 + layer * 4)
-        // Scroll continuously: summits that slide out on one side keep their shape (seeded by index).
-        const scroll = drift * step
-        const firstSummit = Math.floor(scroll / (step * 2))
-        const shift = scroll - firstSummit * step * 2
-        const fade = layer ? 0.12 : 0.35 // the far range is hazier
-        const lit = hsl(210, 22, 97 + (HAZE.l - 97) * fade)
-        const dark = hsl(212, 28, (layer ? 78 : 83) + (HAZE.l - (layer ? 78 : 83)) * fade)
-        const base = horizon + h * 0.2 // reaches below the horizon: covers the gap before the nearest terrain
-        for (let i = -2, x = x0 - step * 2 - shift; x <= x1 + step * 2; x += step * 2, i++) {
-          const seed = i + firstSummit + layer * 101
-          const peakX = x + step + (hash(seed, 1) - 0.5) * step * 0.6
-          const peakY = horizon - h * ((layer ? 0.05 : 0.08) + hash(seed, 2) * (layer ? 0.06 : 0.09))
-          const leftV: [number, number] = [x, horizon - h * hash(seed, 3) * 0.02]
-          const rightV: [number, number] = [x + step * 2, horizon - h * hash(seed + 1, 3) * 0.02]
-          const ridgeFoot: [number, number] = [peakX + (hash(seed, 4) - 0.3) * step * 0.4, base]
-          // Sun is to the right: right-facing slopes are lit.
-          ctx.fillStyle = dark
-          ctx.beginPath()
-          ctx.moveTo(leftV[0], base)
-          ctx.lineTo(leftV[0], leftV[1])
-          ctx.lineTo(peakX, peakY)
-          ctx.lineTo(ridgeFoot[0], ridgeFoot[1])
-          ctx.closePath()
-          ctx.fill()
-          ctx.fillStyle = lit
-          ctx.beginPath()
-          ctx.moveTo(peakX, peakY)
-          ctx.lineTo(rightV[0], rightV[1])
-          ctx.lineTo(rightV[0], base)
-          ctx.lineTo(ridgeFoot[0], ridgeFoot[1])
-          ctx.closePath()
-          ctx.fill()
-        }
-      }
-      // Haze lying over the horizon: the farthest terrain is born inside it, never against the sky.
-      const haze = ctx.createLinearGradient(0, horizon, 0, horizon - h * BAND * 2.2)
-      haze.addColorStop(0, hsl(HAZE.h, HAZE.s, HAZE.l))
-      haze.addColorStop(1 / 2.2, hsl(HAZE.h, HAZE.s, HAZE.l))
-      haze.addColorStop(1, hsl(HAZE.h, HAZE.s, HAZE.l, 0))
-      ctx.fillStyle = haze
-      ctx.fillRect(x0, horizon - h * BAND * 2.2, x1 - x0, h * BAND * 2.2)
-      ctx.fillStyle = hsl(HAZE.h, HAZE.s, HAZE.l)
-      ctx.fillRect(x0, horizon, x1 - x0, h * 1.2 - horizon)
-
-      // Terrain strips, far to near: two flat-shaded triangles per cell.
-      // Speed: within one strip every facet has the same fog, so its color depends
-      // only on how it faces the sun. Facets are bucketed into LEVELS shades and each
-      // shade is filled as one path (no closePath: fill() closes sub-paths anyway and
-      // closePath was the most expensive call). An underlay per strip hides seams.
-      const LEVELS = 16
-      const paths: (Path2D | null)[] = new Array(LEVELS)
-      const addTri = (a: [number, number], b: [number, number], c: [number, number], n: V3) => {
-        const lvl = Math.min(LEVELS - 1, Math.round(lightOf(n) * (LEVELS - 1)))
-        const path = (paths[lvl] ??= new Path2D())
-        path.moveTo(a[0], a[1])
-        path.lineTo(b[0], b[1])
-        path.lineTo(c[0], c[1])
-      }
-      const kFirst = Math.floor((travel + Z_NEAR) / CELL) + 1
-      // Level boundaries, aligned to the coarser level's cell size so the two meet on a shared row.
-      const kBound = LODS.map((lod, i) => {
-        const coarser = LODS[Math.min(i + 1, LODS.length - 1)].step
-        return Math.ceil((travel + lod.until) / CELL / coarser) * coarser
-      })
-      const heightAt = (j: number, k: number, lvl: number) =>
-        lodHeight(vh, j, k, LODS[lvl].step, lvl >= LODS.length - 1 ? null : (kBound[lvl] - k) * CELL, MORPH)
-      const coarsest = LODS[LODS.length - 1].step
-      const kLast = Math.ceil((travel + Z_FAR) / CELL / coarsest) * coarsest
-      for (let k = kLast; k > kFirst; ) {
-        let lvl = 0
-        while (lvl < LODS.length - 1 && k > kBound[lvl]) lvl++
-        const step = LODS[lvl].step
-        const kFar = k
-        const kNear = k - step
-        k = kNear
-        if (kNear < kFirst) break
-        const zc = kNear * CELL - travel
-        const zFarRow = kFar * CELL - travel
-        const reach = (zFarRow * (w * 0.72)) / focal + CELL * step
-        const jMin = Math.floor(-reach / CELL / step) * step
-        const jMax = Math.ceil(reach / CELL / step) * step
-        paths.fill(null)
-        const nearEdge: [number, number][] = []
-        const farEdge: [number, number][] = []
-        let prev0: V3 | null = null
-        let prev1: V3 | null = null
-        let ps0: [number, number] | null = null
-        let ps1: [number, number] | null = null
-        for (let j = jMin; j <= jMax; j += step) {
-          const p0: V3 = [j * CELL, heightAt(j, kNear, lvl), kNear * CELL]
-          const p1: V3 = [j * CELL, heightAt(j, kFar, lvl), kFar * CELL]
-          const s0 = project(p0)
-          const s1 = project(p1)
-          nearEdge.push(s0)
-          farEdge.push(s1)
-          if (prev0 && prev1 && ps0 && ps1) {
-            // Alternate the diagonal so facets don't line up into stripes.
-            if ((j / step + kNear / step) & 1) {
-              addTri(ps1, s1, ps0, faceNormal(prev0, p1, prev1))
-              addTri(ps0, s1, s0, faceNormal(prev0, p0, p1))
-            } else {
-              addTri(ps1, s1, s0, faceNormal(prev1, p0, p1))
-              addTri(ps1, s0, ps0, faceNormal(prev0, p0, prev1))
-            }
-          }
-          prev0 = p0
-          prev1 = p1
-          ps0 = s0
-          ps1 = s1
-        }
-        ctx.beginPath()
-        for (const [x, y] of nearEdge) ctx.lineTo(x, y)
-        for (let i = farEdge.length - 1; i >= 0; i--) ctx.lineTo(farEdge[i][0], farEdge[i][1])
-        ctx.closePath()
-        ctx.fillStyle = shade(lightOf([0, 1, 0]), zc)
-        ctx.fill()
-        for (let l = 0; l < LEVELS; l++) {
-          const path = paths[l]
-          if (!path) continue
-          ctx.fillStyle = shade(l / (LEVELS - 1), zc)
-          ctx.fill(path)
-        }
-      }
-
-      // Ice dust: thin straight streaks around us, longer when you surge.
-      for (let i = 0; i < WIND; i++) {
-        wz[i] -= speed * dt
-        if (wz[i] < Z_NEAR) placeWind(i, false)
-        const z = wz[i]
-        const tail = z + speed * 0.05
-        const px = w / 2 + (wx[i] / z) * focal
-        const py = horizon - (wy[i] / z) * focal
-        if (px < x0 || px > x1 || py < -h * 0.2 || py > h * 1.2) continue
-        const near = 1 - z / 30
-        ctx.strokeStyle = hsl(205, 40, 97, 0.15 + near * 0.4)
-        ctx.lineWidth = 0.5 + near * 1.5
-        ctx.beginPath()
-        ctx.moveTo(w / 2 + (wx[i] / tail) * focal, horizon - (wy[i] / tail) * focal)
-        ctx.lineTo(px, py)
-        ctx.stroke()
-      }
-      ctx.restore()
-    },
-  }
-}
-
 export function createScene(id: SceneId): Scene {
   switch (id) {
     case "tunnel":
       return tunnel()
     case "orbit":
       return orbit()
-    case "nebula":
-      return nebula()
-    case "tundra":
-      return tundra()
     case "nighttime":
       return nighttime()
     case "drift":

@@ -14,6 +14,7 @@ import { playContext, playFromList, togglePlay } from "@/player/controls"
 import type { QueueContext } from "@/player/queue"
 import { cn } from "@/lib/utils"
 import type { YtVideo } from "@/lib/youtubeApi"
+import { VideoRowsSkeleton } from "./Skeletons"
 import type { Song } from "@/types/DirectoryTypes"
 import { SongContextMenu, SongMoreButton } from "@/components/song/SongContextMenu"
 import type { EnqueueOpts } from "./downloadActions"
@@ -91,7 +92,7 @@ export function PlaylistPanel({ id, title, subtitle, thumbnail, videos, loading 
     })
 
   return (
-    <div className="min-w-0 rounded-xl border border-border/60 bg-card">
+    <div className="min-w-0 rounded-xl border border-border/60 bg-background-light">
       <button type="button" onClick={toggleOpen} aria-expanded={open} className="flex w-full items-center gap-3 p-3 text-left">
         {thumbnail ? <Artwork src={thumbnail} size="md" /> : <span className="flex size-art-md items-center justify-center rounded-md bg-muted"><ListMusic className="size-6 text-muted-foreground" /></span>}
         <div className="min-w-0 flex-1">
@@ -106,7 +107,7 @@ export function PlaylistPanel({ id, title, subtitle, thumbnail, videos, loading 
       </button>
       {open && (
         <div className="border-t border-border/60 p-3">
-          {loading && !videos && <p className="py-6 text-center text-sm text-muted-foreground">Loading videos…</p>}
+          {loading && !videos && <VideoRowsSkeleton />}
           {error && <p role="alert" className="py-2 text-sm text-destructive">{error}</p>}
           {videos && (
             <>

@@ -91,7 +91,7 @@ export default function Sidebar() {
   const playlists = useUserStore((s) => s.playlists)
   return (
     <TooltipProvider delayDuration={200}>
-      <nav aria-label="Main" data-region="nav" className="flex w-fit flex-col border-r border-border/40 px-4 py-4">
+      <nav aria-label="Main" data-region="nav" className="flex w-fit flex-col border-r border-border/40 bg-background-dark px-4 py-4">
         <div className="flex flex-col gap-2">
           <NavButton icon={Home} label="Home" route={{ name: "home" }} active={route.name === "home"} shortcut="Ctrl+1" />
           <NavButton icon={Library} label="Library" route={{ name: "library" }} active={route.name === "library"} shortcut="Ctrl+2" />
@@ -102,8 +102,7 @@ export default function Sidebar() {
         </div>
         <Separator className="my-4" />
         <div className="flex flex-col gap-2">
-          <div className="size-12"><DiceButton kind="song" size="small" /></div>
-          <div className="size-12"><DiceButton kind="playlist" size="small" /></div>
+          <div className="size-12"><DiceButton size="small" /></div>
           <NavButton icon={Heart} label="Liked Songs" route={{ name: "liked" }} active={route.name === "liked"} shortcut="Ctrl+7" />
         </div>
         <Separator className="my-4" />
@@ -120,6 +119,7 @@ export default function Sidebar() {
             {playlists.map((p) => (
               <SidebarPlaylist key={p.id} playlist={p} active={route.name === "playlist" && route.id === p.id} />
             ))}
+            {!playlists.length && <p className="sr-only">No playlists yet. Use the New playlist button to make one.</p>}
           </div>
         </ScrollArea>
       </nav>

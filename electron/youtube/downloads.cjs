@@ -8,7 +8,9 @@
 // - One yt-dlp process per video; final path read from --print after_move:filepath.
 // - Filenames "<title> [<videoId>].mp3" never collide; an unrelated file at that
 //   path gets a " (2)" suffix. Cancel kills the whole process group and removes
-//   that run's partial files. Never touches Likes.
+//   that run's partial files.
+// - A video the user liked on YouTube becomes a local like when it arrives, once only
+//   (onSongReady), so unliking it here is never undone.
 const fs = require("fs").promises;
 const path = require("path");
 const { runYtDlp, YtError, diagnoseJsChallenge } = require("./ytdlp.cjs");
@@ -17,6 +19,8 @@ const { findOwnedSong } = require("../../shared/songMatch.mjs");
 const VIDEO_ID_RE = /^[A-Za-z0-9_-]{11}$/;
 const CONCURRENCY = 2;
 const FINAL = new Set(["done", "error", "cancelled", "skipped"]);
+// Results commit in queue order, so one stuck job would hold up everything queued after it.
+const STALL_MS = 5 * 60 * 1000;
 
 function sanitizeTitle(title) {
   return (
@@ -41,7 +45,7 @@ async function availablePath(dir, base, ext) {
   throw new YtError("DOWNLOAD_FAILED", "Couldn't find a free file name.");
 }
 
-function createDownloadManager({ library, user, youtube, emit }) {
+function createDownloadManager({ library, user, youtube, emit, onSongReady = () => {} }) {
   /** videoId -> item. Items carry `seq` (queue order) and internal `phase`. */
   const items = new Map();
   const waiters = new Map();
@@ -85,6 +89,7 @@ function createDownloadManager({ library, user, youtube, emit }) {
       user.replaceInMirrorPlaylists(wrong, songId, it.videoId);
       library.resolveCleared(it.videoId);
     }
+    Promise.resolve(onSongReady(it.videoId, songId)).catch((err) => console.warn("[downloads] follow-up failed:", err.message));
     if (!it.target) return;
     try {
       if (it.target.mirror) user.setMirrorEntry(it.target.id, it.videoId, songId, it.index);
@@ -108,8 +113,9 @@ function createDownloadManager({ library, user, youtube, emit }) {
       /* not on disk → download */
     }
     const target = await availablePath(root, base, "mp3");
-    const template = target.replace(/\.mp3$/, ".%(ext)s");
-    const stem = path.basename(template).replace(/\.%\(ext\)s$/, "");
+    // A literal % in a title or folder name would otherwise be read as a yt-dlp template field.
+    const template = target.replace(/\.mp3$/, "").replace(/%/g, "%%") + ".%(ext)s";
+    const stem = path.basename(target).replace(/\.mp3$/, "");
     const before = new Set(await fs.readdir(root).catch(() => []));
     const mode = it.unsigned ? "none" : youtube.authMode();
     const args = [
@@ -131,6 +137,7 @@ function createDownloadManager({ library, user, youtube, emit }) {
       await runYtDlp(args, {
         signal: it.abort.signal,
         authMode: mode,
+        stallMs: STALL_MS,
         onLine: (line, stream) => {
           const m = /\[download\]\s+(\d+(?:\.\d+)?)%/.exec(line);
           if (m) update(it, { percent: Math.min(99, Number(m[1])) }, { force: false });
@@ -139,7 +146,8 @@ function createDownloadManager({ library, user, youtube, emit }) {
       });
     } catch (err) {
       for (const f of await fs.readdir(root).catch(() => [])) {
-        if (!before.has(f) && f.startsWith(stem + ".")) await fs.unlink(path.join(root, f)).catch(() => {});
+        // Windows can keep a cancelled process's file locked for a moment; retry instead of leaving it behind.
+        if (!before.has(f) && f.startsWith(stem + ".")) await fs.rm(path.join(root, f), { force: true, maxRetries: 5, retryDelay: 200 }).catch(() => {});
       }
       throw err;
     }
@@ -196,7 +204,7 @@ function createDownloadManager({ library, user, youtube, emit }) {
           // Signed in and YouTube offered no audio: almost always yt-dlp's JS challenge solver.
           // Find the precise cause (once), and retry without sign-in either way.
           return diagnoseJsChallenge(next.videoId, youtube.authArgs()).then((diag) => {
-            const cause = diag || (err.code === "YTDLP_JS_CHALLENGE" ? err : new YtError("YTDLP_JS_CHALLENGE", "Signed in, YouTube offered no downloadable audio — usually yt-dlp can't solve YouTube's JavaScript challenge. Update your system so yt-dlp and yt-dlp-ejs match (on Arch: sudo pacman -Syu). Public videos fall back to downloading without sign-in.", err.detail));
+            const cause = diag || (err.code === "YTDLP_JS_CHALLENGE" ? err : new YtError("YTDLP_JS_CHALLENGE", "Signed in, YouTube offered no downloadable audio — usually yt-dlp can't solve YouTube's JavaScript challenge. Update yt-dlp in Settings → YouTube. Public videos fall back to downloading without sign-in.", err.detail));
             next.fallbackCause = cause;
             next.unsigned = true;
             update(next, { percent: 0, note: "retrying without sign-in" });

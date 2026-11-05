@@ -21,6 +21,11 @@ const DEFAULT_SETTINGS = Object.freeze({
   visualizer: "cycle", // a scene id, or 'cycle' for a different one each song
   visualizerOffsetMs: 0, // extra visual delay on top of the reported output latency (Bluetooth etc.)
   youtubeAuth: { mode: "none", browser: "firefox", profile: "" },
+  ytDlpSkippedVersion: null, // a yt-dlp release the user chose not to be asked about again
+  onboarding: { status: "pending", step: "folder" },
+  youtubeCardDismissed: false, // the optional "set up YouTube" card on Home
+  aiProvider: "anthropic", // 'anthropic' | 'openai': which one tags songs. Keys are stored separately, encrypted.
+  aiTier: "low", // 'low' | 'medium' | 'high'
 });
 
 function emptyUserState() {

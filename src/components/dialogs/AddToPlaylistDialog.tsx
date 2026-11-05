@@ -1,3 +1,4 @@
+import { DIALOG_LARGE } from "@/components/base/dialogSize"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -42,12 +43,12 @@ export default function AddToPlaylistDialog() {
   const title = songs?.length === 1 ? `“${songs[0].metadata.title}”` : `${songs?.length ?? 0} songs`
   return (
     <Dialog open={Boolean(songs)} onOpenChange={(o) => !o && close()}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className={DIALOG_LARGE}>
         <DialogHeader>
           <DialogTitle>Add to playlist</DialogTitle>
           <DialogDescription>Add {title} to one or more playlists.</DialogDescription>
         </DialogHeader>
-        <ScrollArea className="max-h-96 pr-2">
+        <ScrollArea className="min-h-0 flex-1 pr-2">
           <div className="flex flex-col gap-1">
             <ListButton
               onClick={() => {

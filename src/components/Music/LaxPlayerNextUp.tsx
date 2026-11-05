@@ -37,7 +37,7 @@ const LaxPlayerNextUp = () => {
   const showDisableLoop = queue.repeat !== "off"
 
   return (
-    <div role="status" aria-live="polite" className={`absolute right-0 top-0 z-toast transition-transform duration-slow ease-standard ${shouldShow ? "translate-x-0" : "translate-x-[calc(100%+var(--spacing)*5)]"}`}>
+    <div role="status" aria-live="polite" inert={!shouldShow} className={`absolute right-0 top-0 z-toast transition-transform duration-slow ease-standard ${shouldShow ? "translate-x-0" : "translate-x-[calc(100%+var(--spacing)*5)]"}`}>
       <div className="min-w-toast rounded-bl-3xl border border-border/40 bg-popover/90 p-4 text-popover-foreground backdrop-blur-sm">
         <div className="flex items-center justify-between gap-4">
           <Artwork src={nextSong?.metadata.thumbnail} size="sm" />

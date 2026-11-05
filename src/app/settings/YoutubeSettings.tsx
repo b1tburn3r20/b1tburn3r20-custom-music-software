@@ -1,22 +1,21 @@
 import { useCallback, useEffect, useState } from "react"
-import { CheckCircle2, FileUp, Loader2, ShieldCheck, Trash2 } from "lucide-react"
+import { CheckCircle2, FileUp, Loader2, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card } from "@/components/base/Layout"
 import { AuthBanner } from "@/components/youtube/AuthBanner"
+import { YtDlpStatusCard } from "@/components/youtube/YtDlpUpdate"
+import { ApiKeyCard } from "@/components/youtube/ApiKeySetup"
+import { GoogleAccountCard } from "@/components/youtube/GoogleSetup"
+import { CookieUpload } from "@/components/youtube/CookieUpload"
+import { chooseCookiesFile } from "@/components/youtube/cookieFile"
+import { updateSettings } from "@/lib/actions"
 import { ApiError, call, errorMessage } from "@/lib/api"
 import type { YoutubeAuthStatus } from "@/types/api"
-import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
-const MODES: { id: YoutubeAuthStatus["mode"]; label: string; hint: string }[] = [
-  { id: "none", label: "Not signed in", hint: "Public videos only." },
-  { id: "browser", label: "Use my browser's sign-in", hint: "yt-dlp reads your YouTube cookies directly from the browser. Close the browser if it reports a locked database." },
-  { id: "file", label: "Use an exported cookies file", hint: "Export cookies.txt for youtube.com with a browser extension while signed in, then import it here." },
-]
-
-/** YouTube sign-in for your own account (age-restricted videos you can watch, private playlists). */
+/** Everything YouTube: cookies.txt first, then the downloader, then the other ways in. */
 export default function YoutubeSettings() {
   const [status, setStatus] = useState<YoutubeAuthStatus | null>(null)
   const [checking, setChecking] = useState(false)
@@ -54,9 +53,7 @@ export default function YoutubeSettings() {
   }
   const importFile = async () => {
     try {
-      const r = await call(window.api.youtube.importCookies())
-      if (r) {
-        toast.success("Cookies imported", { description: `Stored privately in the app's data folder. You can now delete “${r.imported}” from wherever you exported it.` })
+      if (await chooseCookiesFile()) {
         await refresh()
         void runCheck()
       }
@@ -78,77 +75,88 @@ export default function YoutubeSettings() {
   const installed = status.browsers.filter((b) => b.installed)
   const browsers = installed.length ? installed : status.browsers
 
+  const usingFile = status.mode === "file" && status.hasCookieFile
   return (
     <div className="flex flex-col gap-4">
-      <Card className="flex flex-col gap-1">
-        <p className="flex items-center gap-2 text-sm font-medium">
-          <ShieldCheck className="size-4 text-success" aria-hidden /> Your account, your device
-        </p>
-        <p className="text-xs text-muted-foreground">Sign-in uses yt-dlp's supported cookie options. Cookies stay on this computer, are never logged, and an imported file is kept with owner-only permissions.</p>
+      <p className="text-sm text-muted-foreground">YouTube is optional. Your library, radio and everything else work without it.</p>
+
+      <Card className="flex flex-col gap-3 p-4">
+        <div>
+          <p className="flex items-center gap-2 text-sm font-medium">
+            {usingFile && <CheckCircle2 className="size-4 text-success" aria-hidden />} Your YouTube account
+          </p>
+          <p className="text-xs text-muted-foreground">{usingFile ? "Connected with your cookies.txt file. It's kept on this computer, but it isn't encrypted, because yt-dlp has to read it." : "Upload a cookies.txt file in Netscape format."}</p>
+        </div>
+        {status.hasCookieFile ? (
+          <div className="flex flex-wrap gap-2">
+            {!usingFile && <Button onClick={() => void update({ mode: "file" })}>Use this file</Button>}
+            <Button variant="secondary" onClick={importFile}>
+              <FileUp /> Replace file…
+            </Button>
+            <Button variant="ghost" onClick={removeFile}>
+              <Trash2 /> Remove
+            </Button>
+          </div>
+        ) : (
+          <CookieUpload onImported={() => void refresh()} />
+        )}
+        {status.mode !== "none" && (
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <Button size="sm" variant="ghost" onClick={runCheck} disabled={checking || (status.mode === "file" && !status.hasCookieFile)}>
+                {checking ? <Loader2 className="animate-spin" /> : <CheckCircle2 />} Check it works
+              </Button>
+              {check?.ok && <p className="text-sm text-success">Working: found {check.playlists} playlists.</p>}
+            </div>
+            {check?.ok && check.downloadIssue && <AuthBanner code="YTDLP_JS_CHALLENGE" message={check.downloadIssue} />}
+            {check && !check.ok && check.code && <AuthBanner code={check.code} message={check.message ?? "Sign-in failed."} />}
+          </div>
+        )}
       </Card>
 
-      <div role="radiogroup" aria-label="YouTube sign-in" className="flex flex-col gap-2">
-        {MODES.map((m) => (
-          <button
-            key={m.id}
-            type="button"
-            role="radio"
-            aria-checked={status.mode === m.id}
-            onClick={() => update({ mode: m.id })}
-            className={cn("rounded-xl border-2 p-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring", status.mode === m.id ? "border-primary bg-primary/5" : "border-border hover:border-muted-foreground")}
-          >
-            <p className="text-sm font-medium">{m.label}</p>
-            <p className="text-xs text-muted-foreground">{m.hint}</p>
-          </button>
-        ))}
-      </div>
+      <YtDlpStatusCard />
 
-      {status.mode === "browser" && (
-        <Card className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="yt-browser">Browser</Label>
-            <select id="yt-browser" value={status.browser} onChange={(e) => update({ browser: e.target.value })} className="h-9 rounded-md border border-input bg-background px-2 text-sm">
-              {browsers.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.label}
-                  {!b.installed ? " (not detected)" : ""}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="yt-profile">Profile (optional)</Label>
-            <Input id="yt-profile" value={profile} placeholder="e.g. Default or Profile 1" onChange={(e) => setProfile(e.target.value)} onBlur={() => profile !== status.profile && update({ profile })} />
-          </div>
-        </Card>
-      )}
-
-      {status.mode === "file" && (
-        <Card className="flex flex-wrap items-center gap-3">
-          <p className="flex-1 text-sm">{status.hasCookieFile ? "A cookies file is imported." : "No cookies file imported yet."}</p>
-          <Button variant="secondary" onClick={importFile}>
-            <FileUp /> {status.hasCookieFile ? "Replace…" : "Import cookies.txt…"}
-          </Button>
-          {status.hasCookieFile && (
-            <Button variant="ghost" onClick={removeFile}>
-              <Trash2 /> Delete stored copy
-            </Button>
-          )}
-        </Card>
-      )}
-
-      {status.mode !== "none" && (
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-3">
-            <Button onClick={runCheck} disabled={checking || (status.mode === "file" && !status.hasCookieFile)}>
-              {checking ? <Loader2 className="animate-spin" /> : <CheckCircle2 />} Check sign-in
-            </Button>
-            {check?.ok && <p className="text-sm text-success">Signed in — found {check.playlists} playlists.</p>}
-          </div>
-          {check?.ok && check.downloadIssue && <AuthBanner code="YTDLP_JS_CHALLENGE" message={check.downloadIssue} />}
-          {check && !check.ok && check.code && <AuthBanner code={check.code} message={check.message ?? "Sign-in failed."} />}
+      <details className="rounded-xl border border-border p-3" open={status.mode === "browser"}>
+        <summary className="cursor-pointer text-sm font-medium">Other options</summary>
+        <div className="mt-3 flex flex-col gap-4">
+          <ApiKeyCard />
+          <GoogleAccountCard />
+          <Card className="flex flex-col gap-3">
+            <div>
+              <p className="text-sm font-medium">Your browser's sign-in, instead of a file</p>
+              <p className="text-xs text-muted-foreground">yt-dlp reads your YouTube cookies directly from the browser. Close the browser if it reports a locked database. Firefox is the most reliable; Chrome and Edge often can't be read on Windows.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant={status.mode === "browser" ? "default" : "secondary"} onClick={() => void update({ mode: status.mode === "browser" ? "none" : "browser" })}>
+                {status.mode === "browser" ? "Turn off" : "Use my browser's sign-in"}
+              </Button>
+            </div>
+            {status.mode === "browser" && (
+              <>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="yt-browser">Browser</Label>
+                  <select id="yt-browser" value={status.browser} onChange={(e) => update({ browser: e.target.value })} className="h-9 rounded-md border border-input bg-background px-2 text-sm">
+                    {browsers.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.label}
+                        {!b.installed ? " (not detected)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="yt-profile">Profile (optional)</Label>
+                  <Input id="yt-profile" value={profile} placeholder="e.g. Default or Profile 1" onChange={(e) => setProfile(e.target.value)} onBlur={() => profile !== status.profile && update({ profile })} />
+                </div>
+              </>
+            )}
+          </Card>
         </div>
-      )}
+      </details>
+
+      <Button variant="ghost" size="sm" className="self-start" onClick={() => void updateSettings({ onboarding: { status: "pending", step: "folder" } })}>
+        Run first-time setup again
+      </Button>
     </div>
   )
 }

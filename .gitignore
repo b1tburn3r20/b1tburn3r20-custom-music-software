@@ -8,6 +8,7 @@ pnpm-debug.log*
 lerna-debug.log*
 .env
 release/*
+test-results/
 node_modules
 dist
 dist-ssr
@@ -30,3 +31,4 @@ yt-cookies.txt
 *cookies*.txt
 credentials/
 backups/
+release-assets/

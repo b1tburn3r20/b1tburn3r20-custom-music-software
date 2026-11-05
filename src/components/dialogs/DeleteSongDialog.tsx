@@ -25,6 +25,7 @@ export default function DeleteSongDialog() {
     <Modal
       open={Boolean(song)}
       onClose={close}
+      size="sm"
       title={`Delete “${song?.metadata.title ?? ""}”?`}
       description={`The file is moved to your system trash and removed from your library, ${where}.`}
       footer={

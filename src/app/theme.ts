@@ -1,26 +1,26 @@
-import { useEffect, useSyncExternalStore } from "react"
-import { useUserStore } from "@/stores/useUserStore"
+import { useSyncExternalStore } from "react"
+import { THEMES } from "virtual:b1t-themes"
 
-export type ThemeId = "dark" | "light" | "midnight" | "sunset"
-export const THEMES: { id: ThemeId; label: string; mode: "dark" | "light"; description: string }[] = [
-  { id: "dark", label: "Dark", mode: "dark", description: "The original look" },
-  { id: "light", label: "Light", mode: "light", description: "Bright and clean" },
-  { id: "midnight", label: "Midnight", mode: "dark", description: "True black with a blue accent" },
-  { id: "sunset", label: "Sunset", mode: "dark", description: "Warm plum and amber" },
-]
-const STORAGE_KEY = "b1t:theme" // mirror for a flash-free first paint (see index.html)
+export { THEMES }
+export type ThemeId = string
+
+const STORAGE_KEY = "b1t:theme" // mirrors for a flash-free first paint (see public/theme-boot.js)
+const MODE_KEY = "b1t:theme-mode"
 
 const listeners = new Set<() => void>()
 export const themeOf = (id: string | undefined) => THEMES.find((t) => t.id === id) ?? THEMES[0]
 
+/** data-theme picks the colors. The `dark` class is shadcn's convention for dark: styles. */
 export function applyTheme(id: string) {
   const t = themeOf(id)
   const html = document.documentElement
-  if (html.dataset.theme === t.id && html.dataset.mode === t.mode) return
+  const isDark = t.mode === "dark"
+  if (html.dataset.theme === t.id && html.classList.contains("dark") === isDark) return
   html.dataset.theme = t.id
-  html.dataset.mode = t.mode
+  html.classList.toggle("dark", isDark)
   try {
     localStorage.setItem(STORAGE_KEY, t.id)
+    localStorage.setItem(MODE_KEY, t.mode)
   } catch {
     /* storage unavailable: theme still applies for this session */
   }
@@ -34,15 +34,6 @@ export function useThemeMode(): "dark" | "light" {
       listeners.add(cb)
       return () => listeners.delete(cb)
     },
-    () => (document.documentElement.dataset.mode === "light" ? "light" : "dark"),
+    () => (document.documentElement.classList.contains("dark") ? "dark" : "light"),
   )
-}
-
-/** Keeps <html data-theme> in sync with the persisted setting. Mount once. */
-export function useThemeSync() {
-  const theme = useUserStore((s) => s.settings.theme)
-  const loaded = useUserStore((s) => s.loaded)
-  useEffect(() => {
-    if (loaded) applyTheme(theme)
-  }, [theme, loaded])
 }

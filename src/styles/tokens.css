@@ -1,5 +1,5 @@
 /*
- * Design tokens (non-color). Colors live in themes.css so every theme can
+ * Design tokens (non-color). Colors live in src/themes/ so every theme can
  * override them. Spacing uses Tailwind's 4px scale (p-1 = 4px, p-4 = 16px…);
  * the names below cover the few sizes that aren't on that scale.
  */
@@ -39,6 +39,7 @@
   --z-bar: 30;
   --z-toast: 40;
   --z-popover: 50;
+  --z-progress: 60; /* the loading bar, above everything */
 
   /* Durations */
   --duration-fast: 150ms;
@@ -57,6 +58,7 @@
 @utility z-bar { z-index: var(--z-bar); }
 @utility z-toast { z-index: var(--z-toast); }
 @utility z-popover { z-index: var(--z-popover); }
+@utility z-progress { z-index: var(--z-progress); }
 
 @utility duration-fast { transition-duration: var(--duration-fast); }
 @utility duration-normal { transition-duration: var(--duration-normal); }

@@ -6,6 +6,8 @@ import PlaybackSettings from "./PlaybackSettings"
 import LibrarySettings from "./LibrarySettings"
 import AppearanceSettings from "./AppearanceSettings"
 import YoutubeSettings from "./YoutubeSettings"
+import AiSettings from "./AiSettings"
+import { DIALOG_LARGE } from "@/components/base/dialogSize"
 import { useSettingsDialog } from "./settingsStore"
 
 const TABS = [
@@ -13,6 +15,7 @@ const TABS = [
   { value: "playback", label: "Playback", Panel: PlaybackSettings },
   { value: "library", label: "Library", Panel: LibrarySettings },
   { value: "youtube", label: "YouTube", Panel: YoutubeSettings },
+  { value: "ai", label: "AI tagging", Panel: AiSettings },
 ]
 
 export default function SettingsDialog() {
@@ -22,10 +25,10 @@ export default function SettingsDialog() {
       <DialogTrigger asChild>
         <IconButton icon={SettingsIcon} label="Settings" size="md" className="bg-muted/60" />
       </DialogTrigger>
-      <DialogContent className="sm:max-w-3xl">
+      <DialogContent className={DIALOG_LARGE}>
         <DialogTitle>Settings</DialogTitle>
         <DialogDescription className="sr-only">App settings</DialogDescription>
-        <Tabs value={tab} onValueChange={setTab} orientation="vertical" className="grid min-h-96 grid-cols-[10rem_1fr] gap-6">
+        <Tabs value={tab} onValueChange={setTab} orientation="vertical" className="grid min-h-0 flex-1 grid-cols-[10rem_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] gap-6">
           <TabsList className="flex h-fit flex-col items-stretch gap-1 bg-transparent p-0">
             {TABS.map((t) => (
               <TabsTrigger key={t.value} value={t.value} className="justify-start">
@@ -33,7 +36,7 @@ export default function SettingsDialog() {
               </TabsTrigger>
             ))}
           </TabsList>
-          <div className="max-h-[70vh] min-w-0 overflow-y-auto pr-1">
+          <div className="h-full min-w-0 overflow-y-auto pr-1">
             {TABS.map(({ value, Panel }) => (
               <TabsContent key={value} value={value} className="mt-0">
                 <Panel />

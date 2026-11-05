@@ -1,0 +1,25 @@
+name: Release
+
+# Push a tag like v0.2.0. The tag must match package.json's version.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - name: Check the tag matches package.json
+        run: test "v$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME"
+      - run: node scripts/make-release.cjs release-assets
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" release-assets/source.tar.gz release-assets/install.sh release-assets/install.ps1 release-assets/SHA256SUMS --generate-notes

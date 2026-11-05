@@ -1,3 +1,4 @@
+import { DIALOG_LARGE } from "@/components/base/dialogSize"
 import { useMemo, useState } from "react"
 import { useDebounce } from "use-debounce"
 import { Button } from "@/components/ui/button"
@@ -56,16 +57,16 @@ export default function AddSongsDialog({ open, onOpenChange, title = "Add songs"
 
   return (
     <Dialog open={open} onOpenChange={close}>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent className={DIALOG_LARGE}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <Input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search your library…" aria-label="Search songs" />
-        <ScrollArea className="h-96">
+        <ScrollArea className="min-h-0 flex-1">
           <div className="flex flex-col pr-3">
             <VirtualList items={results} getKey={(s) => s.id} estimateSize={52} threshold={40} renderItem={(s) => <SongRow song={s} variant="compact" selected={selected.has(s.id)} onToggleSelect={() => toggle(s.id)} />} />
-            {!results.length && <p className="py-8 text-center text-sm text-muted-foreground">{songs.length ? "No matching songs that aren't already in this playlist." : "Your library is empty."}</p>}
+            {!results.length && <p className="py-8 text-center text-sm text-muted-foreground">{songs.length ? "No matching songs that aren't already in this playlist." : "Your library is empty. Add MP3s to your music folder, or use the YouTube page."}</p>}
           </div>
         </ScrollArea>
         <DialogFooter>

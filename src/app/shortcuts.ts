@@ -66,6 +66,7 @@ export const SHORTCUTS: ShortcutGroup[] = [
       { keys: ["Ctrl", "1–7"], label: "Home, Library, YouTube, History, Downloads, Stats, Liked" },
       { keys: ["Ctrl", "N"], label: "New playlist" },
       { keys: ["Ctrl", ","], label: "Settings" },
+      { keys: ["F11"], label: "Full screen" },
       { keys: ["Ctrl", "/"], label: "Show / hide this list (also ?)" },
     ],
   },
@@ -108,6 +109,9 @@ function handled(e: KeyboardEvent, run: () => void) {
 
 function onKeyDown(e: KeyboardEvent) {
   if (e.defaultPrevented) return
+  // First-run setup covers the app, so nothing behind it should react.
+  const user = useUserStore.getState()
+  if (user.loaded && user.settings.onboarding.status === "pending") return
   const t = e.target as HTMLElement | null
   const ctrl = e.ctrlKey || e.metaKey
   const key = e.key

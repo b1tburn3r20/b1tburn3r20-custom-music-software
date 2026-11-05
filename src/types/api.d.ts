@@ -20,6 +20,61 @@ export type Settings = {
   /** Extra delay (ms) for the visualizer on top of the reported audio output latency. */
   visualizerOffsetMs: number
   youtubeAuth: { mode: "none" | "browser" | "file"; browser: string; profile: string }
+  /** A yt-dlp release the user chose not to be asked about again. */
+  ytDlpSkippedVersion: string | null
+  /** First-run setup: whether it's still to do, and which step someone left it at. */
+  onboarding: { status: "pending" | "done"; step: string }
+  youtubeCardDismissed: boolean
+  aiProvider: AiProvider
+  aiTier: AiTier
+}
+
+export type AiProvider = "anthropic" | "openai"
+export type AiTier = "low" | "medium" | "high"
+export type AiProgress = { running: boolean; done: number; total: number; tagged: number; failed: number; error: { code: string; message: string } | null }
+export type AiStatus = AiProgress & {
+  hasKey: Record<AiProvider, boolean>
+  secureStorage: boolean
+  unreadable: string[]
+  providers: Record<AiProvider, { label: string; keysUrl: string; tiers: Record<AiTier, { name: string; songsPerDollar: number }> }>
+}
+
+/** Which YouTube features are unlocked. Yes/no facts only: secrets never reach the renderer. */
+export type YoutubeAccess = {
+  hasApiKey: boolean
+  hasOAuthClient: boolean
+  connected: boolean
+  /** Google ended the sign-in, so the user needs to connect again. */
+  needsReconnect: boolean
+  channel: { id: string; title: string; thumbnail: string | null } | null
+  cookieMode: boolean
+  /** False on Linux with no keyring: credentials can't be properly encrypted. */
+  secureStorage: boolean
+  /** Saved credentials that couldn't be decrypted, so the user must enter them again. */
+  unreadable: string[]
+}
+
+export type AccountVideo = { id: string; title: string; channel: string; duration: number; thumbnail: string | null; embeddable?: boolean; isMusic?: boolean; unavailable?: boolean }
+/** The user's own YouTube data, kept on this computer for at most 30 days without a refresh. */
+export type YoutubeAccount = {
+  fetchedAt: number | null
+  channel: YoutubeAccess["channel"]
+  playlists: { id: string; title: string; count: number | null; thumbnail: string | null }[]
+  liked: AccountVideo[]
+  subscriptions: { channelId: string; title: string; thumbnail: string | null }[]
+  dismissed: string[]
+}
+type SyncResult_ = { syncError: { code: string; message: string } | null }
+
+export type ToolInfo = { name: string; path: string | null; source: "env" | "private" | "path" | "missing" }
+export type ToolStatus = Record<"yt-dlp" | "ffmpeg" | "ffprobe" | "node" | "adb", ToolInfo>
+export type YtDlpState = {
+  status: "idle" | "checking" | "up-to-date" | "available" | "unmanaged" | "unknown" | "downloading" | "installing" | "waiting" | "error"
+  current: string | null
+  latest: string | null
+  source: ToolInfo["source"] | null
+  percent?: number | null
+  error?: string | null
 }
 
 export type Playlist = {
@@ -67,6 +122,9 @@ export type RawApi = {
     orphanCleanup(opts: { thumbnails?: boolean; dangling?: boolean; missingIds?: string[] }): Promise<IpcResult<{ thumbsRemoved: number; refsRemoved: number; forgotten: number }>>
     rescan(): Promise<IpcResult<ScanSummary>>
     selectFolder(): Promise<IpcResult<{ rootDir: string; summary: ScanSummary } | null>>
+    /** Sets the OS Music folder if no folder is set yet. Never replaces an existing one. */
+    ensureDefaultFolder(): Promise<IpcResult<{ applied: boolean; rootDir: string | null; summary?: ScanSummary; attempted?: string; error?: string }>>
+    openFolder(): Promise<IpcResult<null>>
     deleteSong(songId: string): Promise<IpcResult<{ deleted: string; how: string }>>
     showInFolder(songId: string): Promise<IpcResult<null>>
     onChanged(cb: (delta: LibraryDelta) => void): Unsubscribe
@@ -93,6 +151,24 @@ export type RawApi = {
     onChanged(cb: (snap: UserSnapshot) => void): Unsubscribe
   }
   youtube: {
+    access(): Promise<IpcResult<YoutubeAccess>>
+    onAccessChanged(cb: (access: YoutubeAccess) => void): Unsubscribe
+    account(): Promise<IpcResult<YoutubeAccount>>
+    onAccountChanged(cb: (account: YoutubeAccount) => void): Unsubscribe
+    setClient(input: { clientId: string; clientSecret: string } | string, opts?: { allowWeak?: boolean }): Promise<IpcResult<{ persisted: boolean }>>
+    connect(opts?: { allowWeak?: boolean }): Promise<IpcResult<SyncResult_>>
+    cancelConnect(): Promise<IpcResult<null>>
+    refreshAccount(): Promise<IpcResult<SyncResult_>>
+    disconnect(opts?: { removeMirrors?: boolean }): Promise<IpcResult<{ revoked: boolean }>>
+    removeClient(): Promise<IpcResult<{ revoked: boolean }>>
+    dismissSuggestion(id: string): Promise<IpcResult<null>>
+    setApiKey(key: string, opts?: { allowWeak?: boolean }): Promise<IpcResult<{ persisted: boolean }>>
+    removeApiKey(): Promise<IpcResult<null>>
+    videoDetails(ids: string[]): Promise<IpcResult<import("@/lib/youtubeApi").YtVideo[]>>
+    searchVideos(q: string, filters: import("@/lib/youtubeApi").SearchFilters): Promise<IpcResult<import("@/lib/youtubeApi").YtVideo[]>>
+    searchPlaylists(q: string, filters: import("@/lib/youtubeApi").SearchFilters): Promise<IpcResult<import("@/lib/youtubeApi").YtPlaylist[]>>
+    publicPlaylist(id: string): Promise<IpcResult<import("@/lib/youtubeApi").YtPlaylist>>
+    lookupLink(link: { videoId?: string; playlistId?: string }): Promise<IpcResult<{ videos?: import("@/lib/youtubeApi").YtVideo[]; playlists?: import("@/lib/youtubeApi").YtPlaylist[] }>>
     authStatus(): Promise<IpcResult<YoutubeAuthStatus>>
     setAuth(patch: Partial<Settings["youtubeAuth"]>): Promise<IpcResult<YoutubeAuthStatus>>
     importCookies(): Promise<IpcResult<{ imported: string } | null>>
@@ -106,6 +182,26 @@ export type RawApi = {
     clearFinished(): Promise<IpcResult<DownloadItem[]>>
     download(input: { videoId: string; title: string }): Promise<IpcResult<{ songId: string; alreadyHad: boolean }>>
     onDownloadUpdate(cb: (item: DownloadItem) => void): Unsubscribe
+  }
+  tools: {
+    status(): Promise<IpcResult<ToolStatus>>
+    ytDlpState(): Promise<IpcResult<YtDlpState>>
+    checkYtDlp(): Promise<IpcResult<YtDlpState>>
+    updateYtDlp(): Promise<IpcResult<YtDlpState>>
+    onYtDlpState(cb: (state: YtDlpState) => void): Unsubscribe
+  }
+  ai: {
+    status(): Promise<IpcResult<AiStatus>>
+    setKey(provider: AiProvider, key: string, opts?: { allowWeak?: boolean }): Promise<IpcResult<{ persisted: boolean }>>
+    removeKey(provider: AiProvider): Promise<IpcResult<null>>
+    start(opts: { vocabulary: string[] }): Promise<IpcResult<AiProgress>>
+    cancel(): Promise<IpcResult<AiProgress>>
+    onProgress(cb: (progress: AiProgress) => void): Unsubscribe
+  }
+  window: {
+    isFullscreen(): Promise<IpcResult<boolean>>
+    toggleFullscreen(): Promise<IpcResult<null>>
+    onFullscreenChanged(cb: (fullscreen: boolean) => void): Unsubscribe
   }
   positions: {
     get(songId: string): Promise<IpcResult<number | null>>

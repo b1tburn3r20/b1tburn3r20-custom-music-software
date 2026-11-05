@@ -20,6 +20,11 @@ const DEFAULT_SETTINGS: Settings = {
   visualizer: "cycle",
   visualizerOffsetMs: 0,
   youtubeAuth: { mode: "none", browser: "firefox", profile: "" },
+  ytDlpSkippedVersion: null,
+  youtubeCardDismissed: false,
+  aiProvider: "anthropic",
+  aiTier: "low",
+  onboarding: { status: "done", step: "folder" }, // until the real value arrives: never flash first-run setup
 }
 
 /** Mirror of the main-process user store. Never mutated locally; updated from "user:changed". */

@@ -26,10 +26,14 @@ const EXTRA_SHARED_TAG_WEIGHT = 4
 /** Skipping a song just now means less of that artist for the next while. */
 const SESSION_SKIP_WINDOW = HOUR
 const SESSION_SKIP_FACTOR = 0.3
+/** Following an artist says less than liking the song itself, so it stays below a like (1.5). */
+const FOLLOWED_ARTIST_BOOST = 0.75
 
 export type RadioTaste = {
   signals?: RadioSignals | null
   likedIds?: ReadonlySet<string>
+  /** Songs by artists the user follows on YouTube. Optional: empty without YouTube. */
+  followedIds?: ReadonlySet<string>
   playlists?: readonly { songIds: string[] }[]
   /** What plays right before these songs, oldest first, so artists stay apart across batches. */
   recent?: readonly Song[]
@@ -74,7 +78,7 @@ function weightedOrder(items: { song: Song; w: number }[], rand: () => number): 
  * A seed with no tags has nothing to exhaust: its artist's songs come first, then the rest.
  */
 export function radioFor(songs: Song[], seed: Song, exclude: Set<string>, count = 15, rand: () => number = Math.random, userTags: TagMap = {}, taste: RadioTaste = {}): Song[] {
-  const { signals, likedIds, playlists = [], recent = [], now = Date.now() } = taste
+  const { signals, likedIds, followedIds, playlists = [], recent = [], now = Date.now() } = taste
   const stats = signals?.songs ?? {}
   const together = signals?.together[seed.id] ?? {}
 
@@ -112,6 +116,7 @@ export function radioFor(songs: Song[], seed: Song, exclude: Set<string>, count 
       Math.min(4, playlistFit.get(s.id) ?? 0) +
       0.6 * Math.min(5, together[s.id] ?? 0) +
       (likedIds?.has(s.id) ? 1.5 : 0) +
+      (followedIds?.has(s.id) ? FOLLOWED_ARTIST_BOOST : 0) +
       0.5 * Math.sqrt(Math.min(25, st?.plays ?? 0))
     const sessionSkip = songArtists(s).some((a) => skippedArtists.has(lc(a))) ? SESSION_SKIP_FACTOR : 1
     return fit * recencyFactor(st?.lastPlayedAt, now) * skipFactor(st?.plays ?? 0, st?.skips ?? 0) * sessionSkip

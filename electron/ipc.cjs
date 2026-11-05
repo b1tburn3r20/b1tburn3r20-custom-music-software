@@ -2,9 +2,11 @@
 // { ok: true, data } or { ok: false, error: { code, message } } so the renderer
 // never has to guess whether a call failed (previously many failures were
 // silently treated as success).
-const { ipcMain, dialog, shell, BrowserWindow } = require("electron");
+const { app, ipcMain, dialog, shell, BrowserWindow } = require("electron");
 const fs = require("fs").promises;
 const path = require("path");
+const { isTrustedSender } = require("./security.cjs");
+const { ensureDefaultFolder } = require("./lib/musicFolder.cjs");
 
 function broadcast(channel, payload) {
   for (const win of BrowserWindow.getAllWindows()) {
@@ -15,6 +17,7 @@ function broadcast(channel, payload) {
 function handle(channel, fn) {
   ipcMain.handle(channel, async (event, ...args) => {
     try {
+      if (!isTrustedSender(event)) throw new AppError("UNTRUSTED_SENDER", "This page can't use the app's features.");
       const data = await fn(...args, event);
       return { ok: true, data: data === undefined ? null : data };
     } catch (err) {
@@ -38,6 +41,21 @@ async function deleteAudioFile(filePath) {
     return "trash";
   } catch (trashErr) {
     try {
+      await fs.access(filePath);
+    } catch {
+      return "already-gone";
+    }
+    // Some of these files may not have come from this app, so never delete past the trash without asking.
+    const { response } = await dialog.showMessageBox({
+      type: "warning",
+      message: "This file can't be moved to the Trash.",
+      detail: `Delete it permanently? This can't be undone.\n\n${filePath}`,
+      buttons: ["Cancel", "Delete permanently"],
+      defaultId: 0,
+      cancelId: 0,
+    });
+    if (response !== 1) throw new AppError("DELETE_CANCELLED", "The file was kept.");
+    try {
       await fs.unlink(filePath);
       return "unlink";
     } catch (err) {
@@ -53,6 +71,13 @@ function registerLibraryIpc({ library, user, plays, positions, userData }) {
   // ----- library -----
   handle("library:get", () => library.snapshot());
   handle("library:rescan", () => library.scan());
+  handle("library:ensure-default-folder", () => ensureDefaultFolder({ library, getPath: (name) => app.getPath(name) }));
+  handle("library:open-folder", async () => {
+    if (!library.rootDir) throw new AppError("NO_ROOT_DIR", "No music folder is set.");
+    const failure = await shell.openPath(library.rootDir);
+    if (failure) throw new AppError("OPEN_FAILED", failure);
+    return null;
+  });
   handle("library:select-folder", async () => {
     const res = await dialog.showOpenDialog({ properties: ["openDirectory"] });
     if (res.canceled || !res.filePaths[0]) return null;
@@ -102,7 +127,11 @@ function registerLibraryIpc({ library, user, plays, positions, userData }) {
   handle("user:add-song-to-playlists", (songId, playlistIds) => user.addSongToPlaylists(songId, playlistIds));
   handle("user:record-recently-played", (songId) => user.recordRecentlyPlayed(songId));
   handle("user:record-recent-playlist", (id) => user.recordRecentPlaylist(id));
-  handle("user:update-settings", (patch) => user.updateSettings(patch));
+  handle("user:update-settings", (patch) => {
+    // Sign-in settings change only through youtube:set-auth, which validates them.
+    const { youtubeAuth: _ignored, ...rest } = patch || {};
+    return user.updateSettings(rest);
+  });
   handle("user:set-song-tags", (songIds, tags) => user.setSongTags(songIds, tags));
   handle("user:change-tag", (songIds, tag, add) => user.changeTag(songIds, tag, add));
   handle("user:rename-tag", (from, to) => user.renameTag(from, to));

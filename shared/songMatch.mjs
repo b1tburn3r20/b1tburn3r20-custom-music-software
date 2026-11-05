@@ -34,6 +34,9 @@ function channelName(channel) {
   return fold(String(channel || "").replace(/\s*-\s*topic$/i, "").replace(/vevo$/i, ""))
 }
 
+/** One form for an artist's name, however a song tag or YouTube channel writes it. */
+export const artistKey = (name) => channelName(name).replace(/ /g, "")
+
 /** Does any of the song's artists appear in the video's channel or "Artist - …" prefix? */
 function artistEvidence(song, video, parsed) {
   const haystack = ` ${channelName(video.channel)} ${parsed.artist} ${fold(video.title)} `

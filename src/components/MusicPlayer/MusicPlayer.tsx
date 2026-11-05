@@ -30,7 +30,7 @@ const MusicPlayer = () => {
       className={`relative flex shrink-0 flex-col transition-transform duration-gentle ease-standard ${idle ? "translate-y-full" : "translate-y-0"}`}
     >
       <MusicTrack />
-      <div className="z-player grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-10 bg-background/70 px-6 py-2 shadow-2xl backdrop-blur-md">
+      <div className="z-player grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-10 bg-background-dark/80 px-6 py-2 shadow-2xl backdrop-blur-md">
         <div className="flex min-w-0 items-center gap-4">
           <MusicPlayerName />
           <div className="flex shrink-0 items-center gap-1">

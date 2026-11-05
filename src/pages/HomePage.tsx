@@ -1,6 +1,11 @@
 import { memo, useEffect, useMemo, useState } from "react"
-import { Download, Heart, ListMusic, Pause, Play, RefreshCw, Shuffle } from "lucide-react"
-import { Container, EmptyState, Page } from "@/components/base/Page"
+import { Heart, ListMusic, Pause, Play, RefreshCw, Shuffle, X } from "lucide-react"
+import { Container, Page } from "@/components/base/Page"
+import { GettingStarted } from "@/components/base/GettingStarted"
+import { YoutubeSuggestions } from "@/components/home/YoutubeSuggestions"
+import { isLocked, useYoutubeAccess, useYoutubeAccount } from "@/components/youtube/accessStore"
+import { followedSongIds } from "@/lib/followedArtists"
+import { updateSettings } from "@/lib/actions"
 import { Artwork } from "@/components/base/Artwork"
 import { AutoGrid } from "@/components/base/AutoGrid"
 import { IconButton } from "@/components/base/IconButton"
@@ -11,7 +16,7 @@ import { HomeStats } from "@/components/home/HomeStats"
 import { TagQueue } from "@/components/home/TagQueue"
 import { Button } from "@/components/ui/button"
 import { buildTagList, shuffled, songsWithTag } from "@/lib/catalog"
-import { favorites, quickPicks } from "@/lib/homeFeed"
+import { favorites, fillShelf, quickPicks } from "@/lib/homeFeed"
 import { cn } from "@/lib/utils"
 import { playContext, playShuffled, togglePlay } from "@/player/controls"
 import type { QueueContext } from "@/player/queue"
@@ -21,11 +26,30 @@ import { usePlayerStore } from "@/stores/usePlayerStore"
 import { useStatsStore } from "@/stores/useStatsStore"
 import { useUserStore } from "@/stores/useUserStore"
 import type { Playlist } from "@/types/api"
+import type { AlbumType } from "@/types/AppTypes"
 import type { Song } from "@/types/DirectoryTypes"
 
 const QUICK: QueueContext = { type: "list", id: "quick-picks", label: "Quick picks" }
 const FAVORITES: QueueContext = { type: "list", id: "favorites", label: "Favorites" }
 const DOWNLOADS: QueueContext = { type: "downloads", label: "Recently downloaded" }
+const FOLLOWED: QueueContext = { type: "list", label: "From artists you follow" }
+/** How many the playlists and albums row aims to show. */
+const SHELF_SIZE = 6
+
+/** Stands in for the page while the library loads, in place of headings with nothing under them. */
+function HomeSkeleton() {
+  return (
+    <div className="flex animate-pulse flex-col gap-4 px-4 pt-6" aria-hidden>
+      <div className="h-20 rounded-xl bg-muted/50" />
+      <div className="h-6 w-40 rounded bg-muted/50" />
+      <div className="grid gap-2 md:grid-cols-3">
+        {Array.from({ length: 9 }, (_, i) => (
+          <div key={i} className="h-14 rounded-lg bg-muted/50" />
+        ))}
+      </div>
+    </div>
+  )
+}
 const RECENT: QueueContext = { type: "history", label: "Listen again" }
 const PICKS: QueueContext = { type: "list", id: "random-picks", label: "Random picks" }
 const FORGOTTEN: QueueContext = { type: "list", id: "forgotten-favorites", label: "Forgotten favorites" }
@@ -96,6 +120,36 @@ const PlaylistRow = memo(function PlaylistRow({ playlist }: { playlist: Playlist
   )
 })
 
+const AlbumRow = memo(function AlbumRow({ album }: { album: AlbumType }) {
+  const isThis = usePlayerStore((s) => s.queue.context?.type === "album" && s.queue.context.id === album.key)
+  const playing = usePlayerStore((s) => !s.paused) && isThis
+  const open = () => navigate({ name: "album", key: album.key })
+  const artists = album.album_artists.length >= 5 ? "Various artists" : album.album_artists.join(", ")
+  return (
+    <div role="link" tabIndex={0} onClick={open} onKeyDown={(e) => e.target === e.currentTarget && e.key === "Enter" && open()} className="group flex cursor-pointer items-center gap-3 rounded-lg p-2 outline-none transition-colors hover:bg-accent/40 focus-visible:ring-2 focus-visible:ring-ring">
+      <Artwork src={album.album_thumbnail} size="sm" />
+      <div className="min-w-0 flex-1 text-sm">
+        <p className={cn("truncate font-semibold", isThis && "text-primary")} title={album.album_name}>
+          {album.album_name}
+        </p>
+        <p className="truncate text-muted-foreground">Album · {artists}</p>
+      </div>
+      <button
+        type="button"
+        aria-label={playing ? `Pause ${album.album_name}` : `Play ${album.album_name}`}
+        onClick={(e) => {
+          e.stopPropagation()
+          if (isThis) togglePlay()
+          else playContext(album.album_songs, 0, { type: "album", id: album.key, label: album.album_name })
+        }}
+        className="shrink-0 rounded-full bg-primary p-2 text-primary-foreground opacity-0 outline-none transition-opacity focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring group-hover:opacity-100"
+      >
+        {playing ? <Pause className="size-4 fill-current" /> : <Play className="size-4 fill-current" />}
+      </button>
+    </div>
+  )
+})
+
 const chip = "inline-flex h-11 items-center gap-2 rounded-lg bg-muted/40 px-3 text-sm font-medium outline-none transition-colors hover:bg-accent/40 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
 
 /** One click to music: the dice, your likes, and mixes from your most used tags. */
@@ -104,8 +158,7 @@ function QuickActions({ songs, liked }: { songs: Song[]; liked: Song[] }) {
   const mixes = useMemo(() => buildTagList(songs, songTags).filter((t) => t.own).slice(0, 6), [songs, songTags])
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <DiceButton kind="song" size="small" className="size-11 shrink-0" />
-      <DiceButton kind="playlist" size="small" className="size-11 shrink-0" />
+      <DiceButton size="small" className="size-11 shrink-0" />
       <button type="button" className={chip} disabled={!liked.length} onClick={() => playShuffled(liked, LIKED)}>
         <Heart className="size-4 fill-current text-primary" aria-hidden /> Liked
       </button>
@@ -172,14 +225,31 @@ export default function HomePage() {
   const listenAgain = useMemo(() => resolveSongs(recentlyPlayed.map((r) => r.songId), byId).slice(0, 24), [recentlyPlayed, byId])
   const forgottenInfo = useMemo(() => new Map((forgotten ?? []).map((f) => [f.songId, f])), [forgotten])
   const forgottenSongs = useMemo(() => resolveSongs((forgotten ?? []).map((f) => f.songId), byId), [forgotten, byId])
-  const orderedPlaylists = useMemo(() => {
+  const access = useYoutubeAccess((s) => s.access)
+  const subscriptions = useYoutubeAccount((s) => s.account?.subscriptions)
+  const cardDismissed = useUserStore((s) => s.settings.youtubeCardDismissed)
+  const connectCardVisible = Boolean(access) && isLocked(access) && !cardDismissed
+  const followedSongs = useMemo(() => {
+    const ids = followedSongIds(all, subscriptions ?? [])
+    return ids.size ? shuffled(all.filter((s) => ids.has(s.id))).slice(0, 12) : []
+  }, [all, subscriptions])
+  const albums = useLibraryStore((s) => s.albums)
+  // Picked once per visit, so the row doesn't reshuffle whenever a song changes.
+  const shelfKey = `${recentPlaylistIds.join()}|${playlists.map((p) => p.id).join()}|${albums.length}`
+  const shelf = useMemo(() => {
     const recent = recentPlaylistIds.map((id) => playlists.find((p) => p.id === id)).filter((p) => p !== undefined)
-    const seen = new Set(recent.map((p) => p.id))
-    return [...recent, ...playlists.filter((p) => !seen.has(p.id))]
-  }, [recentPlaylistIds, playlists])
+    return fillShelf(recent, playlists, albums, SHELF_SIZE)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shelfKey])
 
-  if (loaded && !all.length) {
-    return <EmptyState icon={Download} title="Your library is empty" hint="Pick a music folder in Settings, or download songs from YouTube." action={<Button onClick={() => navigate({ name: "youtube" })}>Open YouTube</Button>} />
+  if (!loaded) return <HomeSkeleton />
+  if (!all.length) {
+    return (
+      <Page>
+        <GettingStarted />
+        <YoutubeSuggestions />
+      </Page>
+    )
   }
 
   return (
@@ -188,6 +258,20 @@ export default function HomePage() {
         <HomeStats week={week} all={allTime} />
         <QuickActions songs={all} liked={liked} />
       </Container>
+
+      {connectCardVisible && (
+        <Container className="px-4 pt-2">
+          <div className="flex flex-wrap items-center gap-3 rounded-xl bg-card p-3 text-sm">
+            <p className="min-w-0 flex-1 basis-60">Optional: add YouTube to search and download more music, or to bring in your playlists and likes.</p>
+            <Button size="sm" variant="secondary" onClick={() => navigate({ name: "youtube" })}>
+              Set up YouTube
+            </Button>
+            <IconButton icon={X} size="sm" label="Don't show this again" onClick={() => void updateSettings({ youtubeCardDismissed: true })} />
+          </div>
+        </Container>
+      )}
+
+      <YoutubeSuggestions />
 
       <HomeSection title="Quick picks" action={<IconButton icon={RefreshCw} size="sm" label="New picks" onClick={() => setPickRound((r) => r + 1)} />}>
         <SongRows songs={picks} context={QUICK} count={9} />
@@ -201,9 +285,15 @@ export default function HomePage() {
 
       <TagQueue />
 
-      {orderedPlaylists.length > 0 && (
-        <HomeSection title="Playlists" action={<SeeAll onClick={() => navigate({ name: "library" })} />}>
-          <AutoGrid items={orderedPlaylists} minWidth={ROW_WIDTH} count={6} getKey={(p) => p.id} render={(p) => <PlaylistRow playlist={p} />} />
+      {followedSongs.length > 0 && (
+        <HomeSection title="From artists you follow">
+          <SongRows songs={followedSongs} context={FOLLOWED} count={6} />
+        </HomeSection>
+      )}
+
+      {shelf.length > 0 && (
+        <HomeSection title="Playlists and albums" action={<SeeAll onClick={() => navigate({ name: "library" })} />}>
+          <AutoGrid items={shelf} minWidth={ROW_WIDTH} count={SHELF_SIZE} getKey={(x) => (x.kind === "playlist" ? `p:${x.item.id}` : `a:${x.item.key}`)} render={(x) => (x.kind === "playlist" ? <PlaylistRow playlist={x.item} /> : <AlbumRow album={x.item} />)} />
         </HomeSection>
       )}
 

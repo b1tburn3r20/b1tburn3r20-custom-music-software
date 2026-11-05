@@ -1,16 +1,20 @@
 import { useEffect } from "react"
-import { RefreshCcw, LogIn } from "lucide-react"
+import { RefreshCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { EmptyState } from "@/components/base/Page"
 import { useUserStore } from "@/stores/useUserStore"
-import { openSettings } from "@/app/settings/settingsStore"
+import { useYoutubeAccess } from "./accessStore"
 import { PlaylistPanel } from "./PlaylistPanel"
 import { AuthBanner } from "./AuthBanner"
 import { useMyPlaylistsStore } from "./myPlaylistsStore"
+import { PlaylistListSkeleton } from "./Skeletons"
 
 /** The signed-in user's own YouTube playlists (including private ones and Liked videos). Cached; "Refresh" resyncs. */
 export function MyPlaylists() {
-  const mode = useUserStore((s) => s.settings.youtubeAuth.mode)
+  const cookieMode = useUserStore((s) => s.settings.youtubeAuth.mode)
+  const connected = useYoutubeAccess((s) => s.access?.connected ?? false)
+  const channelId = useYoutubeAccess((s) => s.access?.channel?.id ?? "")
+  // The cache belongs to one account: a different one must fetch its own.
+  const mode = connected ? `oauth:${channelId}` : cookieMode
   const playlists = useMyPlaylistsStore((s) => s.playlists)
   const loading = useMyPlaylistsStore((s) => s.loading)
   const error = useMyPlaylistsStore((s) => s.error)
@@ -20,28 +24,19 @@ export function MyPlaylists() {
 
   // Fetches only the first time (or after the sign-in method changes); otherwise uses the cache.
   useEffect(() => {
-    if (mode !== "none") void loadPlaylists(mode)
+    void loadPlaylists(mode)
   }, [mode, loadPlaylists])
-
-  if (mode === "none")
-    return (
-      <EmptyState
-        icon={LogIn}
-        title="Sign in to see your playlists"
-        hint="Use your browser's YouTube sign-in or an exported cookies file. This only lets the downloader act as your account — e.g. for your private playlists and age-restricted videos you can already watch."
-        action={<Button onClick={() => openSettings("youtube")}>Set up sign-in</Button>}
-      />
-    )
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">{playlists ? `${playlists.length} playlists` : loading ? "Loading your playlists…" : ""}</p>
+        <p className="text-sm text-muted-foreground">{playlists ? `${playlists.length} ${playlists.length === 1 ? "playlist" : "playlists"}` : ""}</p>
         <Button size="sm" variant="ghost" onClick={() => loadPlaylists(mode, true)} disabled={loading} title="Fetch your playlists from YouTube again">
           <RefreshCcw className={loading ? "animate-spin" : ""} /> Refresh
         </Button>
       </div>
       {error && <AuthBanner code={error.code} message={error.message} />}
+      {loading && !playlists && <PlaylistListSkeleton />}
       {playlists?.map((p) => {
         const it = items[p.id]
         return (

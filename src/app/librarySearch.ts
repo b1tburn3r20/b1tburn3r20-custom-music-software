@@ -6,13 +6,14 @@ import { useLibraryStore } from "@/stores/useLibraryStore"
 import { navigate } from "@/stores/useAppStore"
 import { useYoutubeStore } from "@/components/youtube/searchStore"
 import { useYoutubeTab } from "@/components/youtube/tabStore"
+import { isLocked, useYoutubeAccess } from "@/components/youtube/accessStore"
 
 const YTM = "https://music.youtube.com"
 
+/** Opens in the user's browser: the main process refuses to create windows that could reach the app's API. */
 function openYTMPopup(url: string) {
-  const width = Math.min(window.screen.width * 0.85, 1200)
-  const height = Math.min(window.screen.height * 0.85, 900)
-  window.open(url, "ytmusic", `width=${width},height=${height},left=${(window.screen.width - width) / 2},top=${(window.screen.height - height) / 2},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`)
+  if (isLocked(useYoutubeAccess.getState().access)) navigate({ name: "youtube" }) // shows how to unlock YouTube
+  else window.open(url, "_blank")
 }
 
 function searchYouTubeApi(q: string, playlists: boolean) {

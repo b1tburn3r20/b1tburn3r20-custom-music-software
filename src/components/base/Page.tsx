@@ -44,7 +44,7 @@ export function PageHeader({ eyebrow, title, meta, description, artwork, icon: I
         )}
         <div className="flex min-w-0 flex-1 flex-col gap-2 pb-2">
           <p className="text-sm font-semibold uppercase tracking-wider text-foreground/80">{eyebrow}</p>
-          <h1 className="text-5xl font-bold tracking-tight truncate" title={title}>
+          <h1 className="truncate pb-1 text-5xl leading-tight font-bold tracking-tight" title={title}>
             {title}
           </h1>
           {description && <p className="text-sm text-foreground/80 line-clamp-2">{description}</p>}

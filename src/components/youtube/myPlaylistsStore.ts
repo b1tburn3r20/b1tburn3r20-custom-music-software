@@ -1,5 +1,6 @@
 import { create } from "zustand"
 import { ApiError, call } from "@/lib/api"
+import { trackProgress } from "@/stores/useTopProgress"
 import type { MyYoutubePlaylist } from "@/types/api"
 import type { YtVideo } from "@/lib/youtubeApi"
 
@@ -37,7 +38,7 @@ export const useMyPlaylistsStore = create<MyPlaylistsState>((set, get) => ({
     const accountChanged = s.fetchedFor !== mode
     set({ loading: true, error: null, ...(accountChanged ? { playlists: null, items: {}, open: {} } : {}) })
     try {
-      const playlists = await call(window.api.youtube.myPlaylists())
+      const playlists = await trackProgress(call(window.api.youtube.myPlaylists()))
       // A resync also refetches the videos of playlists that are open; closed ones load when opened.
       set({ playlists, fetchedFor: mode, items: {} })
       for (const [id, isOpen] of Object.entries(get().open)) if (isOpen) void get().loadItems(id)
@@ -52,7 +53,7 @@ export const useMyPlaylistsStore = create<MyPlaylistsState>((set, get) => ({
     if (cur?.loading || (!force && cur?.videos)) return
     set((s) => ({ items: { ...s.items, [id]: { videos: cur?.videos ?? null, loading: true, error: null } } }))
     try {
-      const { videos } = await call(window.api.youtube.playlistItems(id))
+      const { videos } = await trackProgress(call(window.api.youtube.playlistItems(id)))
       set((s) => ({ items: { ...s.items, [id]: { videos, loading: false, error: null } } }))
     } catch (err) {
       set((s) => ({ items: { ...s.items, [id]: { videos: cur?.videos ?? null, loading: false, error: (err as Error).message } } }))

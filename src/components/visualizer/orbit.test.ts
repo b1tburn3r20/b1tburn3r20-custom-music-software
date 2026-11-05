@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { chaseOrb, chaseSpeed, createFullnessMeter, lensed, orbitScale, orbitSpeed } from "./scenes"
+import { chaseOrb, chaseSpeed, createFullnessMeter, lensed, orbitRadius, orbitScale, orbitSpeed } from "./scenes"
 
 const FRAME = 1 / 60
 type Meter = ReturnType<typeof createFullnessMeter>
@@ -120,6 +120,47 @@ describe("orbitSpeed", () => {
   it("saves most of its speed for the very top", () => {
     expect(orbitSpeed(0.5, null)).toBeLessThan(top * 0.25)
     expect(orbitSpeed(0.9, null)).toBeGreaterThan(top * 0.7)
+  })
+})
+
+describe("orbitRadius", () => {
+  // How far the rings reach for each unit of radius, across the slow tilt and roll of the axis.
+  const angles = Array.from({ length: 200 }, (_, i) => {
+    const axis = (i / 200) * Math.PI * 2
+    const tilt = 0.46 + Math.cos(axis) * 0.2
+    const roll = -0.42 + Math.sin(axis) * 0.35
+    return { reachX: Math.hypot(Math.cos(roll), Math.sin(tilt) * Math.sin(roll)), reachY: Math.hypot(Math.sin(roll), Math.sin(tilt) * Math.cos(roll)) }
+  })
+  const previous = (w: number, h: number, x: number, y: number) => Math.min((w * 0.5) / x, (h * 0.5) / y)
+
+  it("keeps portrait screens the size they were, at any speed", () => {
+    for (const { reachX, reachY } of angles) {
+      expect(orbitRadius(1080, 1920, reachX, reachY)).toBeCloseTo(previous(1080, 1920, reachX, reachY))
+      expect(orbitRadius(1080, 1920, reachX, reachY, 1.5)).toBeCloseTo(previous(1080, 1920, reachX, reachY) * 1.5)
+    }
+  })
+  it("makes a desktop screen's rings the same size as a portrait screen with the same short side", () => {
+    for (const { reachX, reachY } of angles) expect(orbitRadius(1920, 1080, reachX, reachY)).toBeCloseTo(orbitRadius(1080, 1920, reachX, reachY))
+  })
+  it("is noticeably smaller on a desktop screen than it was", () => {
+    const { reachX, reachY } = angles[0]
+    expect(orbitRadius(1920, 1080, reachX, reachY)).toBeLessThan(previous(1920, 1080, reachX, reachY) * 0.75)
+  })
+  it("still grows with speed on a desktop screen", () => {
+    const { reachX, reachY } = angles[0]
+    expect(orbitRadius(1920, 1080, reachX, reachY, 1.5)).toBeGreaterThan(orbitRadius(1920, 1080, reachX, reachY) * 1.2)
+  })
+  it("doesn't grow on an ultrawide screen", () => {
+    const { reachX, reachY } = angles[0]
+    expect(orbitRadius(3440, 1080, reachX, reachY)).toBe(orbitRadius(1920, 1080, reachX, reachY))
+  })
+  it("stays inside a 16:9 screen even at full speed", () => {
+    const full = orbitScale(orbitSpeed(1, null))
+    for (const { reachX, reachY } of angles) {
+      const radius = orbitRadius(1920, 1080, reachX, reachY, full)
+      expect(radius * reachX).toBeLessThanOrEqual(960.001)
+      expect(radius * reachY).toBeLessThanOrEqual(540.001)
+    }
   })
 })
 

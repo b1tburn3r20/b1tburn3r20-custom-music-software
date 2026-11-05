@@ -3,17 +3,26 @@ const { execFile } = require("child_process");
 const { promisify } = require("util");
 const fs = require("fs").promises;
 const path = require("path");
+const { isTrustedSender } = require("../electron/security.cjs");
+const { resolveTool } = require("../electron/lib/tools.cjs");
 
 const execFileAsync = promisify(execFile);
 // adb is invoked with an argument array (no local shell). `adb shell` still runs
 // its arguments through the phone's /bin/sh, so remote paths are single-quoted.
-const adb = (args, opts = {}) => execFileAsync("adb", args, { maxBuffer: 1024 * 1024 * 16, ...opts });
+const adb = (args, opts = {}) => execFileAsync(resolveTool("adb").path || "adb", args, { maxBuffer: 1024 * 1024 * 16, windowsHide: true, ...opts });
 const shQuote = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
 const DEVICE_ID_RE = /^[A-Za-z0-9._:-]+$/;
 
+function trustedOnly(fn) {
+  return (event, ...args) => {
+    if (!isTrustedSender(event)) throw new Error("This page can't use the app's features.");
+    return fn(event, ...args);
+  };
+}
+
 function registerSyncHandlers() {
-  ipcMain.handle('sync-to-phone', syncToPhone);
-  ipcMain.handle('check-adb-connection', checkAdbConnection);
+  ipcMain.handle('sync-to-phone', trustedOnly(syncToPhone));
+  ipcMain.handle('check-adb-connection', trustedOnly(checkAdbConnection));
 }
 async function checkAdbConnection() {
   try {
@@ -33,7 +42,7 @@ async function checkAdbConnection() {
     if (lines.length === 0) {
       return {
         success: false,
-        error: 'No device connected. Please connect your Pixel 8 Pro via USB and enable USB debugging.',
+        error: 'No device connected. Please connect your Android phone via USB and enable USB debugging.',
         needsDevice: true
       };
     }

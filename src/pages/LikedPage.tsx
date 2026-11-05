@@ -6,12 +6,14 @@ import { SongList } from "@/components/song/SongRow"
 import { Button } from "@/components/ui/button"
 import { resolveSongs, useLibraryStore } from "@/stores/useLibraryStore"
 import { useUserStore } from "@/stores/useUserStore"
+import { useYoutubeAccount } from "@/components/youtube/accessStore"
 import { formatDuration } from "@/utils/textUtils"
 import type { QueueContext } from "@/player/queue"
 
 const CONTEXT: QueueContext = { type: "liked", label: "Liked Songs" }
 
 export default function LikedPage() {
+  const likedOnYoutube = useYoutubeAccount((s) => s.account?.liked.filter((v) => v.isMusic).length ?? 0)
   const likes = useUserStore((s) => s.likes)
   const notice = useUserStore((s) => s.notices.find((n) => n.id.startsWith("likes-corruption")))
   const byId = useLibraryStore((s) => s.songsById)
@@ -44,7 +46,7 @@ export default function LikedPage() {
         </Section>
       )}
       <Section>
-        {songs.length ? <SongList songs={songs} queueContext={CONTEXT} /> : <EmptyState icon={Heart} title="No liked songs yet" hint="Tap the heart on any song to add it here." />}
+        {songs.length ? <SongList songs={songs} queueContext={CONTEXT} /> : <EmptyState icon={Heart} title="No liked songs yet" hint={likedOnYoutube ? `Tap the heart on any song to add it here. You have ${likedOnYoutube} liked ${likedOnYoutube === 1 ? "video" : "videos"} on YouTube ready to download from Home.` : "Tap the heart on any song to add it here."} />}
       </Section>
     </Page>
   )

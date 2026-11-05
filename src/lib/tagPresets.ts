@@ -1,7 +1,10 @@
 // The standard genre names offered when tagging, so the same genre doesn't end up
 // under several spellings ("hip hop", "hip-hop", "hiphop"). Lowercase like your tags.
 
+const MOODS = "Mood and vibe"
+
 export const GENRE_GROUPS: { label: string; genres: string[] }[] = [
+  { label: MOODS, genres: ["chill", "mellow", "relaxing", "upbeat", "happy", "feel-good", "sad", "melancholy", "romantic", "energetic", "hype", "aggressive", "dark", "dreamy", "nostalgic", "party", "workout", "focus", "study", "sleep", "road trip", "late night", "summer", "rainy day", "throwback"] },
   { label: "Rock", genres: ["rock", "alternative rock", "indie rock", "hard rock", "classic rock", "punk", "pop punk", "post-punk", "post-hardcore", "emo", "grunge", "shoegaze", "post-rock", "progressive rock", "psychedelic rock", "garage rock"] },
   { label: "Metal", genres: ["metal", "heavy metal", "metalcore", "deathcore", "hardcore", "death metal", "black metal", "thrash metal", "doom metal", "nu metal", "progressive metal", "djent"] },
   { label: "Hip hop", genres: ["hip hop", "rap", "trap", "drill", "boom bap", "cloud rap", "emo rap", "rage", "phonk", "grime", "lo-fi hip hop"] },
@@ -89,7 +92,7 @@ export function likelyTypoOf(input: string, names: readonly string[]): string | 
 }
 
 // "Other" is just the rest of the list: jazz and country aren't related.
-const FAMILY_BY_KEY = new Map<string, string>(GENRE_GROUPS.filter((g) => g.label !== "Other").flatMap((g) => g.genres.map((name) => [looseKey(name), g.label] as [string, string])))
+const FAMILY_BY_KEY = new Map<string, string>(GENRE_GROUPS.filter((g) => g.label !== "Other" && g.label !== MOODS).flatMap((g) => g.genres.map((name) => [looseKey(name), g.label] as [string, string])))
 
 /** The genre family a tag belongs to, also for your own variants ("chill rap" → Hip hop). Moods have none. */
 export function tagFamily(tag: string): string | null {

@@ -1,9 +1,8 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "./styles/tokens.css";
-@import "./styles/themes.css";
 
-@custom-variant dark (&:where([data-mode=dark], [data-mode=dark] *));
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
@@ -11,6 +10,9 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
   --color-background: var(--background);
+  /* Depth: recessed and raised surfaces. See src/themes/compile.ts. */
+  --color-background-dark: var(--background-dark);
+  --color-background-light: var(--background-light);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
@@ -57,6 +59,8 @@
 
   body {
     @apply bg-background text-foreground;
+    /* A tweakcn theme can name a font. It's used if it's installed. */
+    font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif);
   }
 
   /* Tailwind v4 resets buttons to the default cursor; everything clickable gets a pointer. */
@@ -76,4 +80,10 @@
   label[for] {
     cursor: pointer;
   }
+}
+
+/* Unlike hidden, clip can't be scrolled at all, so keyboard focus can never push the app off screen. */
+html,
+body {
+  overflow: clip;
 }

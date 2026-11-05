@@ -72,7 +72,7 @@ export default function HistoryPage() {
   return (
     <Page>
       <PageHeader eyebrow="History" title="Recently played" icon={History} colorKey="history" actions={<Button variant="secondary" onClick={() => navigate({ name: "stats" })}>Listening stats</Button>} />
-      {empty && <EmptyState icon={History} title="Nothing played yet" />}
+      {empty && <EmptyState icon={History} title="Nothing played yet" hint="Play something to start your history." action={<Button onClick={() => navigate({ name: "library" })}>Go to your library</Button>} />}
       {rows.length > 0 && (
         <Container className="pb-6">
           <VirtualList items={rows} getKey={(r) => r.key} estimateSize={(r) => (r.kind === "song" ? 56 : 64)} renderItem={renderRow} />
