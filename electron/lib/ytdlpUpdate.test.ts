@@ -84,6 +84,13 @@ describe("updater", () => {
     it("suggests an update when GitHub has a newer version", async () => {
       expect(await make().check()).toMatchObject({ status: "available", current: "2026.1.1", latest: "2026.10.26", source: "private" })
     })
+    it("reports a copy that won't run as a problem, not as an update, and doesn't need GitHub for that", async () => {
+      const fetchFn = fakeGitHub()
+      const s = await make({ fetchFn, versionOf: async () => { throw new Error("it didn't respond in time") } }).check()
+      expect(s).toMatchObject({ status: "error", current: null })
+      expect(s.error).toContain("didn't respond in time")
+      expect(fetchFn).not.toHaveBeenCalled()
+    })
     it("stays quiet when already current", async () => {
       expect(await make({ versionOf: async () => "2026.10.26" }).check()).toMatchObject({ status: "up-to-date" })
     })

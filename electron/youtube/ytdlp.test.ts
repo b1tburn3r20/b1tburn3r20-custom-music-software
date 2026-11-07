@@ -7,6 +7,22 @@ import { describe, expect, it } from "vitest"
 const require = createRequire(import.meta.url)
 const y = require("./ytdlp.cjs")
 
+describe("classifyError when yt-dlp can't say why", () => {
+  it("names a Windows crash instead of a bare exit code", () => {
+    expect(y.classifyError("", { exitCode: 3221225781 }).message).toContain("Visual C++")
+    expect(y.classifyError("", { exitCode: 3221225501 }).message).toContain("processor")
+  })
+  it("gives the exit code and the last thing it said", () => {
+    const e = y.classifyError("Traceback\nSomething odd happened\n", { exitCode: 1 })
+    expect(e.message).toBe("yt-dlp stopped with exit code 1: Something odd happened")
+  })
+  it("treats a Python that never started as a problem with this computer", () => {
+    const e = y.classifyError("[PYI-1234:ERROR] Failed to load Python DLL 'python313.dll'.\n", { exitCode: 1 })
+    expect(e.code).toBe("YTDLP_CANT_RUN")
+    expect(e.message).toContain("Failed to load Python DLL")
+  })
+})
+
 describe("classifyError", () => {
   it("detects expired cookies", () => {
     const e = y.classifyError("WARNING: The provided YouTube account cookies are no longer valid. They have likely been rotated\nERROR: [youtube] x: Sign in to confirm your age", { authMode: "file" })

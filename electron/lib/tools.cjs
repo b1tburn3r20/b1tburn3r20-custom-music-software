@@ -56,6 +56,20 @@ function resolveTool(name, options = {}) {
   return { name, path: null, source: "missing" };
 }
 
+// What Windows reports when a program can't run at all. Exit codes alone mean nothing to a person.
+const WINDOWS_CRASHES = {
+  0xc0000135: "couldn't start because a Windows file it needs is missing. Run Windows Update, and install the latest Microsoft Visual C++ Redistributable",
+  0xc000007b: "couldn't start because a Windows file it needs is damaged or the wrong type. Run Windows Update, and install the latest Microsoft Visual C++ Redistributable",
+  0xc0000142: "couldn't start because Windows failed to load a file it needs. Restart the computer and run Windows Update",
+  0xc0000005: "crashed as it ran. Antivirus software is a common cause",
+  0xc000001d: "crashed because this computer's processor doesn't support something it needs",
+};
+
+/** Finishes the sentence "<tool> ...". */
+function explainExit(code) {
+  return WINDOWS_CRASHES[code >>> 0] || `stopped with exit code ${code}`;
+}
+
 /** Arguments every yt-dlp run needs, whichever copy of the tools is being used. */
 function ytDlpBaseArgs(options = {}) {
   const { platform } = { ...defaults(), ...options };
@@ -85,4 +99,4 @@ function toolStatus(options = {}) {
   return Object.fromEntries(["yt-dlp", "ffmpeg", "ffprobe", "node", "adb"].map((name) => [name, resolveTool(name, options)]));
 }
 
-module.exports = { installRoot, toolsDir, exeName, findOnPath, resolveTool, ytDlpBaseArgs, killProcessTree, toolStatus };
+module.exports = { explainExit, installRoot, toolsDir, exeName, findOnPath, resolveTool, ytDlpBaseArgs, killProcessTree, toolStatus };

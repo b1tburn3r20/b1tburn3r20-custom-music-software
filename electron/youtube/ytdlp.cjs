@@ -7,7 +7,7 @@ const { spawn } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
-const { killProcessTree, resolveTool, ytDlpBaseArgs } = require("../lib/tools.cjs");
+const { explainExit, killProcessTree, resolveTool, ytDlpBaseArgs } = require("../lib/tools.cjs");
 
 // Each browser's profile folder, relative to: linux = home, darwin = ~/Library/Application Support,
 // win32 = %LOCALAPPDATA% unless `winRoaming` says %APPDATA%.
@@ -98,7 +98,7 @@ function redactArgs(args) {
 }
 
 /** Map yt-dlp stderr to a stable error code + a message a person can act on. */
-function classifyError(stderr, { authMode = "none" } = {}) {
+function classifyError(stderr, { authMode = "none", exitCode } = {}) {
   const text = String(stderr || "");
   const signedIn = authMode !== "none";
   const lastError = (text.split("\n").filter((l) => /ERROR/.test(l)).pop() || "").replace(/^.*?ERROR:\s*/, "").trim();
@@ -115,6 +115,10 @@ function classifyError(stderr, { authMode = "none" } = {}) {
       `${detail} Update yt-dlp in Settings → YouTube. Signed-in downloads need this; public videos fall back to the app's unsigned download.`,
       lastError,
     );
+  }
+  // The bundled Python never started, so nothing below would be a fair description.
+  if (/Failed to (load Python DLL|extract|execute script)|PYI-\d+|MSVCR100|VCRUNTIME\d+|python\d+\.dll/i.test(text)) {
+    return new YtError("YTDLP_CANT_RUN", `yt-dlp couldn't start on this computer. Run Windows Update, install the latest Microsoft Visual C++ Redistributable, and check that antivirus software isn't blocking it. (${(lastError || text.trim().split(/\r?\n/).pop()).slice(0, 200)})`, lastError);
   }
   const rules = [
     // Made-up cookies and a signed-out file both get exactly this, so it can't say which.
@@ -133,7 +137,11 @@ function classifyError(stderr, { authMode = "none" } = {}) {
     [/unable to download webpage|getaddrinfo|network is unreachable|timed out|connection (reset|refused)/i, "NETWORK", "Couldn't reach YouTube. Check your internet connection."],
   ];
   for (const [re, code, message] of rules) if (re.test(text)) return new YtError(code, message, lastError);
-  return new YtError("DOWNLOAD_FAILED", lastError || "yt-dlp failed for an unknown reason.", lastError);
+  if (lastError) return new YtError("DOWNLOAD_FAILED", lastError, lastError);
+  // No ERROR line, so whatever it said last and how it ended is all there is to go on.
+  const lastLine = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).pop();
+  const ended = exitCode == null ? "failed for an unknown reason" : explainExit(exitCode);
+  return new YtError("DOWNLOAD_FAILED", `yt-dlp ${ended}${lastLine ? `: ${lastLine.slice(0, 300)}` : "."}`, lastError);
 }
 
 /**
@@ -197,7 +205,7 @@ function runYtDlp(args, { onLine, signal, authMode = "none", stallMs = 0, bin = 
       if (stalled) return reject(new YtError("DOWNLOAD_STALLED", "This download stopped making progress, so it was stopped. Try it again."));
       if (signal?.aborted || sig) return reject(new YtError("CANCELLED", "Cancelled."));
       if (code !== 0) {
-        const err = classifyError(stderr, { authMode });
+        const err = classifyError(stderr, { authMode, exitCode: code });
         console.warn(`[yt-dlp] exit ${code} (${err.code}) for: yt-dlp ${redactArgs(args).join(" ")}`);
         return reject(err);
       }

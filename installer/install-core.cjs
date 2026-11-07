@@ -179,7 +179,8 @@ async function installTools(p, source, platform, arch) {
     const yt = path.join(p.tools, exeName("yt-dlp", platform));
     const updater = createYtDlpUpdater({ resolve: () => ({ name: "yt-dlp", path: fs.existsSync(yt) ? yt : null, source: fs.existsSync(yt) ? "private" : "missing" }), toolsDir: p.tools, platform, arch });
     const checked = await updater.check();
-    if (checked.status === "available") {
+    // A copy that won't run gets replaced too, in case the file itself is damaged.
+    if (checked.status === "available" || (checked.status === "error" && !checked.current)) {
       const done = await updater.update();
       if (done.status === "error") warnings.push(done.error);
     } else if (checked.status === "unknown" && !checked.current) warnings.push("yt-dlp: couldn't reach GitHub");

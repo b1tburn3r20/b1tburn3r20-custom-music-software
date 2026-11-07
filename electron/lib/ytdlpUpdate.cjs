@@ -5,13 +5,15 @@ const { execFile } = require("child_process");
 const crypto = require("crypto");
 const fs = require("fs").promises;
 const path = require("path");
-const { exeName } = require("./tools.cjs");
+const { exeName, explainExit } = require("./tools.cjs");
 
 const RELEASE_API = "https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest";
 const DOWNLOAD_BASE = "https://github.com/yt-dlp/yt-dlp/releases/download";
-const CHECK_TIMEOUT_MS = 5000;
+const CHECK_TIMEOUT_MS = 20000; // a slow connection is not the same as no connection
 const DOWNLOAD_TIMEOUT_MS = 10 * 60 * 1000;
-const VERSION_TIMEOUT_MS = 60000; // the standalone binary unpacks itself on first run
+// The standalone binary unpacks itself on every run, and antivirus scans each file. On an old
+// computer with a hard drive that can take minutes, which doesn't mean it's broken.
+const VERSION_TIMEOUT_MS = 3 * 60 * 1000;
 const IDLE_POLL_MS = 2000;
 const VERSION_RE = /^\d{4}\.\d{1,2}\.\d{1,2}(\.\d+)?$/;
 const HEADERS = { "User-Agent": "b1tburn3r20-music-app" };
@@ -42,14 +44,29 @@ function findChecksum(sums, asset) {
   return null;
 }
 
+/** Why a program didn't run, in words. */
+function runFailure(err, stderr) {
+  if (err.killed) return "it didn't respond in time. Antivirus software or a very slow disk are the usual causes";
+  const lastLine = String(stderr || "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean).pop();
+  const what = typeof err.code === "number" ? `it ${explainExit(err.code)}` : `it couldn't start (${err.code || err.message}). The file may be damaged, or antivirus software may be blocking it`;
+  return lastLine ? `${what}: ${lastLine.slice(0, 300)}` : what;
+}
+
 function readVersion(file) {
   return new Promise((resolve, reject) => {
-    execFile(file, ["--version"], { timeout: VERSION_TIMEOUT_MS, windowsHide: true }, (err, stdout) => {
-      if (err) return reject(err);
-      const version = String(stdout).trim();
-      if (!VERSION_RE.test(version)) return reject(new Error(`unexpected version output "${version.slice(0, 60)}"`));
-      resolve(version);
-    });
+    try {
+      execFile(file, ["--version"], { timeout: VERSION_TIMEOUT_MS, windowsHide: true }, (err, stdout, stderr) => {
+        if (err) return reject(new Error(runFailure(err, stderr)));
+        // Only the version line matters: a warning printed beside it doesn't make the program broken.
+        const lines = String(stdout).split(/\r?\n/).map((l) => l.trim());
+        const version = lines.find((l) => VERSION_RE.test(l));
+        if (!version) return reject(new Error(`unexpected version output "${String(stdout).trim().slice(0, 60)}"`));
+        resolve(version);
+      });
+    } catch (err) {
+      // Windows refuses some bad files before the process even exists.
+      reject(new Error(runFailure(err)));
+    }
   });
 }
 
@@ -85,10 +102,19 @@ function createYtDlpUpdater({
   async function check() {
     if (updating) return state;
     const tool = resolve();
-    const current = tool.path ? await versionOf(tool.path).catch(() => null) : null;
+    let runError = null;
+    const current = tool.path
+      ? await versionOf(tool.path).catch((err) => {
+          runError = err.message;
+          return null;
+        })
+      : null;
     set({ status: "checking", current, source: tool.source, error: null });
     // Someone who pointed B1T_YTDLP at their own copy manages it themselves.
     if (tool.source === "env") return set({ status: "unmanaged", latest: null });
+    // It's there but won't run. Calling that "an update is available" would repeat on every
+    // launch, even when it's already the newest version, because a new copy may fail the same way.
+    if (runError) return set({ status: "error", latest: null, error: `yt-dlp is installed but didn't run: ${runError}.` });
     let latest;
     try {
       latest = await latestVersion();
