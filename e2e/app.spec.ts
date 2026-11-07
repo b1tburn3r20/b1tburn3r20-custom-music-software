@@ -535,6 +535,8 @@ test.describe("cookies.txt, the main way in", () => {
     app.evaluate(({ ipcMain }) => {
       ipcMain.removeHandler("youtube:my-playlists")
       ipcMain.handle("youtube:my-playlists", () => ({ ok: true, data: [{ id: "LL", title: "Liked videos", count: null, thumbnail: null, system: true }, { id: "PLroad", title: "Road trip", count: 12, thumbnail: null }] }))
+      ipcMain.removeHandler("youtube:playlist-count")
+      ipcMain.handle("youtube:playlist-count", () => ({ ok: true, data: 340 }))
     })
 
   test("first run: upload, then straight to picking, in very few clicks", async () => {
@@ -551,7 +553,8 @@ test.describe("cookies.txt, the main way in", () => {
     await expect(page.getByRole("heading", { name: "What should come in?" })).toBeVisible()
     await expect(onboarding(page).getByText("Liked videos")).toBeVisible()
     await expect(onboarding(page).getByText("Road trip")).toBeVisible()
-    await expect(onboarding(page).getByRole("checkbox", { name: /Liked videos/ })).toBeChecked()
+    await expect(onboarding(page).getByRole("checkbox", { name: /Liked videos.*340 videos/ })).not.toBeChecked()
+    await expect(onboarding(page).getByRole("checkbox", { name: /Road trip.*12 videos/ })).not.toBeChecked()
     await shot(page, "22-cookies-picker")
     expect(await page.evaluate(() => window.api.youtube.access())).toMatchObject({ data: { cookieMode: true, hasApiKey: false } })
 
@@ -564,6 +567,32 @@ test.describe("cookies.txt, the main way in", () => {
 
     await onboarding(page).getByRole("button", { name: "Not now" }).click()
     await expect(onboarding(page)).toBeHidden()
+    expect(problems).toEqual([])
+    await close(app)
+  })
+
+  test("starting an import closes the picker and says so before the playlists are read", async () => {
+    const { app, page, dir, problems } = await launch()
+    const file = path.join(dir, "cookies.txt")
+    fs.writeFileSync(file, COOKIES)
+    await answerFilePicker(app, file)
+    await fakeYoutube(app)
+    await app.evaluate(({ ipcMain }) => {
+      ipcMain.removeHandler("youtube:playlist-items")
+      ipcMain.handle("youtube:playlist-items", async () => {
+        await new Promise((r) => setTimeout(r, 1500))
+        return { ok: true, data: { id: "PLroad", title: "Road trip", channel: "", videos: [{ id: "aaaaaaaaaaa", title: "A song", channel: "", duration: 100, thumbnail: null, unavailable: false }] } }
+      })
+      ipcMain.removeHandler("youtube:enqueue")
+      ipcMain.handle("youtube:enqueue", () => ({ ok: true, data: { items: [{ status: "queued" }], playlistId: "x" } }))
+    })
+    await page.getByRole("button", { name: "Choose cookies.txt" }).click()
+    await expect(onboarding(page).getByRole("button", { name: "Download", exact: true })).toBeDisabled()
+    await onboarding(page).getByRole("checkbox", { name: /Road trip/ }).check()
+    await onboarding(page).getByRole("button", { name: "Download", exact: true }).click()
+    await expect(onboarding(page)).toBeHidden()
+    await expect(page.getByText("Import scheduled")).toBeVisible()
+    await expect(page.getByText("Importing 1 song", { exact: true })).toBeVisible()
     expect(problems).toEqual([])
     await close(app)
   })

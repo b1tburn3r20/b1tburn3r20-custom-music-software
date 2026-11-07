@@ -4,6 +4,9 @@ import { trackProgress } from "@/stores/useTopProgress"
 import type { MyYoutubePlaylist } from "@/types/api"
 import type { YtVideo } from "@/lib/youtubeApi"
 
+// Each count is its own yt-dlp run, so only a few at a time.
+const COUNT_WORKERS = 3
+
 type Items = { videos: YtVideo[] | null; loading: boolean; error: string | null }
 
 /**
@@ -17,10 +20,13 @@ type MyPlaylistsState = {
   /** Auth mode the cached data was fetched with. */
   fetchedFor: string | null
   items: Record<string, Items>
+  /** Playlists whose size was asked for, whether or not YouTube gave one. */
+  countTried: Record<string, boolean>
   /** Playlist panels the user has expanded (kept across remounts). */
   open: Record<string, boolean>
   loadPlaylists: (mode: string, force?: boolean) => Promise<void>
   loadItems: (id: string, force?: boolean) => Promise<void>
+  loadCounts: () => Promise<void>
   setOpen: (id: string, open: boolean) => void
 }
 
@@ -30,6 +36,7 @@ export const useMyPlaylistsStore = create<MyPlaylistsState>((set, get) => ({
   error: null,
   fetchedFor: null,
   items: {},
+  countTried: {},
   open: {},
   loadPlaylists: async (mode, force = false) => {
     const s = get()
@@ -40,7 +47,8 @@ export const useMyPlaylistsStore = create<MyPlaylistsState>((set, get) => ({
     try {
       const playlists = await trackProgress(call(window.api.youtube.myPlaylists()))
       // A resync also refetches the videos of playlists that are open; closed ones load when opened.
-      set({ playlists, fetchedFor: mode, items: {} })
+      set({ playlists, fetchedFor: mode, items: {}, countTried: {} })
+      void get().loadCounts()
       for (const [id, isOpen] of Object.entries(get().open)) if (isOpen) void get().loadItems(id)
     } catch (err) {
       set({ error: { code: err instanceof ApiError ? err.code : "ERROR", message: (err as Error).message }, fetchedFor: mode })
@@ -58,6 +66,22 @@ export const useMyPlaylistsStore = create<MyPlaylistsState>((set, get) => ({
     } catch (err) {
       set((s) => ({ items: { ...s.items, [id]: { videos: cur?.videos ?? null, loading: false, error: (err as Error).message } } }))
     }
+  },
+  loadCounts: async () => {
+    const queue = (get().playlists ?? []).filter((p) => p.count == null)
+    const worker = async () => {
+      for (let next = queue.shift(); next; next = queue.shift()) {
+        const { id } = next
+        try {
+          const count = await call(window.api.youtube.playlistCount(id))
+          set((s) => ({ playlists: s.playlists?.map((p) => (p.id === id ? { ...p, count } : p)) ?? null }))
+        } catch {
+          // Only the number is missing, and the playlist itself still works.
+        }
+        set((s) => ({ countTried: { ...s.countTried, [id]: true } }))
+      }
+    }
+    await Promise.all(Array.from({ length: COUNT_WORKERS }, worker))
   },
   setOpen: (id, open) => set((s) => ({ open: { ...s.open, [id]: open } })),
 }))

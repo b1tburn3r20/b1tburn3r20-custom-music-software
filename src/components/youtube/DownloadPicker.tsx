@@ -4,13 +4,13 @@ import { Download, Heart, ListMusic, Loader2, Mic2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
-import { call, errorMessage } from "@/lib/api"
 import { matchedSubscriptions } from "@/lib/followedArtists"
+import { importLabel } from "@/lib/playlistImport"
 import { useLibraryStore } from "@/stores/useLibraryStore"
-import { toast } from "sonner"
+import { useUserStore } from "@/stores/useUserStore"
 import { useYoutubeAccess, useYoutubeAccount } from "./accessStore"
 import { AuthBanner } from "./AuthBanner"
-import { enqueueVideos } from "./downloadActions"
+import { scheduleImport } from "./downloadActions"
 import { useMyPlaylistsStore } from "./myPlaylistsStore"
 import { useOwnedIndex } from "./useOwned"
 import { PlaylistListSkeleton } from "./Skeletons"
@@ -25,12 +25,13 @@ function formatEstimate(songs: number): string {
   return mb >= 1000 ? `about ${(mb / 1000).toFixed(1)} GB` : `about ${mb} MB`
 }
 
-function Row({ checked, onChange, icon: Icon, title, detail }: { checked: boolean; onChange: (v: boolean) => void; icon: typeof Heart; title: string; detail: string }) {
+function Row({ checked, onChange, icon: Icon, title, detail, mark }: { checked: boolean; onChange: (v: boolean) => void; icon: typeof Heart; title: string; detail: string; mark?: string | null }) {
   return (
     <label className="flex cursor-pointer items-center gap-3 rounded-lg p-2 hover:bg-accent/40">
       <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
       <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
       <span className="min-w-0 flex-1 truncate text-sm">{title}</span>
+      {mark && <span className="shrink-0 text-xs font-medium text-success">{mark}</span>}
       <span className="shrink-0 text-xs text-muted-foreground">{detail}</span>
     </label>
   )
@@ -45,21 +46,8 @@ function usePicked(initial: string[] = []) {
       else next.delete(id)
       return next
     })
-  return [picked, toggle, setPicked] as const
+  return [picked, toggle] as const
 }
-
-/** Downloads each playlist in full, keeping a copy of it as a local playlist. */
-async function downloadPlaylists(playlists: { id: string; title: string }[]) {
-  for (const p of playlists) {
-    const { videos } = await call(window.api.youtube.playlistItems(p.id))
-    await enqueueVideos(
-      videos.flatMap((v, index) => (v.unavailable ? [] : [{ videoId: v.id, title: v.title, channel: v.channel, duration: v.duration, index }])),
-      { mirror: { youtubeId: p.id, title: p.title } },
-    )
-  }
-}
-
-const startedToast = () => toast.success("Downloading in the background", { description: "Keep using the app. You'll find them under YouTube → Downloads." })
 
 function Footer({ summary, busy, disabled, onSkip, onStart }: { summary: string; busy: boolean; disabled: boolean; onSkip: () => void; onStart: () => void }) {
   return (
@@ -75,37 +63,29 @@ function Footer({ summary, busy, disabled, onSkip, onStart }: { summary: string;
   )
 }
 
-/** With cookies: the account's playlists, read by yt-dlp. Liked videos is one of them, and starts ticked. */
+/** With cookies: the account's playlists, read by yt-dlp. Liked videos is one of them. Nothing starts ticked. */
 function CookiePicker({ onDone }: { onDone: () => void }) {
   const playlists = useMyPlaylistsStore((s) => s.playlists)
   const loading = useMyPlaylistsStore((s) => s.loading)
   const error = useMyPlaylistsStore((s) => s.error)
-  const [picked, toggle, setPicked] = usePicked()
+  const countTried = useMyPlaylistsStore((s) => s.countTried)
+  const locals = useUserStore((s) => s.playlists)
+  const [picked, toggle] = usePicked()
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     void useMyPlaylistsStore.getState().loadPlaylists("file")
   }, [])
-  useEffect(() => {
-    if (playlists?.some((p) => p.id === "LL")) setPicked((prev) => (prev.size ? prev : new Set(["LL"])))
-  }, [playlists, setPicked])
 
   const chosen = (playlists ?? []).filter((p) => picked.has(p.id))
   const known = chosen.reduce((sum, p) => sum + (p.count ?? 0), 0)
   const allKnown = chosen.every((p) => p.count != null)
   const summary = !chosen.length ? "Nothing picked. You can do this later from the YouTube page." : known && allKnown ? `${plural(known, "song")}, ${formatEstimate(known)}` : plural(chosen.length, "playlist")
 
-  const start = async () => {
+  const start = () => {
     setBusy(true)
-    try {
-      await downloadPlaylists(chosen)
-      startedToast()
-      onDone()
-    } catch (err) {
-      toast.error("Couldn't start every download", { description: errorMessage(err) })
-    } finally {
-      setBusy(false)
-    }
+    void scheduleImport({ playlists: chosen })
+    onDone()
   }
 
   return (
@@ -115,11 +95,11 @@ function CookiePicker({ onDone }: { onDone: () => void }) {
       {playlists && (
         <section className="flex max-h-72 flex-col overflow-y-auto">
           {playlists.map((p) => (
-            <Row key={p.id} checked={picked.has(p.id)} onChange={(on) => toggle(p.id, on)} icon={p.id === "LL" ? Heart : ListMusic} title={p.title} detail={p.count != null ? plural(p.count, "video") : ""} />
+            <Row key={p.id} checked={picked.has(p.id)} onChange={(on) => toggle(p.id, on)} icon={p.id === "LL" ? Heart : ListMusic} title={p.title} detail={p.count != null ? plural(p.count, "video") : countTried[p.id] ? "" : "Counting…"} mark={importLabel(p, locals)} />
           ))}
         </section>
       )}
-      <Footer summary={summary} busy={busy} disabled={!chosen.length} onSkip={onDone} onStart={() => void start()} />
+      <Footer summary={summary} busy={busy} disabled={!chosen.length} onSkip={onDone} onStart={start} />
     </div>
   )
 }
@@ -129,7 +109,8 @@ function GooglePicker({ onDone }: { onDone: () => void }) {
   const account = useYoutubeAccount((s) => s.account)
   const songs = useLibraryStore((s) => s.songs)
   const owned = useOwnedIndex()
-  const [likes, setLikes] = useState(true)
+  const locals = useUserStore((s) => s.playlists)
+  const [likes, setLikes] = useState(false)
   const [nonMusic, setNonMusic] = useState(false)
   const [picked, toggle] = usePicked()
   const [busy, setBusy] = useState(false)
@@ -141,18 +122,10 @@ function GooglePicker({ onDone }: { onDone: () => void }) {
   const artists = useMemo(() => matchedSubscriptions(songs, account?.subscriptions ?? []), [songs, account])
   const estimate = (likes ? newLikes.length : 0) + playlists.filter((p) => picked.has(p.id)).reduce((sum, p) => sum + (p.count ?? 0), 0)
 
-  const start = async () => {
+  const start = () => {
     setBusy(true)
-    try {
-      if (likes && newLikes.length) await enqueueVideos(newLikes.map((v) => ({ videoId: v.id, title: v.title, channel: v.channel, duration: v.duration })))
-      await downloadPlaylists(playlists.filter((pl) => picked.has(pl.id)))
-      if (estimate) startedToast()
-      onDone()
-    } catch (err) {
-      toast.error("Couldn't start every download", { description: errorMessage(err) })
-    } finally {
-      setBusy(false)
-    }
+    void scheduleImport({ videos: likes ? newLikes.map((v) => ({ videoId: v.id, title: v.title, channel: v.channel, duration: v.duration })) : [], playlists: playlists.filter((pl) => picked.has(pl.id)) })
+    onDone()
   }
 
   if (!account) return null
@@ -176,7 +149,7 @@ function GooglePicker({ onDone }: { onDone: () => void }) {
           <h3 className="text-sm font-medium">Your playlists</h3>
           <div className="flex max-h-56 flex-col overflow-y-auto">
             {playlists.map((p) => (
-              <Row key={p.id} checked={picked.has(p.id)} onChange={(on) => toggle(p.id, on)} icon={ListMusic} title={p.title} detail={p.count != null ? plural(p.count, "video") : ""} />
+              <Row key={p.id} checked={picked.has(p.id)} onChange={(on) => toggle(p.id, on)} icon={ListMusic} title={p.title} detail={p.count != null ? plural(p.count, "video") : ""} mark={importLabel(p, locals)} />
             ))}
           </div>
         </section>
@@ -189,7 +162,7 @@ function GooglePicker({ onDone }: { onDone: () => void }) {
         </section>
       )}
 
-      <Footer summary={estimate ? `${plural(estimate, "song")}, ${formatEstimate(estimate)}` : "Nothing picked. Anything you skip stays available as a suggestion."} busy={busy} disabled={!estimate} onSkip={onDone} onStart={() => void start()} />
+      <Footer summary={estimate ? `${plural(estimate, "song")}, ${formatEstimate(estimate)}` : "Nothing picked. Anything you skip stays available as a suggestion."} busy={busy} disabled={!estimate} onSkip={onDone} onStart={start} />
     </div>
   )
 }

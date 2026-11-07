@@ -149,6 +149,14 @@ function createYoutubeService({ user, userData }) {
     return playlistFromInfo(JSON.parse(stdout), playlistId);
   }
 
+  /** How many videos a playlist has, read from its page without listing them. The feed of playlists often leaves this out. */
+  async function playlistCount(playlistId) {
+    if (!PLAYLIST_ID_RE.test(String(playlistId))) throw new YtError("BAD_INPUT", "Invalid playlist id.");
+    const { stdout } = await runYtDlp([...args(), "--flat-playlist", "-J", "--no-warnings", "--playlist-items", "0", `https://www.youtube.com/playlist?list=${playlistId}`], { authMode: auth().mode });
+    const count = JSON.parse(stdout).playlist_count;
+    return Number.isInteger(count) ? count : null;
+  }
+
   /** One video's details, from a pasted link. */
   async function videoInfo(videoId) {
     if (!VIDEO_ID_RE.test(String(videoId))) throw new YtError("BAD_INPUT", "That isn't a valid video link.");
@@ -182,7 +190,7 @@ function createYoutubeService({ user, userData }) {
     }
   }
 
-  return { videoInfo, linkPlaylist, useAccount, status, setAuth, importCookiesFile, removeCookiesFile, myPlaylists, playlistItems, checkAuth, authArgs: args, authMode: () => auth().mode };
+  return { videoInfo, linkPlaylist, useAccount, status, setAuth, importCookiesFile, removeCookiesFile, myPlaylists, playlistItems, playlistCount, checkAuth, authArgs: args, authMode: () => auth().mode };
 }
 
 module.exports = { createYoutubeService, videoFromInfo, isMix, mixUrl, MIX_SONG_LIMIT };

@@ -211,6 +211,7 @@ async function registerYoutubeIpc({ library, user, userData }) {
   handle("youtube:check-auth", () => youtube.checkAuth());
   handle("youtube:my-playlists", () => youtube.myPlaylists());
   handle("youtube:playlist-items", (id) => youtube.playlistItems(id));
+  handle("youtube:playlist-count", (id) => youtube.playlistCount(id));
 
   handle("youtube:enqueue", (videos, opts = {}) => {
     let target = null;

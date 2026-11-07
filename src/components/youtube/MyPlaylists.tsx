@@ -1,6 +1,7 @@
 import { useEffect } from "react"
 import { RefreshCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { importLabel } from "@/lib/playlistImport"
 import { useUserStore } from "@/stores/useUserStore"
 import { useYoutubeAccess } from "./accessStore"
 import { PlaylistPanel } from "./PlaylistPanel"
@@ -16,6 +17,7 @@ export function MyPlaylists() {
   // The cache belongs to one account: a different one must fetch its own.
   const mode = connected ? `oauth:${channelId}` : cookieMode
   const playlists = useMyPlaylistsStore((s) => s.playlists)
+  const locals = useUserStore((s) => s.playlists)
   const loading = useMyPlaylistsStore((s) => s.loading)
   const error = useMyPlaylistsStore((s) => s.error)
   const items = useMyPlaylistsStore((s) => s.items)
@@ -44,7 +46,7 @@ export function MyPlaylists() {
             key={p.id}
             id={p.id}
             title={p.title}
-            subtitle={p.system ? "Private · system playlist" : p.count != null ? `${p.count} videos` : undefined}
+            subtitle={[p.system ? "Private · system playlist" : null, p.count != null ? `${p.count} videos` : null, importLabel(p, locals)].filter(Boolean).join(" · ") || undefined}
             thumbnail={p.thumbnail}
             videos={it?.videos ?? null}
             loading={it?.loading ?? false}

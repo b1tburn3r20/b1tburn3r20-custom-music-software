@@ -68,6 +68,7 @@ contextBridge.exposeInMainWorld("api", {
     checkAuth: () => invoke("youtube:check-auth"),
     myPlaylists: () => invoke("youtube:my-playlists"),
     playlistItems: (id) => invoke("youtube:playlist-items", id),
+    playlistCount: (id) => invoke("youtube:playlist-count", id),
     enqueue: (videos, opts) => invoke("youtube:enqueue", videos, opts),
     downloads: () => invoke("youtube:downloads"),
     cancel: (videoId) => invoke("youtube:cancel", videoId),
