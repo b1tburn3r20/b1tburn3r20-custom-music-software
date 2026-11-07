@@ -172,16 +172,20 @@ export function createFullnessMeter() {
     return Math.min(1, Math.max(0, (fullness - (mark - RANGE)) / RANGE))
   }
 }
-/** Reads the song's scan this far ahead of what you're hearing, cancelling the time the speed takes to change and draw. */
+/** Reads the song's peaks this far ahead of what you're hearing, cancelling the time the white hole takes to appear and draw. */
 export const ORBIT_LEAD_SECONDS = 0.05
+/** The same for its fullness: speed changes more slowly than the white hole, so it needs to start sooner. */
+const ORBIT_SPEED_LEAD_SECONDS = 0.12
 /** Full speed, before the song's tempo scales it. */
 const ORBIT_TOP_SPEED = 4.5
 const ORBIT_DRIFT_SPEED = 0.12
 /** The speed a moment asks for: a slow drift until the song is near its fullest, scaled by its tempo. */
 export function orbitSpeed(fullness: number, bpm: number | null) {
   const tempo = bpm ? Math.min(1.8, Math.max(0.6, bpm / 120)) : 1
-  return (ORBIT_DRIFT_SPEED + (ORBIT_TOP_SPEED - ORBIT_DRIFT_SPEED) * Math.pow(fullness, 3)) * tempo
+  return (ORBIT_DRIFT_SPEED + (ORBIT_TOP_SPEED - ORBIT_DRIFT_SPEED) * Math.pow(fullness, 2)) * tempo
 }
+/** How hard this beat hits, 0..1: follows the song's tracked beat, and a heavy kick hits harder than a light tap. */
+export const orbitPulse = (beat: number, bass: number) => beat * (0.35 + 0.65 * bass)
 /**
  * The outer ring's radius. It's sized from the screen's short side, as if fitting a square:
  * a wide screen adds empty space around the rings, not bigger rings. They grow with speed
@@ -205,27 +209,24 @@ export function chaseOrb(orb: number, target: number, dt: number) {
  * nearby things are pushed out and bent around it, and it fades to no change far away.
  */
 export const lensed = (distance: number, einsteinRadius: number) => (distance + Math.sqrt(distance * distance + 4 * einsteinRadius * einsteinRadius)) / 2
-/** Moves toward the asked-for speed: leaps within a few frames, then falls back fairly quickly too. */
+/**
+ * Moves toward the asked-for speed, following the song's sections rather than each flicker
+ * in its level, which would look random. The beat pulse does the quick reacting.
+ */
 export function chaseSpeed(speed: number, target: number, dt: number) {
-  const rate = target > speed ? 30 : 15
+  const rate = target > speed ? 10 : 6
   return speed + (target - speed) * (1 - Math.exp(-rate * dt))
 }
 
-/** A white hole: a small, hard core with a huge, fierce glow that throbs. Both are true circles. */
-function drawOrb(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number, power: number, time: number) {
-  const reach = radius * (13 + Math.sin(time * 9) * 1.2 + Math.sin(time * 23) * 0.6)
-  const glow = ctx.createRadialGradient(x, y, radius, x, y, reach)
-  glow.addColorStop(0, "rgba(255, 255, 255, 1)")
-  glow.addColorStop(0.08, "rgba(255, 255, 255, 0.8)")
-  glow.addColorStop(0.22, "rgba(255, 255, 255, 0.42)")
-  glow.addColorStop(0.45, "rgba(255, 255, 255, 0.16)")
-  glow.addColorStop(0.75, "rgba(255, 255, 255, 0.04)")
+/** A white hole: a small, hard, perfectly round core with a little glow. */
+function drawOrb(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number, power: number) {
+  const glow = ctx.createRadialGradient(x, y, radius * 0.5, x, y, radius * 3)
+  glow.addColorStop(0, "rgba(255, 255, 255, 0.45)")
+  glow.addColorStop(0.4, "rgba(255, 255, 255, 0.08)")
   glow.addColorStop(1, "rgba(255, 255, 255, 0)")
   ctx.globalAlpha = power
   ctx.fillStyle = glow
-  ctx.beginPath()
-  ctx.arc(x, y, reach, 0, Math.PI * 2)
-  ctx.fill()
+  ctx.fillRect(x - radius * 3, y - radius * 3, radius * 6, radius * 6)
   ctx.fillStyle = "#fff"
   ctx.beginPath()
   ctx.arc(x, y, radius, 0, Math.PI * 2)
@@ -251,6 +252,8 @@ function orbit(): Scene {
   const ANGULAR_SPEED = 0.35 // at the outer edge, per unit of speed
   const ORB_LAYER = 2
   const PEAK_EXTRA_SPEED = 0.5
+  const BEAT_PUSH = 1.6 // how much speed a full beat adds, for as long as it lasts
+  const BEAT_SWELL = 0.06 // how much a full beat widens the rings
   const PEAK_EXTRA_WILD = 2.2
   const PEAK_SHAKE = 0.035
   const STREAK_SECONDS = 0.03 // each dot is drawn as the path it just covered, so direction and speed read
@@ -308,19 +311,22 @@ function orbit(): Scene {
       const dt = Math.min(0.1, Math.max(0, f.time - lastTime))
       lastTime = f.time
       const live = meter(f.bass, f.mid, f.treble, dt) // keeps learning, in case there's no scan
-      const scanned = f.songId && f.position !== null ? songFullness(f.songId, f.position + ORBIT_LEAD_SECONDS) : null
+      const scanned = f.songId && f.position !== null ? songFullness(f.songId, f.position + ORBIT_SPEED_LEAD_SECONDS) : null
       // The song's most intense moments, known from its scan: peak chaos, and the only time the white hole shows.
       const atPeak = f.songId !== null && f.position !== null && songPeak(f.songId, f.position + ORBIT_LEAD_SECONDS)
       orb = chaseOrb(orb, atPeak ? 1 : 0, dt)
-      speed = chaseSpeed(speed, orbitSpeed(scanned ?? live, f.bpm) * (1 + orb * PEAK_EXTRA_SPEED), dt)
-      travel += speed * dt
+      speed = chaseSpeed(speed, orbitSpeed(scanned ?? live, f.bpm), dt)
+      const pulse = orbitPulse(f.beat, f.bass)
+      // The white hole and the beat apply straight away, without waiting for the speed to catch up.
+      const moving = speed * (1 + orb * PEAK_EXTRA_SPEED) + pulse * BEAT_PUSH
+      travel += moving * dt
       const energy = Math.min(1, speed / ORBIT_TOP_SPEED) // the harder it's going, the wilder the orbits
 
-      // The axis traces a slow circle, about once a minute: the rings tilt more and less and lean
-      // side to side, but stay diagonal and never flip over. Independent of the music.
-      const axis = f.time * 0.1
-      const tilt = 0.46 + Math.cos(axis) * 0.2
-      const roll = -0.42 + Math.sin(axis) * 0.35
+      // The axis traces a slow circle, about every 50 seconds: the rings tilt more and less and
+      // swing from steeply diagonal to nearly level, but never flip over. Independent of the music.
+      const axis = f.time * 0.13
+      const tilt = 0.46 + Math.cos(axis) * 0.26
+      const roll = -0.42 + Math.sin(axis) * 0.5
       const cosT = Math.cos(tilt)
       const sinT = Math.sin(tilt)
       const cosR = Math.cos(roll)
@@ -328,12 +334,12 @@ function orbit(): Scene {
       // Fit the ellipse at its current angle.
       const reachX = Math.hypot(cosR, sinT * sinR)
       const reachY = Math.hypot(sinR, sinT * cosR)
-      const outer = orbitRadius(w, h, reachX, reachY, orbitScale(speed))
+      const outer = orbitRadius(w, h, reachX, reachY, orbitScale(speed) * (1 + pulse * BEAT_SWELL))
       const cx = w / 2
       const cy = h / 2
       const pixel = Math.max(1.2, Math.min(w, h) / 500)
       // Capped at full speed's length: longer ones cost far more to draw, and peak chaos doesn't need them.
-      const streak = Math.max(0.004, Math.min(speed, ORBIT_TOP_SPEED) * ANGULAR_SPEED * STREAK_SECONDS)
+      const streak = Math.max(0.004, Math.min(moving, ORBIT_TOP_SPEED) * ANGULAR_SPEED * STREAK_SECONDS)
       const wild = 1 + energy * 0.9 + orb * PEAK_EXTRA_WILD
       const shake = orb * PEAK_SHAKE
       const lens = orb * outer * 0.17 // how far the white hole bends the dots around it
@@ -382,6 +388,7 @@ function orbit(): Scene {
       ctx.globalAlpha = 1
       ctx.fillStyle = "#000"
       ctx.fillRect(0, 0, w, h)
+      ctx.lineCap = "round" // so the dots are round, not tiny squares
       for (let l = 0; l < LAYER_ALPHA.length; l++) {
         ctx.globalAlpha = LAYER_ALPHA[l]
         ctx.lineWidth = LAYER_WIDTH[l] * pixel
@@ -400,8 +407,9 @@ function orbit(): Scene {
           from = end
         })
         // The white hole sits at the center of the rings: behind their near side, in front of the far side.
-        if (l === ORB_LAYER && orb > 0.01) drawOrb(ctx, cx, cy, Math.min(w, h) * 0.018 * Math.sqrt(orb), orb, f.time)
+        if (l === ORB_LAYER && orb > 0.01) drawOrb(ctx, cx, cy, Math.min(w, h) * 0.018 * Math.sqrt(orb), orb)
       }
+      ctx.lineCap = "butt"
       ctx.globalAlpha = 1
     },
   }

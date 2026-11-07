@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { chaseOrb, chaseSpeed, createFullnessMeter, lensed, orbitRadius, orbitScale, orbitSpeed } from "./scenes"
+import { chaseOrb, chaseSpeed, createFullnessMeter, lensed, orbitPulse, orbitRadius, orbitScale, orbitSpeed } from "./scenes"
 
 const FRAME = 1 / 60
 type Meter = ReturnType<typeof createFullnessMeter>
@@ -78,14 +78,14 @@ describe("Orbit fullness meter", () => {
     expect(last(play(meter, CHORUS, 3))).toBeLessThan(0.3)
   })
 
-  it("changes speed within about a third of a second when a section changes", () => {
+  it("changes speed within about half a second when a section changes", () => {
     const meter = createFullnessMeter()
     play(meter, CHORUS, 30)
     play(meter, VERSE, 30)
     let speed = orbitSpeed(last(play(meter, VERSE, 1)), null)
     const calm = speed
     const step = (levels: number[]) => {
-      for (let i = 0; i < 0.35 * 60; i++) speed = chaseSpeed(speed, orbitSpeed(meter(levels[0], levels[1], levels[2], FRAME), null), FRAME)
+      for (let i = 0; i < 0.5 * 60; i++) speed = chaseSpeed(speed, orbitSpeed(meter(levels[0], levels[1], levels[2], FRAME), null), FRAME)
     }
     step(CHORUS)
     const full = orbitSpeed(last(play(createFullnessMeter(), CHORUS, 30)), null)
@@ -118,8 +118,20 @@ describe("orbitSpeed", () => {
   })
 
   it("saves most of its speed for the very top", () => {
-    expect(orbitSpeed(0.5, null)).toBeLessThan(top * 0.25)
+    expect(orbitSpeed(0.5, null)).toBeLessThan(top * 0.3)
     expect(orbitSpeed(0.9, null)).toBeGreaterThan(top * 0.7)
+  })
+})
+
+describe("orbitPulse", () => {
+  it("is nothing between beats, however loud the bass", () => {
+    expect(orbitPulse(0, 1)).toBe(0)
+  })
+  it("hits harder on a heavy kick than a light tap", () => {
+    expect(orbitPulse(1, 0.9)).toBeGreaterThan(orbitPulse(1, 0.2) * 1.5)
+  })
+  it("never goes above 1", () => {
+    expect(orbitPulse(1, 1)).toBeCloseTo(1)
   })
 })
 
@@ -127,16 +139,16 @@ describe("orbitRadius", () => {
   // How far the rings reach for each unit of radius, across the slow tilt and roll of the axis.
   const angles = Array.from({ length: 200 }, (_, i) => {
     const axis = (i / 200) * Math.PI * 2
-    const tilt = 0.46 + Math.cos(axis) * 0.2
-    const roll = -0.42 + Math.sin(axis) * 0.35
+    const tilt = 0.46 + Math.cos(axis) * 0.26
+    const roll = -0.42 + Math.sin(axis) * 0.5
     return { reachX: Math.hypot(Math.cos(roll), Math.sin(tilt) * Math.sin(roll)), reachY: Math.hypot(Math.sin(roll), Math.sin(tilt) * Math.cos(roll)) }
   })
   const previous = (w: number, h: number, x: number, y: number) => Math.min((w * 0.5) / x, (h * 0.5) / y)
 
-  it("keeps portrait screens the size they were, at any speed", () => {
+  it("fits portrait screens to their width at any angle, and grows past it with speed", () => {
     for (const { reachX, reachY } of angles) {
-      expect(orbitRadius(1080, 1920, reachX, reachY)).toBeCloseTo(previous(1080, 1920, reachX, reachY))
-      expect(orbitRadius(1080, 1920, reachX, reachY, 1.5)).toBeCloseTo(previous(1080, 1920, reachX, reachY) * 1.5)
+      expect(orbitRadius(1080, 1920, reachX, reachY) * Math.max(reachX, reachY)).toBeCloseTo(540)
+      expect(orbitRadius(1080, 1920, reachX, reachY, 1.5) * Math.max(reachX, reachY)).toBeCloseTo(810)
     }
   })
   it("makes a desktop screen's rings a bit smaller than a portrait screen with the same short side", () => {
@@ -209,11 +221,23 @@ describe("chaseSpeed", () => {
     return speed
   }
 
-  it("leaps most of the way in about a tenth of a second", () => {
-    expect(chase(drift, top, 0.1)).toBeGreaterThan(top * 0.9)
+  it("reaches a new section within about a quarter of a second", () => {
+    expect(chase(drift, top, 0.25)).toBeGreaterThan(top * 0.9)
   })
 
-  it("falls most of the way within a quarter of a second", () => {
-    expect(chase(top, drift, 0.25)).toBeLessThan(top * 0.1)
+  it("falls most of the way within half a second", () => {
+    expect(chase(top, drift, 0.5)).toBeLessThan(top * 0.1)
+  })
+
+  it("barely reacts to the level flickering near the top of the song", () => {
+    let speed = orbitSpeed(0.9, null)
+    let lowest = speed
+    let highest = speed
+    for (let i = 0; i < 300; i++) {
+      speed = chaseSpeed(speed, orbitSpeed(i % 12 < 6 ? 0.85 : 0.95, null), FRAME)
+      lowest = Math.min(lowest, speed)
+      highest = Math.max(highest, speed)
+    }
+    expect(highest - lowest).toBeLessThan(top * 0.12)
   })
 })
