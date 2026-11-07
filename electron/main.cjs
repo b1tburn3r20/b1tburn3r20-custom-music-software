@@ -1,7 +1,9 @@
-const { app, BrowserWindow, Menu, nativeImage, screen } = require("electron");
+const { app, BrowserWindow, Menu, nativeImage, screen, shell } = require("electron");
+const fs = require("fs");
 const path = require("path");
 const { pathToFileURL } = require("url");
 const { windowIconFiles } = require("./lib/appIcon.cjs");
+const { createErrorLog } = require("./lib/errorLog.cjs");
 const { hardenWindow, identifyToYoutubeEmbeds, setTrustedPage } = require("./security.cjs");
 const { isSmokeTest, isolateUserData, musicDirOf, runSmokeTest, reportSmokeResult, watchForPolicyViolations } = require("./smoke.cjs");
 const { configureUserData, copyLegacyUserData } = require("./store/paths.cjs");
@@ -26,6 +28,9 @@ setTrustedPage(isDev ? DEV_URL : pathToFileURL(INDEX_FILE).href);
 
 // Must happen before "ready": pin the data folder and the media:// scheme.
 const userData = configureUserData(app);
+const errorLog = createErrorLog(path.join(userData, "logs", "errors.log"));
+errorLog.captureProcess();
+errorLog.start(app.getVersion());
 if (smokeTest) app.setPath("music", musicDirOf(smokeDir));
 else if (!app.isPackaged && process.env.B1T_MUSIC_DIR) app.setPath("music", process.env.B1T_MUSIC_DIR);
 registerMediaScheme();
@@ -74,6 +79,11 @@ async function initStores() {
   registerAiIpc({ library, user, credentials: youtubeIpc.credentials });
   const senderWindow = (event) => BrowserWindow.fromWebContents(event.sender);
   handle("window:is-fullscreen", (event) => senderWindow(event).isFullScreen());
+  handle("window:open-logs", async () => {
+    await fs.promises.mkdir(errorLog.dir, { recursive: true });
+    await shell.openPath(errorLog.dir);
+    return null;
+  });
   handle("window:set-title-bar-colors", (color, symbolColor, event) => {
     const hex = /^#[0-9a-f]{6}$/i;
     if (process.platform !== "win32" || !hex.test(color) || !hex.test(symbolColor)) return false;
@@ -146,19 +156,18 @@ function createWindow() {
     },
   });
   win.webContents.setZoomFactor(1.0);
+  errorLog.watchWindow(win);
   // Development keeps its menu for the reload and devtools shortcuts, but never shows it.
   if (process.platform !== "darwin") win.setMenuBarVisibility(false);
   hardenWindow(win);
   win.on("enter-full-screen", () => broadcast("window:fullscreen-changed", true));
   win.on("leave-full-screen", () => broadcast("window:fullscreen-changed", false));
-  // Removing the menu also removed the shortcut it provided. macOS has its own, in the menu above.
-  if (process.platform !== "darwin") {
-    win.webContents.on("before-input-event", (event, input) => {
-      if (input.type !== "keyDown" || input.key !== "F11") return;
-      event.preventDefault();
-      if (!input.isAutoRepeat) win.setFullScreen(!win.isFullScreen());
-    });
-  }
+  // Removing the menu also removed the shortcut it provided. The app says F11 on every system, so it works on all of them.
+  win.webContents.on("before-input-event", (event, input) => {
+    if (input.type !== "keyDown" || input.key !== "F11") return;
+    event.preventDefault();
+    if (!input.isAutoRepeat) win.setFullScreen(!win.isFullScreen());
+  });
   identifyToYoutubeEmbeds(win.webContents.session, APP_ID);
   if (smokeTest) watchForPolicyViolations(win);
   if (isDev) win.loadURL(DEV_URL);

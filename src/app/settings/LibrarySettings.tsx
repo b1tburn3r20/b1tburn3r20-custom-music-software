@@ -95,6 +95,15 @@ export default function LibrarySettings() {
         <ChangeRootDir />
       </Card>
       <CleanupCard />
+      <Card className="flex flex-wrap items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium">Error logs</p>
+          <p className="text-xs text-muted-foreground">If something goes wrong, the details are saved here to help fix it. They stay on this computer.</p>
+        </div>
+        <Button size="sm" variant="secondary" onClick={() => void window.api.window.openLogs()}>
+          Open log folder
+        </Button>
+      </Card>
     </div>
   )
 }

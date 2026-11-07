@@ -134,6 +134,7 @@ function classifyError(stderr, { authMode = "none", exitCode } = {}) {
     [/permission denied|errno 13|access is denied|read-only file system/i, "FOLDER_NOT_WRITABLE", "Couldn't save to your music folder. Your system may be blocking it (on Windows, check Controlled Folder Access). Choose a different folder in Settings → Library."],
     [/video unavailable|has been removed|account.{0,40}terminated|not available in your country/i, "VIDEO_UNAVAILABLE", "This video isn't available."],
     [/requested format is not available|no video formats found/i, "FORMAT_UNAVAILABLE", "No downloadable audio format was found for this video."],
+    [/HTTP Error 403|403: Forbidden/i, "YOUTUBE_REFUSED", "YouTube refused this download. Trying it again later often works."],
     [/unable to download webpage|getaddrinfo|network is unreachable|timed out|connection (reset|refused)/i, "NETWORK", "Couldn't reach YouTube. Check your internet connection."],
   ];
   for (const [re, code, message] of rules) if (re.test(text)) return new YtError(code, message, lastError);
@@ -206,6 +207,8 @@ function runYtDlp(args, { onLine, signal, authMode = "none", stallMs = 0, bin = 
       if (signal?.aborted || sig) return reject(new YtError("CANCELLED", "Cancelled."));
       if (code !== 0) {
         const err = classifyError(stderr, { authMode, exitCode: code });
+        err.exitCode = code;
+        err.stderrTail = stderr.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).slice(-15);
         console.warn(`[yt-dlp] exit ${code} (${err.code}) for: yt-dlp ${redactArgs(args).join(" ")}`);
         return reject(err);
       }

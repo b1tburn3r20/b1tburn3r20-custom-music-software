@@ -1,5 +1,5 @@
 import { useMemo } from "react"
-import { CheckCircle2, CircleSlash, Download, Loader2, XCircle } from "lucide-react"
+import { CheckCircle2, CircleSlash, Download, FileText, Loader2, RotateCcw, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/base/Page"
 import { useDownloadStore, isActive } from "@/stores/useDownloadStore"
@@ -16,17 +16,28 @@ export function DownloadsList() {
   const authError = items.find((i) => i.status === "error" && isAuthError(i.error?.code))
   const fellBack = !authError && items.some((i) => i.note?.includes("without sign-in"))
   const active = items.filter(isActive).length
+  const failed = items.filter((i) => i.status === "error").length
   if (!items.length) return <EmptyState icon={Download} title="No downloads yet" hint="Downloads from search results and playlists show up here." />
   return (
     <div className="flex flex-col gap-3">
       {authError?.error && <AuthBanner code={authError.error.code} message={authError.error.message} />}
-      {fellBack && <AuthBanner code="YTDLP_JS_CHALLENGE" message="Some songs were downloaded without your YouTube sign-in, because yt-dlp couldn't solve YouTube's JavaScript challenge." />}
+      {fellBack && <AuthBanner code="YTDLP_JS_CHALLENGE" message="Some songs were downloaded without your YouTube sign-in, because YouTube refused the signed-in request. If this keeps happening, upload a fresh cookies.txt or update yt-dlp." />}
       <div className="flex items-center gap-2">
         <p className="flex-1 text-sm text-muted-foreground">{active ? `${active} in progress` : "All done"}</p>
         {active > 0 && (
           <Button size="sm" variant="secondary" onClick={() => window.api.youtube.cancel()}>
             Cancel all
           </Button>
+        )}
+        {failed > 0 && (
+          <>
+            <Button size="sm" variant="secondary" onClick={() => void call(window.api.youtube.retryFailed())}>
+              <RotateCcw /> Retry {failed} failed
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => void call(window.api.youtube.openDownloadLog())}>
+              <FileText /> Open log
+            </Button>
+          </>
         )}
         <Button size="sm" variant="ghost" onClick={async () => useDownloadStore.getState().set(await call(window.api.youtube.clearFinished()))}>
           Clear finished

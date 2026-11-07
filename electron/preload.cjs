@@ -68,6 +68,8 @@ contextBridge.exposeInMainWorld("api", {
     checkAuth: () => invoke("youtube:check-auth"),
     myPlaylists: () => invoke("youtube:my-playlists"),
     playlistItems: (id) => invoke("youtube:playlist-items", id),
+    retryFailed: () => invoke("youtube:retry-failed"),
+    openDownloadLog: () => invoke("youtube:open-download-log"),
     playlistCount: (id) => invoke("youtube:playlist-count", id),
     enqueue: (videos, opts) => invoke("youtube:enqueue", videos, opts),
     downloads: () => invoke("youtube:downloads"),
@@ -106,6 +108,7 @@ contextBridge.exposeInMainWorld("api", {
   window: {
     hasTitleBar: process.platform === "win32",
     setTitleBarColors: (color, symbolColor) => invoke("window:set-title-bar-colors", color, symbolColor),
+    openLogs: () => invoke("window:open-logs"),
     isFullscreen: () => invoke("window:is-fullscreen"),
     toggleFullscreen: () => invoke("window:toggle-fullscreen"),
     onFullscreenChanged: on("window:fullscreen-changed"),

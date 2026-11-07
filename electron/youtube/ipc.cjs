@@ -1,8 +1,11 @@
 const { app, safeStorage, shell } = require("electron");
+const fs = require("fs").promises;
 const path = require("path");
 const { handle, broadcast } = require("../ipc.cjs");
 const { createYoutubeService, isMix } = require("./service.cjs");
 const { createDownloadManager } = require("./downloads.cjs");
+const { createDownloadLog } = require("./downloadRetry.cjs");
+const { createDebouncedSaver, readJson, writeJsonAtomic } = require("../lib/atomic.cjs");
 const { resetJsDiagnosis } = require("./ytdlp.cjs");
 const { resolveTool, toolsDir, toolStatus } = require("../lib/tools.cjs");
 const { createYtDlpUpdater } = require("../lib/ytdlpUpdate.cjs");
@@ -32,7 +35,16 @@ async function registerYoutubeIpc({ library, user, userData }) {
     if (!accountStore.get().liked.some((v) => v.id === videoId)) return;
     if ((await accountStore.takeUnappliedLikes([videoId])).length) user.setLiked(songId, true);
   }
-  const downloads = createDownloadManager({ library, user, youtube, emit: (item) => broadcast("youtube:download-update", item), onSongReady: applyLike });
+  const downloadLog = createDownloadLog(path.join(userData, "logs", "downloads.log"));
+  const queueFile = path.join(userData, "download-queue.json");
+  // A long playlist changes this many times a second, so only the latest is written.
+  let queueNow = [];
+  const queueSaver = createDebouncedSaver(() => writeJsonAtomic(queueFile, queueNow), 300);
+  const saveQueue = (list) => {
+    queueNow = list;
+    queueSaver.schedule();
+  };
+  const downloads = createDownloadManager({ library, user, youtube, emit: (item) => broadcast("youtube:download-update", item), onSongReady: applyLike, log: downloadLog, saveQueue });
 
   const ytDlpUpdater = createYtDlpUpdater({
     resolve: () => resolveTool("yt-dlp"),
@@ -223,6 +235,14 @@ async function registerYoutubeIpc({ library, user, userData }) {
   handle("youtube:downloads", () => downloads.list());
   handle("youtube:cancel", (videoId) => (videoId ? downloads.cancel(videoId) : downloads.cancelAll()));
   handle("youtube:clear-finished", () => downloads.clearFinished());
+  handle("youtube:retry-failed", () => downloads.retryFailed());
+  handle("youtube:open-download-log", async () => {
+    await fs.mkdir(path.dirname(downloadLog.file), { recursive: true });
+    const exists = await fs.access(downloadLog.file).then(() => true, () => false);
+    if (exists) shell.showItemInFolder(downloadLog.file);
+    else await shell.openPath(path.dirname(downloadLog.file));
+    return null;
+  });
   // Single download that resolves when finished (used by search results).
   handle("youtube:download", async ({ videoId, title, channel, duration }) => {
     downloads.enqueue([{ videoId, title, channel, duration }]);
@@ -237,6 +257,10 @@ async function registerYoutubeIpc({ library, user, userData }) {
     if (youtubeInUse(state)) await ytDlpUpdater.check();
     if (state.connected && accountStore.isStale()) await syncAccount();
   };
+  // Whatever was still queued when the app last closed carries on.
+  const leftOver = await readJson(queueFile).catch(() => null);
+  const resumed = downloads.resume(leftOver);
+  if (resumed) console.info(`[downloads] resumed ${resumed} from last time`);
   return { youtube, downloads, checkToolsOnLaunch, credentials };
 }
 
