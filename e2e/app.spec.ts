@@ -53,6 +53,32 @@ test("adding an API key during setup finishes it", async () => {
   google.close()
 })
 
+test("tag options scroll in one list, and the box you type in stays put", async () => {
+  const { app, page, problems } = await launch({ music: ["First Song"] })
+  await skipOnboarding(page)
+  await page.getByText("First Song").first().click()
+  await page.keyboard.press("t")
+  const dialog = page.getByRole("dialog", { name: /Tags for/ })
+  await expect(dialog.getByText("Jazz and blues")).toBeAttached()
+  const list = dialog.locator("[data-slot=scroll-area-viewport]")
+  const sizes = await list.evaluate((el) => ({ content: el.scrollHeight, shown: el.clientHeight, outerScrolls: el.closest("[role=dialog]")!.querySelector(".overflow-y-auto")!.scrollHeight > el.closest("[role=dialog]")!.querySelector(".overflow-y-auto")!.clientHeight }))
+  expect(sizes.content).toBeGreaterThan(sizes.shown)
+  expect(sizes.outerScrolls).toBe(false)
+  await page.waitForTimeout(300)
+  await shot(page, "39-tag-options")
+
+  const box = dialog.getByLabel("New tag")
+  const before = await box.boundingBox()
+  await list.evaluate((el) => el.scrollTo(0, el.scrollHeight))
+  expect((await box.boundingBox())?.y).toBe(before?.y)
+  await box.fill("bebop")
+  await expect(dialog.getByRole("button", { name: "bebop" })).toBeVisible()
+  await expect(dialog.getByText("Jazz and blues")).toBeVisible()
+  await expect(dialog.getByText("Rock", { exact: true })).toHaveCount(0)
+  expect(problems).toEqual([])
+  await close(app)
+})
+
 test("an existing user with music isn't sent through setup", async () => {
   // Written by an earlier version, which had no onboarding setting.
   const seeded = await launch({ music: ["Old Song"] })

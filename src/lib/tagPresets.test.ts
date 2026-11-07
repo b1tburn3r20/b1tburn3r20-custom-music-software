@@ -53,7 +53,7 @@ describe("tagFamily", () => {
   })
   it("leaves moods and unrelated genres out", () => {
     expect(tagFamily("sad")).toBeNull()
-    expect(tagFamily("jazz")).toBeNull()
+    expect(tagFamily("soundtrack")).toBeNull()
   })
 })
 
@@ -69,6 +69,14 @@ describe("mood tags", () => {
 })
 
 describe("GENRE_GROUPS", () => {
+  it("connects related genres for radio", () => {
+    expect(tagFamily("bebop")).toBe(tagFamily("jazz"))
+    expect(tagFamily("bluegrass")).toBe(tagFamily("country"))
+    expect(tagFamily("salsa")).toBe(tagFamily("reggaeton"))
+  })
+  it("fits in what the AI tagger accepts, with plenty of room for your own tags", () => {
+    expect(GENRE_GROUPS.flatMap((g) => g.genres).length).toBeLessThan(300)
+  })
   it("has no two names that count as the same tag", () => {
     const keys = GENRE_GROUPS.flatMap((g) => g.genres).map(looseKey)
     expect(new Set(keys).size).toBe(keys.length)

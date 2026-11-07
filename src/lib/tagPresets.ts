@@ -2,16 +2,22 @@
 // under several spellings ("hip hop", "hip-hop", "hiphop"). Lowercase like your tags.
 
 const MOODS = "Mood and vibe"
+const MOMENTS = "Moments"
+const OTHER = "Other"
 
 export const GENRE_GROUPS: { label: string; genres: string[] }[] = [
-  { label: MOODS, genres: ["chill", "mellow", "relaxing", "upbeat", "happy", "feel-good", "sad", "melancholy", "romantic", "energetic", "hype", "aggressive", "dark", "dreamy", "nostalgic", "party", "workout", "focus", "study", "sleep", "road trip", "late night", "summer", "rainy day", "throwback"] },
-  { label: "Rock", genres: ["rock", "alternative rock", "indie rock", "hard rock", "classic rock", "punk", "pop punk", "post-punk", "post-hardcore", "emo", "grunge", "shoegaze", "post-rock", "progressive rock", "psychedelic rock", "garage rock"] },
-  { label: "Metal", genres: ["metal", "heavy metal", "metalcore", "deathcore", "hardcore", "death metal", "black metal", "thrash metal", "doom metal", "nu metal", "progressive metal", "djent"] },
-  { label: "Hip hop", genres: ["hip hop", "rap", "trap", "drill", "boom bap", "cloud rap", "emo rap", "rage", "phonk", "grime", "lo-fi hip hop"] },
-  { label: "Pop", genres: ["pop", "indie pop", "synth-pop", "dream pop", "electropop", "dance pop", "art pop", "bedroom pop", "hyperpop", "k-pop", "j-pop", "city pop"] },
-  { label: "R&B and soul", genres: ["r&b", "soul", "neo soul", "funk", "disco", "gospel"] },
-  { label: "Electronic", genres: ["electronic", "edm", "house", "deep house", "techno", "trance", "dubstep", "drum and bass", "uk garage", "breakbeat", "breakcore", "hardstyle", "future bass", "electro", "idm", "glitch", "ambient", "downtempo", "lo-fi", "synthwave", "vaporwave", "chillwave", "nightcore"] },
-  { label: "Other", genres: ["jazz", "blues", "classical", "country", "folk", "indie folk", "singer-songwriter", "acoustic", "instrumental", "reggae", "dancehall", "ska", "reggaeton", "latin", "afrobeats", "bossa nova", "world", "soundtrack", "video game music", "anime"] },
+  { label: MOODS, genres: ["chill", "mellow", "relaxing", "calm", "peaceful", "cozy", "upbeat", "happy", "feel-good", "uplifting", "playful", "groovy", "sad", "melancholy", "bittersweet", "heartbreak", "lonely", "romantic", "sensual", "energetic", "hype", "empowering", "aggressive", "angry", "dark", "moody", "dreamy", "ethereal", "epic", "cinematic", "nostalgic"] },
+  { label: MOMENTS, genres: ["party", "pregame", "workout", "running", "driving", "road trip", "gaming", "focus", "study", "cooking", "morning", "late night", "sleep", "summer", "winter", "rainy day", "throwback", "christmas", "halloween"] },
+  { label: "Rock", genres: ["rock", "alternative rock", "indie rock", "hard rock", "classic rock", "soft rock", "rock and roll", "blues rock", "folk rock", "punk", "hardcore punk", "pop punk", "post-punk", "post-hardcore", "emo", "midwest emo", "grunge", "shoegaze", "post-rock", "math rock", "noise rock", "progressive rock", "psychedelic rock", "garage rock", "stoner rock", "surf rock"] },
+  { label: "Metal", genres: ["metal", "heavy metal", "metalcore", "deathcore", "hardcore", "death metal", "black metal", "thrash metal", "doom metal", "nu metal", "progressive metal", "power metal", "symphonic metal", "groove metal", "industrial metal", "sludge metal", "folk metal", "djent"] },
+  { label: "Hip hop", genres: ["hip hop", "rap", "trap", "drill", "uk drill", "boom bap", "old school hip hop", "conscious rap", "gangsta rap", "melodic rap", "pop rap", "jazz rap", "cloud rap", "emo rap", "rage", "phonk", "grime", "lo-fi hip hop"] },
+  { label: "Pop", genres: ["pop", "indie pop", "pop rock", "power pop", "synth-pop", "dream pop", "electropop", "dance pop", "art pop", "bedroom pop", "hyperpop", "latin pop", "k-pop", "j-pop", "c-pop", "city pop"] },
+  { label: "R&B and soul", genres: ["r&b", "contemporary r&b", "alternative r&b", "soul", "neo soul", "motown", "doo-wop", "new jack swing", "funk", "disco", "gospel"] },
+  { label: "Electronic", genres: ["electronic", "edm", "house", "deep house", "tech house", "progressive house", "future house", "techno", "melodic techno", "minimal techno", "trance", "psytrance", "dubstep", "drum and bass", "jungle", "footwork", "uk garage", "breakbeat", "breakcore", "hardstyle", "future bass", "electro", "idm", "glitch", "ambient", "downtempo", "trip hop", "lo-fi", "synthwave", "vaporwave", "chillwave", "nightcore"] },
+  { label: "Jazz and blues", genres: ["jazz", "smooth jazz", "bebop", "jazz fusion", "swing", "blues", "delta blues"] },
+  { label: "Country and folk", genres: ["country", "country pop", "outlaw country", "americana", "bluegrass", "folk", "indie folk", "singer-songwriter"] },
+  { label: "Reggae and Latin", genres: ["reggae", "dub", "dancehall", "ska", "reggaeton", "latin", "salsa", "bachata", "cumbia", "corridos", "bossa nova"] },
+  { label: OTHER, genres: ["classical", "opera", "acoustic", "instrumental", "afrobeats", "amapiano", "world", "soundtrack", "video game music", "anime", "musical theatre", "spoken word"] },
 ]
 
 /** Spacing, hyphens, "&" and case don't make a different tag. */
@@ -39,6 +45,11 @@ const ALIASES: Record<string, string> = {
   afrobeat: "afrobeats",
   ukg: "uk garage",
   lofihiphop: "lo-fi hip hop",
+  punkrock: "punk",
+  rocknroll: "rock and roll",
+  triphop: "trip hop",
+  musical: "musical theatre",
+  musicaltheater: "musical theatre",
 }
 
 const PRESET_BY_KEY = new Map<string, string>(GENRE_GROUPS.flatMap((g) => g.genres).map((name) => [looseKey(name), name]))
@@ -91,8 +102,9 @@ export function likelyTypoOf(input: string, names: readonly string[]): string | 
   return i < 0 ? null : names[i]
 }
 
-// "Other" is just the rest of the list: jazz and country aren't related.
-const FAMILY_BY_KEY = new Map<string, string>(GENRE_GROUPS.filter((g) => g.label !== "Other" && g.label !== MOODS).flatMap((g) => g.genres.map((name) => [looseKey(name), g.label] as [string, string])))
+// "Other" is just the rest of the list, and moods and moments can go with any kind of music.
+const NOT_FAMILIES = new Set([OTHER, MOODS, MOMENTS])
+const FAMILY_BY_KEY = new Map<string, string>(GENRE_GROUPS.filter((g) => !NOT_FAMILIES.has(g.label)).flatMap((g) => g.genres.map((name) => [looseKey(name), g.label] as [string, string])))
 
 /** The genre family a tag belongs to, also for your own variants ("chill rap" → Hip hop). Moods have none. */
 export function tagFamily(tag: string): string | null {

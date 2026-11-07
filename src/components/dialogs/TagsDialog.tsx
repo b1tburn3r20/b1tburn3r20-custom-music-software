@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { Plus, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { Modal } from "@/components/base/Modal"
 import { dialogs, useDialogStore } from "@/stores/useDialogStore"
 import { useUserStore } from "@/stores/useUserStore"
@@ -50,7 +51,7 @@ export default function TagsDialog() {
   const known = useMemo(() => buildTagList(library, songTags).filter((t) => t.own), [library, songTags])
   const suggestions = useMemo(() => {
     const have = new Set([...tags, ...partial.map((p) => p.name)].map(looseKey))
-    return known.filter((t) => !have.has(looseKey(t.name)) && tagMatches(t.name, input)).slice(0, 16)
+    return known.filter((t) => !have.has(looseKey(t.name)) && tagMatches(t.name, input))
   }, [known, tags, partial, input])
   // Standard genres you don't use yet (the ones you use are in "Your tags" above).
   const genres = useMemo(() => {
@@ -125,7 +126,7 @@ export default function TagsDialog() {
         </>
       }
     >
-      <div className="flex flex-col gap-3">
+      <div className="flex h-full flex-col gap-3">
         <div className="flex min-h-10 flex-wrap items-center gap-2 rounded-md border border-input p-2" onClick={() => inputRef.current?.focus()}>
           {tags.map((t) => (
             <span key={t} className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2.5 py-1 text-sm text-foreground">
@@ -175,36 +176,6 @@ export default function TagsDialog() {
             </div>
           </div>
         )}
-        {suggestions.length > 0 && (
-          <div className="flex flex-wrap gap-2" aria-label="Your tags">
-            {suggestions.map((t) => (
-              <button
-                key={t.key}
-                type="button"
-                onClick={() => add(t.name)}
-                className={cn("inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-sm text-muted-foreground hover:border-primary hover:text-foreground", enterTag === t.name && "border-primary text-foreground")}
-              >
-                <Plus className="size-3" /> {t.name} <span className="text-xs opacity-60">{t.count}</span>
-              </button>
-            ))}
-          </div>
-        )}
-        {genres.length > 0 && (
-          <div className="flex max-h-56 flex-col gap-2 overflow-y-auto border-t border-border/60 pt-3" aria-label="Genres">
-            {genres.map((g) => (
-              <div key={g.label} className="flex flex-col gap-1.5">
-                <p className="text-xs text-muted-foreground">{g.label}</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {g.genres.map((name) => (
-                    <button key={name} type="button" onClick={() => add(name)} className={cn("inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground hover:border-primary hover:text-foreground", enterTag === name && "border-primary text-foreground")}>
-                      <Plus className="size-3" aria-hidden /> {name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
         {typoOf ? (
           <p className={cn("text-xs", typoConfirmed ? "text-foreground" : "text-muted-foreground")}>
             Did you mean{" "}
@@ -215,6 +186,42 @@ export default function TagsDialog() {
           </p>
         ) : (
           input.trim() && !isKnownName && !suggestions.some((s) => s.name === enterTag) && <p className="text-xs text-muted-foreground">Enter creates a new tag “{canonicalInput}”.</p>
+        )}
+        {/* One scrolling list that fills the dialog, so the box you type in never moves. */}
+        {(suggestions.length > 0 || genres.length > 0) && (
+          <ScrollArea type="auto" className="min-h-40 flex-1 border-t border-border/60" aria-label="Tag options">
+            <div className="flex flex-col gap-4 pt-3 pr-3 pb-1">
+              {suggestions.length > 0 && (
+                <div className="flex flex-col gap-1.5">
+                  <p className="text-xs font-medium text-muted-foreground">Your tags</p>
+                  <div className="flex flex-wrap gap-2">
+                    {suggestions.map((t) => (
+                      <button
+                        key={t.key}
+                        type="button"
+                        onClick={() => add(t.name)}
+                        className={cn("inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-sm text-muted-foreground hover:border-primary hover:text-foreground", enterTag === t.name && "border-primary text-foreground")}
+                      >
+                        <Plus className="size-3" /> {t.name} <span className="text-xs opacity-60">{t.count}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {genres.map((g) => (
+                <div key={g.label} className="flex flex-col gap-1.5">
+                  <p className="text-xs font-medium text-muted-foreground">{g.label}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {g.genres.map((name) => (
+                      <button key={name} type="button" onClick={() => add(name)} className={cn("inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-sm text-muted-foreground hover:border-primary hover:text-foreground", enterTag === name && "border-primary text-foreground")}>
+                        <Plus className="size-3" aria-hidden /> {name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
         )}
       </div>
     </Modal>
