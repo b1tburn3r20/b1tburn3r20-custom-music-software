@@ -138,9 +138,9 @@ const LaxPlayer = () => {
       aria-hidden={!expanded}
       inert={!expanded}
       data-region="zen"
-      className={`absolute inset-x-0 top-0 z-zen h-screen w-screen transition-transform duration-slow ease-standard ${expanded ? "translate-y-0" : "translate-y-full"} ${isIdle ? "cursor-none" : ""}`}
+      className={`absolute inset-x-0 top-0 z-zen h-full w-full transition-transform duration-slow ease-standard ${expanded ? "translate-y-0" : "translate-y-full"} ${isIdle ? "cursor-none" : ""}`}
     >
-      <div className={`relative flex h-screen w-screen flex-col overflow-clip transition-all duration-ambient bg-background`} onDoubleClick={handleDoubleClick} style={backgroundStyle}>
+      <div className={`relative flex h-full w-full flex-col overflow-clip transition-all duration-ambient bg-background`} onDoubleClick={handleDoubleClick} style={backgroundStyle}>
         {visualize ? (
           // The track info sits on its own translucent panel, so no darkening overlay is needed.
           <Visualizer scene={scene} artwork={m?.thumbnail} colorKey={activeSong?.id ?? "visualizer"} active={expanded} onTempo={setBpm} />

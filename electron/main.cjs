@@ -74,6 +74,12 @@ async function initStores() {
   registerAiIpc({ library, user, credentials: youtubeIpc.credentials });
   const senderWindow = (event) => BrowserWindow.fromWebContents(event.sender);
   handle("window:is-fullscreen", (event) => senderWindow(event).isFullScreen());
+  handle("window:set-title-bar-colors", (color, symbolColor, event) => {
+    const hex = /^#[0-9a-f]{6}$/i;
+    if (process.platform !== "win32" || !hex.test(color) || !hex.test(symbolColor)) return false;
+    senderWindow(event).setTitleBarOverlay({ color, symbolColor, height: TITLE_BAR_HEIGHT });
+    return true;
+  });
   handle("window:toggle-fullscreen", (event) => {
     const win = senderWindow(event);
     win.setFullScreen(!win.isFullScreen());
@@ -115,6 +121,9 @@ function windowIcon() {
   return null;
 }
 
+// Matches the bar's height in src/app/TitleBar.tsx.
+const TITLE_BAR_HEIGHT = 32;
+
 function createWindow() {
   const { width, height } = screen.getPrimaryDisplay().workAreaSize;
   const icon = windowIcon();
@@ -125,6 +134,8 @@ function createWindow() {
     // The custom frameless look has no drag areas or window buttons, which only works
     // under a window manager. Windows and macOS need the native title bar to move or close it.
     frame: process.platform !== "linux",
+    // On Windows the page draws the bar, and only the three buttons stay native. TitleBar colors them.
+    ...(process.platform === "win32" ? { titleBarStyle: "hidden", titleBarOverlay: { color: "#0a0a0a", symbolColor: "#f5f5f5", height: TITLE_BAR_HEIGHT } } : {}),
     resizable: true,
     show: !smokeTest,
     webPreferences: {
@@ -135,6 +146,8 @@ function createWindow() {
     },
   });
   win.webContents.setZoomFactor(1.0);
+  // Development keeps its menu for the reload and devtools shortcuts, but never shows it.
+  if (process.platform !== "darwin") win.setMenuBarVisibility(false);
   hardenWindow(win);
   win.on("enter-full-screen", () => broadcast("window:fullscreen-changed", true));
   win.on("leave-full-screen", () => broadcast("window:fullscreen-changed", false));

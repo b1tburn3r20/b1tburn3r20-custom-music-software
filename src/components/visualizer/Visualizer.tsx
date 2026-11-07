@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react"
 import { createFrameReader } from "@/player/analyser"
 import { useColorCacheStore } from "@/stores/useColorCacheStore"
 import { useUserStore } from "@/stores/useUserStore"
-import { createScene, type Hsl, type Palette, type SceneId } from "./scenes"
+import { coverRect, createScene, type Hsl, type Palette, type SceneId } from "./scenes"
 import { loadSwatches, rgbToHsl } from "./swatches"
 
 /** "r g b" or "var(--art-fallback-N)" → HSL. */
@@ -65,24 +65,38 @@ export function Visualizer({ scene, artwork, colorKey, active, onTempo }: Props)
     let bpm: number | null = null
 
     let sized = false
+    const snapshot = document.createElement("canvas")
     const resize = () => {
       // Render at CSS pixels (no DPR scaling): soft edges suit the effects and keep feedback scenes cheap.
       const w = Math.max(1, Math.floor(canvas.clientWidth))
       const h = Math.max(1, Math.floor(canvas.clientHeight))
       if (sized && canvas.width === w && canvas.height === h) return
+      // Changing the size wipes the canvas. Tunnel builds each frame from the last one, so
+      // keep the picture, centered and filling the new shape, instead of starting it over.
+      const keep = sized
+      if (keep) {
+        snapshot.width = canvas.width
+        snapshot.height = canvas.height
+        snapshot.getContext("2d")!.drawImage(canvas, 0, 0)
+      }
       sized = true
       // Setting the size (even to the same value) clears the canvas, so a new scene starts clean.
       canvas.width = w
       canvas.height = h
       s.resize(w, h)
+      if (keep) {
+        const r = coverRect(snapshot.width, snapshot.height, w, h)
+        ctx.drawImage(snapshot, r.x, r.y, r.w, r.h)
+      }
     }
-    const ro = new ResizeObserver(resize)
-    ro.observe(canvas)
     resize()
 
     const loop = () => {
       raf = requestAnimationFrame(loop)
       if (document.hidden) return
+      // Here rather than in a ResizeObserver, which runs just before the screen updates:
+      // the wiped canvas would be shown as a black flash, over and over during a resize.
+      resize()
       const f = read()
       palette.h = blendHue(palette.h, target.current.h, 0.02)
       palette.s += (target.current.s - palette.s) * 0.02
@@ -95,7 +109,6 @@ export function Visualizer({ scene, artwork, colorKey, active, onTempo }: Props)
     raf = requestAnimationFrame(loop)
     return () => {
       cancelAnimationFrame(raf)
-      ro.disconnect()
       tempoRef.current?.(null)
     }
   }, [active, scene])

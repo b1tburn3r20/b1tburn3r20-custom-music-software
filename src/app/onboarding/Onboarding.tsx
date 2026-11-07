@@ -12,7 +12,7 @@ import { useUserStore } from "@/stores/useUserStore"
 
 function Shell({ title, subtitle, children, footer }: { title: string; subtitle?: string; children?: React.ReactNode; footer: React.ReactNode }) {
   return (
-    <div role="dialog" aria-modal="true" aria-label="Setup" className="fixed inset-0 z-50 overflow-y-auto bg-background p-6">
+    <div role="dialog" aria-modal="true" aria-label="Setup" className="absolute inset-0 z-50 overflow-y-auto bg-background p-6">
       <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col justify-center gap-6">
         <div>
           <h1 className="text-3xl font-bold">{title}</h1>

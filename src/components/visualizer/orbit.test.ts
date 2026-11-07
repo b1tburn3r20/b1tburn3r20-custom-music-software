@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { chaseOrb, chaseSpeed, createFullnessMeter, lensed, orbitPulse, orbitRadius, orbitScale, orbitSpeed } from "./scenes"
+import { chaseOrb, chaseSpeed, coverRect, createBeatPulse, createFullnessMeter, lensed, orbitRadius, orbitScale, orbitSpeed } from "./scenes"
 
 const FRAME = 1 / 60
 type Meter = ReturnType<typeof createFullnessMeter>
@@ -123,15 +123,51 @@ describe("orbitSpeed", () => {
   })
 })
 
-describe("orbitPulse", () => {
-  it("is nothing between beats, however loud the bass", () => {
-    expect(orbitPulse(0, 1)).toBe(0)
+describe("coverRect", () => {
+  it("fills the new size, keeps the shape, and stays centered", () => {
+    const r = coverRect(1000, 500, 800, 800)
+    expect(r.w / r.h).toBeCloseTo(2)
+    expect(r.h).toBeCloseTo(800)
+    expect(r.x + r.w / 2).toBeCloseTo(400)
+    expect(r.y + r.h / 2).toBeCloseTo(400)
   })
-  it("hits harder on a heavy kick than a light tap", () => {
-    expect(orbitPulse(1, 0.9)).toBeGreaterThan(orbitPulse(1, 0.2) * 1.5)
+  it("leaves a picture of the same size where it was", () => {
+    expect(coverRect(640, 480, 640, 480)).toEqual({ x: 0, y: 0, w: 640, h: 480 })
   })
-  it("never goes above 1", () => {
-    expect(orbitPulse(1, 1)).toBeCloseTo(1)
+})
+
+describe("createBeatPulse", () => {
+  // Beats twice a second, with the beat value decaying as the analyser's does.
+  const run = (bassAt: (beatFrame: number) => number, { locked = true, seconds = 10 } = {}) => {
+    const pulse = createBeatPulse()
+    const out: number[] = []
+    let beat = 0
+    for (let i = 0; i < seconds * 60; i++) {
+      beat = i % 30 === 0 ? 1 : beat * Math.pow(0.02, FRAME)
+      out.push(pulse(beat, bassAt(i % 30), locked, FRAME))
+    }
+    return out.slice(5 * 60) // once it has learned the song's level
+  }
+  const kicks = (f: number) => (f < 8 ? 0.75 : 0.3)
+  const most = (v: number[]) => Math.max(...v)
+
+  it("reacts to a real kick drum", () => {
+    expect(most(run(kicks))).toBeGreaterThan(0.5)
+  })
+  it("ignores beats reported in steady, ambient sound", () => {
+    expect(most(run(() => 0.5))).toBeLessThan(0.01)
+  })
+  it("ignores small noise bumps that land on a beat", () => {
+    expect(most(run((f) => (f < 8 ? 0.53 : 0.47)))).toBeLessThan(0.05)
+  })
+  it("ignores everything until the tempo is locked", () => {
+    expect(most(run(kicks, { locked: false }))).toBe(0)
+  })
+  it("doesn't shake as it settles when the bass flickers", () => {
+    const flicker = (f: number) => (f < 8 ? 0.75 : f % 2 ? 0.34 : 0.26)
+    const values = run(flicker)
+    const start = values.indexOf(most(values))
+    for (let i = start + 1; i < start + 15; i++) expect(values[i]).toBeLessThanOrEqual(values[i - 1])
   })
 })
 
@@ -157,6 +193,15 @@ describe("orbitRadius", () => {
   it("is noticeably smaller on a desktop screen than it was", () => {
     const { reachX, reachY } = angles[0]
     expect(orbitRadius(1920, 1080, reachX, reachY)).toBeLessThan(previous(1920, 1080, reachX, reachY) * 0.75)
+  })
+  it("doesn't jump as a window is resized past square", () => {
+    const { reachX, reachY } = angles[0]
+    let previousSize = orbitRadius(800, 1000, reachX, reachY)
+    for (let w = 801; w <= 1500; w++) {
+      const size = orbitRadius(w, 1000, reachX, reachY)
+      expect(Math.abs(size - previousSize)).toBeLessThan(previousSize * 0.01)
+      previousSize = size
+    }
   })
   it("still grows with speed on a desktop screen", () => {
     const { reachX, reachY } = angles[0]

@@ -200,6 +200,9 @@ export type RawApi = {
     onProgress(cb: (progress: AiProgress) => void): Unsubscribe
   }
   window: {
+    /** Whether the page draws the title bar, with only the window buttons left native. */
+    hasTitleBar: boolean
+    setTitleBarColors(color: string, symbolColor: string): Promise<IpcResult<boolean>>
     isFullscreen(): Promise<IpcResult<boolean>>
     toggleFullscreen(): Promise<IpcResult<null>>
     onFullscreenChanged(cb: (fullscreen: boolean) => void): Unsubscribe

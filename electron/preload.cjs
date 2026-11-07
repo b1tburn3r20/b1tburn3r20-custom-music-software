@@ -104,6 +104,8 @@ contextBridge.exposeInMainWorld("api", {
     onProgress: on("ai:progress"),
   },
   window: {
+    hasTitleBar: process.platform === "win32",
+    setTitleBarColors: (color, symbolColor) => invoke("window:set-title-bar-colors", color, symbolColor),
     isFullscreen: () => invoke("window:is-fullscreen"),
     toggleFullscreen: () => invoke("window:toggle-fullscreen"),
     onFullscreenChanged: on("window:fullscreen-changed"),

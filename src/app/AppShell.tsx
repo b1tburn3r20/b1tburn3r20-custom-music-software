@@ -20,6 +20,7 @@ import { ThemeWrapper } from "./ThemeWrapper"
 import { TopProgress } from "@/components/base/TopProgress"
 import Sidebar from "./Sidebar"
 import TopBar from "./TopBar"
+import { TitleBar } from "./TitleBar"
 import Router from "./Router"
 import { YtDlpUpdateBanner } from "@/components/youtube/YtDlpUpdate"
 import { Onboarding } from "./onboarding/Onboarding"
@@ -42,7 +43,10 @@ export default function AppShell() {
   }, [route, viewport])
   return (
     <ThemeWrapper>
-    <div className="relative flex h-screen w-screen flex-col overflow-clip">
+    <div className="flex h-screen w-screen flex-col overflow-clip">
+      <TitleBar />
+      {/* Everything else, the full-screen player and setup included, stays below the title bar. */}
+      <div className="relative flex min-h-0 flex-1 flex-col overflow-clip">
       <TopProgress />
       <Onboarding />
       <div className="relative flex min-h-0 flex-1" inert={expanded || onboarding}>
@@ -74,6 +78,7 @@ export default function AppShell() {
       <TagsDialog />
       <ShortcutsDialog />
       <ZenSearchDialog />
+      </div>
     </div>
     </ThemeWrapper>
   )

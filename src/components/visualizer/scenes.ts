@@ -184,8 +184,40 @@ export function orbitSpeed(fullness: number, bpm: number | null) {
   const tempo = bpm ? Math.min(1.8, Math.max(0.6, bpm / 120)) : 1
   return (ORBIT_DRIFT_SPEED + (ORBIT_TOP_SPEED - ORBIT_DRIFT_SPEED) * Math.pow(fullness, 2)) * tempo
 }
-/** How hard this beat hits, 0..1: follows the song's tracked beat, and a heavy kick hits harder than a light tap. */
-export const orbitPulse = (beat: number, bass: number) => beat * (0.35 + 0.65 * bass)
+/**
+ * How hard the rings react to the beat, 0..1. A beat alone isn't enough: until the tracker has
+ * locked on it reports any bump in the sound, and once locked it keeps firing through quiet
+ * bars. So a beat only counts if the tempo is locked and the bass really punches above its
+ * own recent level. How hard it hit is decided once per beat, so flickering bass can't shake
+ * the rings while they settle.
+ */
+export function createBeatPulse() {
+  const IGNORE_BELOW = 0.06 // this far above the recent bass is still just noise
+  const FULL_HIT = 0.14 // this much further is a full hit
+  const JUDGE_SECONDS = 0.1 // the bass is smoothed, so its peak lands just after the beat
+  const AVERAGE_SECONDS = 2
+  let average = 0
+  let lastBeat = 0
+  let judging = 0
+  let strength = 0
+  let pulse = 0
+  return (beat: number, bass: number, locked: boolean, dt: number) => {
+    if (beat > lastBeat + 0.3) {
+      judging = JUDGE_SECONDS
+      strength = 0
+    }
+    lastBeat = beat
+    if (judging > 0) {
+      judging -= dt
+      const hit = Math.min(1, Math.max(0, (bass - average - IGNORE_BELOW) / FULL_HIT))
+      strength = locked ? Math.max(strength, hit * hit) : 0
+    }
+    average += (bass - average) * (1 - Math.exp(-dt / AVERAGE_SECONDS))
+    const target = strength * beat
+    pulse += (target - pulse) * (1 - Math.exp(-dt * (target > pulse ? 35 : 7)))
+    return pulse
+  }
+}
 /**
  * The outer ring's radius. It's sized from the screen's short side, as if fitting a square:
  * a wide screen adds empty space around the rings, not bigger rings. They grow with speed
@@ -193,9 +225,20 @@ export const orbitPulse = (beat: number, bass: number) => beat * (0.35 + 0.65 * 
  * run off the sides at full speed. Wide screens also draw them a bit smaller.
  */
 const ORBIT_WIDE_SCREEN_SIZE = 0.85
+/** How wide a screen is when the smaller size has fully applied. It eases in so resizing a window doesn't make the rings jump. */
+const ORBIT_WIDE_FROM_ASPECT = 4 / 3
 export function orbitRadius(w: number, h: number, reachX: number, reachY: number, scale = 1) {
   const radius = ((Math.min(w, h) * 0.5) / Math.max(reachX, reachY)) * scale
-  return w > h ? Math.min(radius * ORBIT_WIDE_SCREEN_SIZE, (w * 0.5) / reachX, (h * 0.5) / reachY) : radius
+  if (w <= h) return radius
+  const wideness = Math.min(1, (w / h - 1) / (ORBIT_WIDE_FROM_ASPECT - 1))
+  return Math.min(radius * (1 + (ORBIT_WIDE_SCREEN_SIZE - 1) * wideness), (w * 0.5) / reachX, (h * 0.5) / reachY)
+}
+/** Where to draw a picture so it keeps its shape, stays centered, and fills a new size. */
+export function coverRect(fromW: number, fromH: number, toW: number, toH: number) {
+  const scale = Math.max(toW / fromW, toH / fromH)
+  const w = fromW * scale
+  const h = fromH * scale
+  return { x: (toW - w) / 2, y: (toH - h) / 2, w, h }
 }
 /** The rings grow with speed, up to 1.5x at full speed. */
 export const orbitScale = (speed: number) => 1 + 0.5 * Math.min(1, speed / ORBIT_TOP_SPEED)
@@ -253,7 +296,7 @@ function orbit(): Scene {
   const ORB_LAYER = 2
   const PEAK_EXTRA_SPEED = 0.5
   const BEAT_PUSH = 1.6 // how much speed a full beat adds, for as long as it lasts
-  const BEAT_SWELL = 0.06 // how much a full beat widens the rings
+  const BEAT_SWELL = 0.04 // how much a full beat widens the rings
   const PEAK_EXTRA_WILD = 2.2
   const PEAK_SHAKE = 0.035
   const STREAK_SECONDS = 0.03 // each dot is drawn as the path it just covered, so direction and speed read
@@ -301,6 +344,7 @@ function orbit(): Scene {
   let travel = 0 // how far the rings have turned, so changing speed never makes dots jump
   let orb = 0 // peak chaos and the white hole, 0..1
   const meter = createFullnessMeter()
+  const beatPulse = createBeatPulse()
   return {
     resize(nw, nh) {
       w = nw
@@ -316,7 +360,7 @@ function orbit(): Scene {
       const atPeak = f.songId !== null && f.position !== null && songPeak(f.songId, f.position + ORBIT_LEAD_SECONDS)
       orb = chaseOrb(orb, atPeak ? 1 : 0, dt)
       speed = chaseSpeed(speed, orbitSpeed(scanned ?? live, f.bpm), dt)
-      const pulse = orbitPulse(f.beat, f.bass)
+      const pulse = beatPulse(f.beat, f.bass, f.bpm !== null, dt)
       // The white hole and the beat apply straight away, without waiting for the speed to catch up.
       const moving = speed * (1 + orb * PEAK_EXTRA_SPEED) + pulse * BEAT_PUSH
       travel += moving * dt
