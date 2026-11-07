@@ -16,6 +16,7 @@ const DEFAULT_SETTINGS: Settings = {
   expandOnPlay: false,
   zenMode: true,
   zenTimeout: 3000,
+  equalizer: { enabled: false, gains: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
   playerBackground: "visualizer",
   visualizer: "orbit",
   visualizerOffsetMs: 0,

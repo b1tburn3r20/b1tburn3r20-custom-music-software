@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { chaseOrb, chaseSpeed, coverRect, createBeatPulse, createFullnessMeter, lensed, orbitRadius, orbitScale, orbitSpeed } from "./scenes"
+import { chaseOrb, chaseSpeed, coverRect, createBeatPulse, createFullnessMeter, emberRate, eyeRingShape, lensed, orbitRadius, orbitScale, orbitSpeed } from "./scenes"
 
 const FRAME = 1 / 60
 type Meter = ReturnType<typeof createFullnessMeter>
@@ -120,6 +120,32 @@ describe("orbitSpeed", () => {
   it("saves most of its speed for the very top", () => {
     expect(orbitSpeed(0.5, null)).toBeLessThan(top * 0.3)
     expect(orbitSpeed(0.9, null)).toBeGreaterThan(top * 0.7)
+  })
+})
+
+describe("emberRate", () => {
+  it("is a thin drift until the song is near its fullest", () => {
+    expect(emberRate(0, 0, 0)).toBeLessThan(20)
+    expect(emberRate(0.3, 0, 0)).toBeLessThan(emberRate(1, 0, 0) / 5)
+  })
+  it("spews on a real beat and storms at a peak", () => {
+    expect(emberRate(0, 1, 0)).toBeGreaterThan(emberRate(0, 0, 0) * 20)
+    expect(emberRate(1, 0, 1)).toBeGreaterThan(emberRate(1, 0, 0) * 2)
+  })
+})
+
+describe("eyeRingShape", () => {
+  it("is a tall slit at the pupil and a wide almond far out", () => {
+    const pupil = eyeRingShape(0)
+    const outer = eyeRingShape(1)
+    expect(pupil.ry).toBeGreaterThan(pupil.rx)
+    expect(outer.rx).toBeGreaterThan(outer.ry)
+    expect(pupil.pointY).toBeGreaterThan(pupil.pointX)
+    expect(outer.pointX).toBeGreaterThan(outer.pointY)
+  })
+  it("stays in range past either end", () => {
+    expect(eyeRingShape(-1)).toEqual(eyeRingShape(0))
+    expect(eyeRingShape(5)).toEqual(eyeRingShape(1))
   })
 })
 

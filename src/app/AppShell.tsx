@@ -7,6 +7,7 @@ import AddToPlaylistDialog from "@/components/dialogs/AddToPlaylistDialog"
 import PlaylistFormDialog from "@/components/dialogs/PlaylistFormDialog"
 import DeletePlaylistDialog from "@/components/dialogs/DeletePlaylistDialog"
 import TagsDialog from "@/components/dialogs/TagsDialog"
+import EqualizerDialog from "@/components/dialogs/EqualizerDialog"
 import ShortcutsDialog from "@/components/dialogs/ShortcutsDialog"
 import ZenSearchDialog from "@/components/dialogs/ZenSearchDialog"
 import { useSettingsStore } from "@/stores/useSettingsStore"
@@ -76,6 +77,7 @@ export default function AppShell() {
       <PlaylistFormDialog />
       <DeletePlaylistDialog />
       <TagsDialog />
+      <EqualizerDialog />
       <ShortcutsDialog />
       <ZenSearchDialog />
       </div>

@@ -30,6 +30,7 @@ export const SHORTCUTS: ShortcutGroup[] = [
       { keys: ["R"], label: "Repeat: off → all → one" },
       { keys: ["L"], label: "Like / unlike the playing song" },
       { keys: ["T"], label: "Tag the playing song" },
+      { keys: ["E"], label: "Equalizer" },
     ],
   },
   {
@@ -209,6 +210,9 @@ function onKeyDown(e: KeyboardEvent) {
       void setLiked(song.id, liked)
       return announce(liked ? "Added to Liked Songs" : "Removed from Liked Songs")
     }
+    case "e":
+      e.preventDefault()
+      return dialogs().openEqualizer(true)
     case "t":
       // With a multi-selection, T tags the selection (SelectionBar handles it).
       if (!song || useSelectionStore.getState().ids.size) return

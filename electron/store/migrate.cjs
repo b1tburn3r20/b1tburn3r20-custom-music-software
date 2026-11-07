@@ -17,6 +17,7 @@ const DEFAULT_SETTINGS = Object.freeze({
   expandOnPlay: false,
   zenMode: true,
   zenTimeout: 3000,
+  equalizer: { enabled: false, gains: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
   playerBackground: "visualizer", // 'artwork' | 'visualizer' (full-screen player)
   visualizer: "orbit", // a scene id, or 'cycle' for a different one each song
   visualizerOffsetMs: 0, // extra visual delay on top of the reported output latency (Bluetooth etc.)

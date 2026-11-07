@@ -14,7 +14,7 @@ export type Scene = {
   draw(ctx: CanvasRenderingContext2D, f: AudioFrame, p: Palette): void
 }
 
-export type SceneId = "tunnel" | "orbit" | "nighttime" | "drift"
+export type SceneId = "tunnel" | "orbit" | "catseye" | "embers" | "nighttime" | "drift"
 export type SceneInfo = {
   id: SceneId
   label: string
@@ -25,6 +25,8 @@ export type SceneInfo = {
 export const SCENES: SceneInfo[] = [
   { id: "tunnel", label: "Tunnel", description: "The waveform as a ring that echoes into an endless, spinning tunnel.", calm: false },
   { id: "orbit", label: "Orbit", description: "Thousands of dots in tilted rings around nothing, like the disc of a black hole. They race when the song is at its fullest.", calm: false },
+  { id: "catseye", label: "Cat's Eye", description: "A slit pupil pouring out endless rings that swell into the shape of an eye. Hypnotic, and faster when the song is at its fullest.", calm: false },
+  { id: "embers", label: "Embers", description: "Sparks spewing into a midnight blue sky. They race and scatter when the song is at its fullest. Always ember colors, whatever the cover.", calm: false },
   { id: "nighttime", label: "Nighttime", description: "Gliding over moonlit ice under the northern lights. The music sets the pace.", calm: true },
   { id: "drift", label: "Drift", description: "Soft glows in the colors of the cover art, flowing gently with the song.", calm: true },
 ]
@@ -276,6 +278,38 @@ function drawOrb(ctx: CanvasRenderingContext2D, x: number, y: number, radius: nu
   ctx.fill()
 }
 
+const PEAK_EXTRA_SPEED = 0.5
+const BEAT_PUSH = 1.6 // how much speed a full beat adds, for as long as it lasts
+
+/**
+ * How hard the music is driving a scene, shared by the scenes that race and go wild when a
+ * song is at its fullest. moving: speed now, with the beat and peaks in it. travel: how far
+ * that has carried it, so changing speed never makes anything jump. orb: peak chaos, 0..1.
+ */
+function createDrive() {
+  let lastTime = 0
+  let speed = orbitSpeed(0, null)
+  let travel = 0
+  let orb = 0
+  const meter = createFullnessMeter()
+  const beatPulse = createBeatPulse()
+  return (f: AudioFrame) => {
+    const dt = Math.min(0.1, Math.max(0, f.time - lastTime))
+    lastTime = f.time
+    const live = meter(f.bass, f.mid, f.treble, dt) // keeps learning, in case there's no scan
+    const scanned = f.songId && f.position !== null ? songFullness(f.songId, f.position + ORBIT_SPEED_LEAD_SECONDS) : null
+    // The song's most intense moments, known from its scan.
+    const atPeak = f.songId !== null && f.position !== null && songPeak(f.songId, f.position + ORBIT_LEAD_SECONDS)
+    orb = chaseOrb(orb, atPeak ? 1 : 0, dt)
+    speed = chaseSpeed(speed, orbitSpeed(scanned ?? live, f.bpm), dt)
+    const pulse = beatPulse(f.beat, f.bass, f.bpm !== null, dt)
+    // Peaks and the beat apply straight away, without waiting for the speed to catch up.
+    const moving = speed * (1 + orb * PEAK_EXTRA_SPEED) + pulse * BEAT_PUSH
+    travel += moving * dt
+    return { dt, speed, pulse, moving, travel, orb, energy: Math.min(1, speed / ORBIT_TOP_SPEED) }
+  }
+}
+
 function orbit(): Scene {
   // Radius ranges (1 = the outer edge), with gaps between them so they read as separate
   // rings. Each ring has its own thickness and leans in its own plane.
@@ -294,8 +328,6 @@ function orbit(): Scene {
   const STRAY_SHARE = 0.06 // dots on wild orbits that cut across the rings
   const ANGULAR_SPEED = 0.35 // at the outer edge, per unit of speed
   const ORB_LAYER = 2
-  const PEAK_EXTRA_SPEED = 0.5
-  const BEAT_PUSH = 1.6 // how much speed a full beat adds, for as long as it lasts
   const BEAT_SWELL = 0.04 // how much a full beat widens the rings
   const PEAK_EXTRA_WILD = 2.2
   const PEAK_SHAKE = 0.035
@@ -339,12 +371,7 @@ function orbit(): Scene {
 
   let w = 0
   let h = 0
-  let lastTime = 0
-  let speed = orbitSpeed(0, null)
-  let travel = 0 // how far the rings have turned, so changing speed never makes dots jump
-  let orb = 0 // peak chaos and the white hole, 0..1
-  const meter = createFullnessMeter()
-  const beatPulse = createBeatPulse()
+  const drive = createDrive()
   return {
     resize(nw, nh) {
       w = nw
@@ -352,19 +379,7 @@ function orbit(): Scene {
     },
     draw(ctx, f, p) {
       const colors = coverColors(p)
-      const dt = Math.min(0.1, Math.max(0, f.time - lastTime))
-      lastTime = f.time
-      const live = meter(f.bass, f.mid, f.treble, dt) // keeps learning, in case there's no scan
-      const scanned = f.songId && f.position !== null ? songFullness(f.songId, f.position + ORBIT_SPEED_LEAD_SECONDS) : null
-      // The song's most intense moments, known from its scan: peak chaos, and the only time the white hole shows.
-      const atPeak = f.songId !== null && f.position !== null && songPeak(f.songId, f.position + ORBIT_LEAD_SECONDS)
-      orb = chaseOrb(orb, atPeak ? 1 : 0, dt)
-      speed = chaseSpeed(speed, orbitSpeed(scanned ?? live, f.bpm), dt)
-      const pulse = beatPulse(f.beat, f.bass, f.bpm !== null, dt)
-      // The white hole and the beat apply straight away, without waiting for the speed to catch up.
-      const moving = speed * (1 + orb * PEAK_EXTRA_SPEED) + pulse * BEAT_PUSH
-      travel += moving * dt
-      const energy = Math.min(1, speed / ORBIT_TOP_SPEED) // the harder it's going, the wilder the orbits
+      const { speed, pulse, moving, travel, orb, energy } = drive(f) // the harder it's going, the wilder the orbits
 
       // The axis traces a slow circle, about every 50 seconds: the rings tilt more and less and
       // swing from steeply diagonal to nearly level, but never flip over. Independent of the music.
@@ -713,8 +728,219 @@ function drift(): Scene {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Cat's Eye: rings pour out of a slit pupil and swell outward forever. Near the pupil each
+// ring is tall and narrow like the slit, and it stretches into a wide almond as it grows.
+
+/** One ring's outline, 0 at the pupil (tall, pointed top and bottom) to 1 far out (wide, pointed at the sides). */
+export function eyeRingShape(t: number) {
+  const open = Math.min(1, Math.max(0, t))
+  return { rx: 0.42 + 0.58 * open, ry: 1 - 0.4 * open, pointX: 1.6 * open * open, pointY: 1.6 * (1 - open) * (1 - open) }
+}
+
+function catseye(): Scene {
+  const POINTS = 96
+  const GROWTH = 1.32 // each ring is this much larger than the next one in
+  const cos = Float32Array.from({ length: POINTS }, (_, i) => Math.cos((i / POINTS) * Math.PI * 2))
+  const sin = Float32Array.from({ length: POINTS }, (_, i) => Math.sin((i / POINTS) * Math.PI * 2))
+  const drive = createDrive()
+  let w = 0
+  let h = 0
+  return {
+    resize(nw, nh) {
+      w = nw
+      h = nh
+    },
+    draw(ctx, f, p) {
+      const colors = coverColors(p)
+      const { pulse, travel, orb, energy } = drive(f)
+      const m = Math.min(w, h)
+      const cx = w / 2
+      const cy = h / 2
+      const seed = m * 0.035
+      const far = Math.hypot(w, h) * 0.75 / 0.6
+      const rings = Math.ceil(Math.log(far / seed) / Math.log(GROWTH)) + 2
+      // Rings are born faster the harder the music is driving: about one every 2.5 s at rest, several a second at full.
+      const born = travel * 0.55 + f.time * 0.3
+      const whole = Math.floor(born)
+      const part = born - whole
+      const shake = orb * m * 0.012
+      const sway = Math.sin(f.time * 0.21) * 0.05 + orb * Math.sin(f.time * 13) * 0.05
+
+      ctx.globalCompositeOperation = "source-over"
+      ctx.globalAlpha = 1
+      ctx.fillStyle = "#000"
+      ctx.fillRect(0, 0, w, h)
+      ctx.save()
+      ctx.translate(cx, cy)
+      ctx.rotate(sway)
+      // Largest first, each painted over the last, so the bands are always solid.
+      for (let i = rings; i >= 0; i--) {
+        const size = seed * Math.pow(GROWTH, i + part) * (1 + pulse * 0.05)
+        const shape = eyeRingShape(Math.log(size / seed) / Math.log(far / seed) * 1.7)
+        const number = i - whole // stays with the ring as it travels outward
+        const lit = ((number % 2) + 2) % 2 === 0
+        const color = colors[((Math.floor(number / 2) % colors.length) + colors.length) % colors.length]
+        ctx.fillStyle = lit ? paint(color, 1, energy * 8 + pulse * 10) : hsl(color.h, Math.min(60, color.s), 5)
+        ctx.beginPath()
+        for (let k = 0; k < POINTS; k++) {
+          const wobble = shake ? 1 + (shake / size) * Math.sin(k * 3 + f.time * 19 + i) : 1
+          const x = cos[k] * Math.pow(Math.abs(cos[k]), shape.pointY) * shape.rx * size * wobble
+          const y = sin[k] * Math.pow(Math.abs(sin[k]), shape.pointX) * shape.ry * size * wobble
+          if (k === 0) ctx.moveTo(x, y)
+          else ctx.lineTo(x, y)
+        }
+        ctx.closePath()
+        ctx.fill()
+      }
+      // The pupil: a black slit that widens with the music.
+      const pupilH = seed * (2.4 + energy * 1.2 + pulse * 0.5)
+      const pupilW = seed * (0.28 + energy * 0.5 + pulse * 0.35 + orb * 0.5)
+      const glow = ctx.createRadialGradient(0, 0, pupilW, 0, 0, pupilH * 1.6)
+      glow.addColorStop(0, "rgba(0, 0, 0, 0.55)")
+      glow.addColorStop(1, "rgba(0, 0, 0, 0)")
+      ctx.fillStyle = glow
+      ctx.beginPath()
+      ctx.arc(0, 0, pupilH * 1.6, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.fillStyle = "#000"
+      ctx.beginPath()
+      ctx.moveTo(0, -pupilH)
+      ctx.quadraticCurveTo(pupilW * 2, 0, 0, pupilH)
+      ctx.quadraticCurveTo(-pupilW * 2, 0, 0, -pupilH)
+      ctx.fill()
+      ctx.restore()
+      // Fading into the dark at the edges draws the eye in.
+      const edge = ctx.createRadialGradient(cx, cy, m * 0.3, cx, cy, Math.hypot(w, h) * 0.55)
+      edge.addColorStop(0, "rgba(0, 0, 0, 0)")
+      edge.addColorStop(1, "rgba(0, 0, 0, 0.75)")
+      ctx.fillStyle = edge
+      ctx.fillRect(0, 0, w, h)
+    },
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Embers: sparks spew up from below into a midnight blue sky, on the same drive as Orbit:
+// a slow drift of sparks until the song is near its fullest, then a racing, scattering storm.
+// Never uses the cover's colors.
+
+/** How many sparks per second a moment asks for. */
+export const emberRate = (energy: number, pulse: number, orb: number) => 14 + 520 * energy * energy + 700 * pulse + 1100 * orb
+
+function embers(): Scene {
+  const MAX = 1800
+  // Oldest last: white-hot, then orange, then deep red as they cool.
+  const COOLING = ["#ffd98a", "#ffa040", "#ff6418", "#a82408"]
+  const WIDTHS = [1.7, 1.5, 1.2, 0.9]
+  const spread = () => Math.random() + Math.random() - 1
+  const x = new Float32Array(MAX)
+  const y = new Float32Array(MAX)
+  const vx = new Float32Array(MAX)
+  const vy = new Float32Array(MAX)
+  const age = new Float32Array(MAX).fill(1)
+  const lifetime = new Float32Array(MAX).fill(1)
+  const seed = new Float32Array(MAX)
+  const drive = createDrive()
+  let w = 0
+  let h = 0
+  let next = 0
+  let owed = 0
+  const spawn = (energy: number, orb: number) => {
+    const i = next
+    next = (next + 1) % MAX
+    age[i] = 0
+    lifetime[i] = 1.4 + Math.random() * 2.6
+    seed[i] = Math.random() * 100
+    // At a peak some burst from the middle in every direction.
+    if (Math.random() < orb * 0.45) {
+      const angle = Math.random() * Math.PI * 2
+      const burst = Math.min(w, h) * (0.25 + Math.random() * 0.6)
+      x[i] = w / 2
+      y[i] = h * 0.55
+      vx[i] = Math.cos(angle) * burst
+      vy[i] = Math.sin(angle) * burst
+      return
+    }
+    x[i] = w / 2 + spread() * w * (0.2 + 0.32 * energy)
+    y[i] = h + 4
+    vx[i] = spread() * w * (0.04 + 0.1 * energy)
+    vy[i] = -h * (0.12 + Math.random() * 0.26) * (1 + energy * 1.1)
+  }
+  return {
+    resize(nw, nh) {
+      w = nw
+      h = nh
+    },
+    draw(ctx, f) {
+      const { dt, pulse, moving, orb, energy } = drive(f)
+      owed = Math.min(MAX * 0.3, owed + emberRate(energy, pulse, orb) * dt)
+      for (; owed >= 1; owed--) spawn(energy, orb)
+
+      ctx.globalCompositeOperation = "source-over"
+      ctx.globalAlpha = 1
+      const sky = ctx.createLinearGradient(0, 0, 0, h)
+      sky.addColorStop(0, "#050a1f")
+      sky.addColorStop(1, "#0d1838")
+      ctx.fillStyle = sky
+      ctx.fillRect(0, 0, w, h)
+      // The fire below lights the bottom of the sky.
+      const heat = 0.06 + energy * 0.28 + pulse * 0.16 + orb * 0.2
+      const fire = ctx.createRadialGradient(w / 2, h * 1.05, 0, w / 2, h * 1.05, Math.max(w, h) * 0.6)
+      fire.addColorStop(0, `rgba(255, 110, 30, ${heat})`)
+      fire.addColorStop(1, "rgba(255, 110, 30, 0)")
+      ctx.fillStyle = fire
+      ctx.fillRect(0, 0, w, h)
+
+      const pace = 0.5 + Math.min(moving, ORBIT_TOP_SPEED * 1.5) * 0.5
+      const wild = 1 + energy * 2 + orb * 4
+      const pixel = Math.max(1.2, Math.min(w, h) / 500)
+      const streak = 0.004 + Math.min(moving, ORBIT_TOP_SPEED) * 0.005
+      const paths = COOLING.map(() => new Path2D())
+      for (let i = 0; i < MAX; i++) {
+        if (age[i] >= 1) continue
+        const step = dt * pace
+        age[i] += step / lifetime[i]
+        if (age[i] >= 1) continue
+        // Drifting currents, stronger the wilder the music.
+        const push = Math.sin(y[i] * 0.011 + seed[i] + f.time * 1.3) * w * 0.05 * wild
+        vy[i] *= 1 - 0.18 * step
+        const moveX = (vx[i] + push) * step
+        const moveY = vy[i] * step
+        x[i] += moveX
+        y[i] += moveY
+        const path = paths[Math.min(COOLING.length - 1, Math.floor(age[i] * COOLING.length))]
+        path.moveTo(x[i] - (vx[i] + push) * streak, y[i] - vy[i] * streak)
+        path.lineTo(x[i], y[i])
+      }
+      ctx.globalCompositeOperation = "lighter"
+      ctx.lineCap = "round"
+      paths.forEach((path, b) => {
+        ctx.strokeStyle = COOLING[b]
+        // Soft halos first, widest and faintest, then the spark itself.
+        ctx.globalAlpha = 0.035
+        ctx.lineWidth = WIDTHS[b] * pixel * 8
+        ctx.stroke(path)
+        ctx.globalAlpha = 0.07
+        ctx.lineWidth = WIDTHS[b] * pixel * 4
+        ctx.stroke(path)
+        ctx.globalAlpha = 0.95 - b * 0.2
+        ctx.lineWidth = WIDTHS[b] * pixel
+        ctx.stroke(path)
+      })
+      ctx.lineCap = "butt"
+      ctx.globalAlpha = 1
+      ctx.globalCompositeOperation = "source-over"
+    },
+  }
+}
+
 export function createScene(id: SceneId): Scene {
   switch (id) {
+    case "catseye":
+      return catseye()
+    case "embers":
+      return embers()
     case "tunnel":
       return tunnel()
     case "orbit":

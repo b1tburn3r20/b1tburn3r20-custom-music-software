@@ -110,7 +110,8 @@ test("the title bar is the theme's, with no menu, and the visualizer survives re
 
   const again = await launch({ dir })
   const onWindows = process.platform === "win32"
-  expect(await again.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isMenuBarVisible())).toBe(false)
+  // macOS keeps its menu at the top of the screen, as every Mac app does.
+  if (process.platform !== "darwin") expect(await again.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isMenuBarVisible())).toBe(false)
   const bar = again.page.locator("[data-region=title-bar]")
   if (onWindows) {
     await expect(bar).toHaveCSS("height", "32px")
@@ -155,6 +156,106 @@ test("the title bar is the theme's, with no menu, and the visualizer survives re
   await shot(again.page, "40-visualizer-after-resize")
   expect(again.problems).toEqual([])
   await close(again.app)
+})
+
+test("the equalizer opens from the player, is heard right away, and is remembered", async () => {
+  const { app, page, dir, problems } = await launch({ music: ["Song One"] })
+  await skipOnboarding(page)
+  await page.getByText("Song One").first().click()
+  // The dialog hides the page from assistive tech while it's open, and the button stays lit behind it.
+  const button = page.getByRole("button", { name: "Equalizer (E)", includeHidden: true })
+  await expect(button).toHaveAttribute("aria-pressed", "false")
+  await button.click()
+  const dialog = page.getByRole("dialog", { name: "Equalizer" })
+  await expect(dialog.getByRole("slider")).toHaveCount(10)
+  await page.waitForTimeout(300)
+  await shot(page, "41-equalizer")
+
+  // Choosing a preset turns it on.
+  await dialog.getByRole("button", { name: "Bass boost" }).click()
+  await expect(dialog.getByRole("button", { name: "Bass boost" })).toHaveAttribute("aria-pressed", "true")
+  await expect(button).toHaveAttribute("aria-pressed", "true")
+  const saved = () => page.evaluate(async () => ((await window.api.user.get()) as unknown as { data: { settings: { equalizer: { enabled: boolean; gains: number[] } } } }).data.settings.equalizer)
+  expect(await saved()).toEqual({ enabled: true, gains: [6, 5, 4, 2, 0, 0, 0, 0, 0, 0] })
+
+  // Moving a band by hand makes it custom.
+  await dialog.getByRole("slider", { name: "1k hertz" }).focus()
+  await page.keyboard.press("ArrowUp")
+  await expect(dialog.getByText("Custom")).toBeVisible()
+  await expect.poll(async () => (await saved()).gains[5]).toBe(1)
+  await dialog.getByRole("button", { name: "Done" }).click()
+  await close(app)
+
+  const again = await launch({ dir })
+  await again.page.getByText("Song One").first().click()
+  await expect(again.page.getByRole("button", { name: "Equalizer (E)" })).toHaveAttribute("aria-pressed", "true")
+  await again.page.keyboard.press("e")
+  await expect(again.page.getByRole("dialog", { name: "Equalizer" }).getByText("Custom")).toBeVisible()
+  expect(problems).toEqual([])
+  expect(again.problems).toEqual([])
+  await close(again.app)
+})
+
+test.describe("the new visualizers", () => {
+  for (const [id, label] of [["catseye", "Cat's Eye"], ["embers", "Embers"]]) {
+    test(`${label} runs in the full-screen player`, async () => {
+      const { app, page, problems } = await launch({ music: ["Song One"] })
+      await skipOnboarding(page)
+      await page.evaluate((scene) => window.api.user.updateSettings({ visualizer: scene, playerBackground: "visualizer" }), id)
+      await page.getByText("Song One").first().click()
+      await page.keyboard.press("f")
+      await expect(page.locator("canvas").first()).toBeVisible()
+      await expect(page.getByRole("button", { name: label }).or(page.getByText(label)).first()).toBeVisible()
+      await page.waitForTimeout(800)
+      await shot(page, `42-${id}`)
+      expect(problems).toEqual([])
+      await close(app)
+    })
+  }
+})
+
+test("downloads still queued when the app closed carry on next time", async () => {
+  const first = await launch()
+  await skipOnboarding(first.page)
+  await close(first.app)
+  const queue = [{ video: { videoId: "aaaaaaaaaaa", title: "Left over song" }, target: null }]
+  fs.writeFileSync(path.join(first.data, "download-queue.json"), JSON.stringify(queue))
+  // Pointing at a yt-dlp that isn't there keeps this off the network, and fails in a known way.
+  process.env.B1T_YTDLP = path.join(first.dir, "no-such-yt-dlp")
+  try {
+    const { app, page, data } = await launch({ dir: first.dir })
+    await expect.poll(async () => JSON.stringify(await page.evaluate(() => window.api.youtube.downloads()))).toContain("Left over song")
+    await expect.poll(async () => JSON.stringify(await page.evaluate(() => window.api.youtube.downloads()))).toContain("YTDLP_MISSING")
+    // It failed for good, so it isn't queued again.
+    await expect.poll(() => fs.readFileSync(path.join(data, "download-queue.json"), "utf-8")).toBe("[]")
+    await expect.poll(() => fs.readFileSync(path.join(data, "logs", "downloads.log"), "utf-8")).toContain("failed aaaaaaaaaaa")
+    await close(app)
+  } finally {
+    delete process.env.B1T_YTDLP
+  }
+})
+
+test("errors from anywhere in the app are kept in a log, without secrets", async () => {
+  const { app, page, data } = await launch()
+  await skipOnboarding(page)
+  await page.evaluate(() => {
+    console.error("the page failed key=hunter2")
+    setTimeout(() => {
+      throw new Error("an uncaught page error")
+    })
+  })
+  await app.evaluate(() => console.warn("the main process is unhappy"))
+  const log = path.join(data, "logs", "errors.log")
+  await expect.poll(() => fs.readFileSync(log, "utf-8")).toContain("an uncaught page error")
+  const text = fs.readFileSync(log, "utf-8")
+  expect(text).toContain("=== started")
+  expect(text).toContain("[page error] the page failed key=<redacted>")
+  expect(text).toContain("[main warning] the main process is unhappy")
+  expect(text).not.toContain("hunter2")
+  await page.getByRole("button", { name: "Settings" }).click()
+  await page.getByRole("tab", { name: "Library" }).click()
+  await expect(page.getByRole("button", { name: "Open log folder" })).toBeVisible()
+  await close(app)
 })
 
 test("an existing user with music isn't sent through setup", async () => {

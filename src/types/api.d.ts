@@ -14,6 +14,7 @@ export type Settings = {
   zenMode: boolean
   zenTimeout: number
   /** Full-screen player background: blurred cover art, or an audio visualizer. */
+  equalizer: { enabled: boolean; gains: number[] }
   playerBackground: "artwork" | "visualizer"
   /** Visualizer scene id, or "cycle" for a different one each song. */
   visualizer: string
@@ -181,6 +182,8 @@ export type RawApi = {
     downloads(): Promise<IpcResult<DownloadItem[]>>
     cancel(videoId?: string): Promise<IpcResult<boolean>>
     clearFinished(): Promise<IpcResult<DownloadItem[]>>
+    retryFailed(): Promise<IpcResult<number>>
+    openDownloadLog(): Promise<IpcResult<null>>
     download(input: { videoId: string; title: string }): Promise<IpcResult<{ songId: string; alreadyHad: boolean }>>
     onDownloadUpdate(cb: (item: DownloadItem) => void): Unsubscribe
   }
@@ -203,6 +206,7 @@ export type RawApi = {
     /** Whether the page draws the title bar, with only the window buttons left native. */
     hasTitleBar: boolean
     setTitleBarColors(color: string, symbolColor: string): Promise<IpcResult<boolean>>
+    openLogs(): Promise<IpcResult<null>>
     isFullscreen(): Promise<IpcResult<boolean>>
     toggleFullscreen(): Promise<IpcResult<null>>
     onFullscreenChanged(cb: (fullscreen: boolean) => void): Unsubscribe

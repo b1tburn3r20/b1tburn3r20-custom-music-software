@@ -8,6 +8,7 @@ import ToggleExpandPlayer from "./components/ToggleExpandPlayer"
 import MusicPlayerName from "./MusicPlayerName"
 import LikeSongButton from "./Controls/like-song-button"
 import TagSongButton from "./Controls/TagSongButton"
+import EqualizerButton from "./Controls/EqualizerButton"
 
 /** The slim bar at the bottom: song · transport · volume. */
 const MusicPlayer = () => {
@@ -40,6 +41,7 @@ const MusicPlayer = () => {
         </div>
         <MusicControls />
         <div className="flex items-center justify-end gap-4">
+          <EqualizerButton />
           <MusicVolume />
           <ToggleExpandPlayer />
         </div>

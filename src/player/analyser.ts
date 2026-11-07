@@ -9,6 +9,8 @@
 // tracker that predicts them (see ./beat) instead of reacting late to them.
 import { getAudio, getLoadedSongId } from "./engine"
 import { BeatTracker, spectralFlux } from "./beat"
+import { cleanGains, EQ_BANDS, eqPreamp, EQ_FLAT } from "@/lib/equalizer"
+import { useUserStore } from "@/stores/useUserStore"
 
 export type AudioFrame = {
   /** 0..1 energy per band, volume-independent and smoothed. */
@@ -53,6 +55,8 @@ export const bandEdges = () => [Math.floor(BINS * 0.16), Math.floor(BINS * 0.6)]
 let ctx: AudioContext | null = null
 let analyser: AnalyserNode | null = null
 let beatAnalyser: AnalyserNode | null = null
+let eqPreampNode: GainNode | null = null
+let eqFilters: BiquadFilterNode[] = []
 let freq: Float32Array<ArrayBuffer> | null = null
 let time: Float32Array<ArrayBuffer> | null = null
 let ranges: [number, number][] = []
@@ -80,7 +84,21 @@ function ensure(): boolean {
     beatAnalyser.smoothingTimeConstant = 0
     src.connect(analyser)
     src.connect(beatAnalyser)
-    analyser.connect(ctx.destination)
+    // The analysers listen before the equalizer, so changing the sound doesn't change the visuals or the beat.
+    eqPreampNode = ctx.createGain()
+    eqFilters = EQ_BANDS.map((hz, i) => {
+      const filter = ctx!.createBiquadFilter()
+      filter.type = i === 0 ? "lowshelf" : i === EQ_BANDS.length - 1 ? "highshelf" : "peaking"
+      filter.frequency.value = hz
+      filter.Q.value = 1.1
+      return filter
+    })
+    let last: AudioNode = src.connect(eqPreampNode)
+    for (const filter of eqFilters) last = last.connect(filter)
+    last.connect(ctx.destination)
+    applyEqualizer(savedGains())
+    // A suspended context would silence the song, now that it plays through this graph.
+    audio.addEventListener("play", () => void ctx?.resume())
     freq = new Float32Array(analyser.frequencyBinCount)
     time = new Float32Array(analyser.fftSize)
     ranges = spectrumBins(ctx.sampleRate, analyser.fftSize)
@@ -92,6 +110,36 @@ function ensure(): boolean {
     analyser = null
     return false
   }
+}
+
+const savedGains = () => {
+  const eq = useUserStore.getState().settings.equalizer
+  return eq?.enabled ? cleanGains(eq.gains) : EQ_FLAT
+}
+
+/** Glides to the new settings, because jumping would click. */
+function applyEqualizer(gains: number[]) {
+  if (!ctx || !eqPreampNode) return
+  const now = ctx.currentTime
+  eqPreampNode.gain.setTargetAtTime(eqPreamp(gains), now, 0.02)
+  eqFilters.forEach((filter, i) => filter.gain.setTargetAtTime(gains[i], now, 0.02))
+}
+
+/** Hear settings straight away while a slider is moving, before they're saved. */
+export function previewEqualizer(gains: number[]) {
+  if (ensure()) applyEqualizer(gains)
+}
+
+/** Keeps the sound matching the saved settings. The audio only runs through this once it's needed. */
+export function installEqualizer() {
+  const sync = () => {
+    const on = Boolean(useUserStore.getState().settings.equalizer?.enabled)
+    if (on ? ensure() : Boolean(ctx)) applyEqualizer(savedGains())
+  }
+  useUserStore.subscribe((s, p) => {
+    if (s.settings.equalizer !== p.settings.equalizer) sync()
+  })
+  sync()
 }
 
 /** Seconds between the analyser seeing audio and it reaching your ears. */

@@ -1,5 +1,7 @@
 import { useState } from "react"
 import { Switch } from "@/components/ui/switch"
+import { Button } from "@/components/ui/button"
+import { dialogs } from "@/stores/useDialogStore"
 import { Slider } from "@/components/ui/slider"
 import { Card } from "@/components/base/Layout"
 import { updateSettings } from "@/lib/actions"
@@ -22,6 +24,16 @@ export default function PlaybackSettings() {
   return (
     <div className="flex flex-col gap-4">
       <Card className="divide-y divide-border/60 py-1">
+        <SettingRow label="Equalizer" hint="Shape the sound with presets or your own settings. Press E any time.">
+          {(id) => (
+            <div className="flex items-center gap-3">
+              <Button size="sm" variant="secondary" onClick={() => dialogs().openEqualizer(true)}>
+                Adjust
+              </Button>
+              <Switch id={id} checked={Boolean(settings.equalizer?.enabled)} onCheckedChange={(v) => void updateSettings({ equalizer: { ...settings.equalizer, enabled: v } })} />
+            </div>
+          )}
+        </SettingRow>
         <SettingRow label="Autoplay similar songs" hint="When the queue ends, keep playing songs similar to the last one.">
           {(id) => <Switch id={id} checked={settings.autoplayRadio} onCheckedChange={(v) => void updateSettings({ autoplayRadio: v })} />}
         </SettingRow>

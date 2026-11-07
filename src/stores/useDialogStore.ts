@@ -11,6 +11,8 @@ type DialogState = {
   playlistToDelete: string | null
   tagSongs: Song[] | null
   shortcutsOpen: boolean
+  equalizerOpen: boolean
+  openEqualizer: (open: boolean) => void
   openShortcuts: (open: boolean) => void
   zenSearchOpen: boolean
   openZenSearch: (open: boolean) => void
@@ -28,6 +30,8 @@ export const useDialogStore = create<DialogState>((set) => ({
   playlistToDelete: null,
   tagSongs: null,
   shortcutsOpen: false,
+  equalizerOpen: false,
+  openEqualizer: (equalizerOpen) => set({ equalizerOpen }),
   openShortcuts: (shortcutsOpen) => set({ shortcutsOpen }),
   zenSearchOpen: false,
   openZenSearch: (zenSearchOpen) => set({ zenSearchOpen }),

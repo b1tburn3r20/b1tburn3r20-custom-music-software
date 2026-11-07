@@ -8,6 +8,7 @@ import { debounce } from "@/lib/debounce"
 import type { Song } from "@/types/DirectoryTypes"
 import * as Q from "./queue"
 import { advance, currentTime, getAudio, restartCurrent, startEngine, RADIO_BATCH, radioBatch } from "./engine"
+import { installEqualizer } from "./analyser"
 import { toast } from "sonner"
 
 const store = () => usePlayerStore.getState()
@@ -168,6 +169,7 @@ export function initPlayer() {
   })
   if (useUserStore.getState().loaded) applySettings()
   startEngine({ next, prev, togglePlay })
+  installEqualizer()
   // Keyboard shortcuts live in src/app/shortcuts.ts.
   // Deleted songs leave the queue immediately.
   useLibraryStore.subscribe((lib, prevLib) => {
