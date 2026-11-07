@@ -186,11 +186,12 @@ export function orbitSpeed(fullness: number, bpm: number | null) {
  * The outer ring's radius. It's sized from the screen's short side, as if fitting a square:
  * a wide screen adds empty space around the rings, not bigger rings. They grow with speed
  * (`scale`), which on a wide screen stops where they'd leave it. A tall screen lets them
- * run off the sides at full speed.
+ * run off the sides at full speed. Wide screens also draw them a bit smaller.
  */
+const ORBIT_WIDE_SCREEN_SIZE = 0.85
 export function orbitRadius(w: number, h: number, reachX: number, reachY: number, scale = 1) {
   const radius = ((Math.min(w, h) * 0.5) / Math.max(reachX, reachY)) * scale
-  return w > h ? Math.min(radius, (w * 0.5) / reachX, (h * 0.5) / reachY) : radius
+  return w > h ? Math.min(radius * ORBIT_WIDE_SCREEN_SIZE, (w * 0.5) / reachX, (h * 0.5) / reachY) : radius
 }
 /** The rings grow with speed, up to 1.5x at full speed. */
 export const orbitScale = (speed: number) => 1 + 0.5 * Math.min(1, speed / ORBIT_TOP_SPEED)
@@ -210,24 +211,24 @@ export function chaseSpeed(speed: number, target: number, dt: number) {
   return speed + (target - speed) * (1 - Math.exp(-rate * dt))
 }
 
-/** A white hole: a small, hard core with a tight, fast shimmer at its edge, and a little glow. */
+/** A white hole: a small, hard core with a huge, fierce glow that throbs. Both are true circles. */
 function drawOrb(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number, power: number, time: number) {
-  const glow = ctx.createRadialGradient(x, y, radius * 0.5, x, y, radius * 3)
-  glow.addColorStop(0, "rgba(255, 255, 255, 0.45)")
-  glow.addColorStop(0.4, "rgba(255, 255, 255, 0.08)")
+  const reach = radius * (13 + Math.sin(time * 9) * 1.2 + Math.sin(time * 23) * 0.6)
+  const glow = ctx.createRadialGradient(x, y, radius, x, y, reach)
+  glow.addColorStop(0, "rgba(255, 255, 255, 1)")
+  glow.addColorStop(0.08, "rgba(255, 255, 255, 0.8)")
+  glow.addColorStop(0.22, "rgba(255, 255, 255, 0.42)")
+  glow.addColorStop(0.45, "rgba(255, 255, 255, 0.16)")
+  glow.addColorStop(0.75, "rgba(255, 255, 255, 0.04)")
   glow.addColorStop(1, "rgba(255, 255, 255, 0)")
   ctx.globalAlpha = power
   ctx.fillStyle = glow
-  ctx.fillRect(x - radius * 3, y - radius * 3, radius * 6, radius * 6)
+  ctx.beginPath()
+  ctx.arc(x, y, reach, 0, Math.PI * 2)
+  ctx.fill()
   ctx.fillStyle = "#fff"
   ctx.beginPath()
-  for (let i = 0; i < 32; i++) {
-    const a = (i / 32) * Math.PI * 2
-    const edge = radius * (1 + 0.03 * (Math.sin(a * 3 + time * 7) + Math.sin(a * 5 - time * 11) * 0.6))
-    if (i === 0) ctx.moveTo(x + Math.cos(a) * edge, y + Math.sin(a) * edge)
-    else ctx.lineTo(x + Math.cos(a) * edge, y + Math.sin(a) * edge)
-  }
-  ctx.closePath()
+  ctx.arc(x, y, radius, 0, Math.PI * 2)
   ctx.fill()
 }
 
@@ -399,7 +400,7 @@ function orbit(): Scene {
           from = end
         })
         // The white hole sits at the center of the rings: behind their near side, in front of the far side.
-        if (l === ORB_LAYER && orb > 0.01) drawOrb(ctx, cx, cy, Math.min(w, h) * 0.035 * Math.sqrt(orb), orb, f.time)
+        if (l === ORB_LAYER && orb > 0.01) drawOrb(ctx, cx, cy, Math.min(w, h) * 0.018 * Math.sqrt(orb), orb, f.time)
       }
       ctx.globalAlpha = 1
     },

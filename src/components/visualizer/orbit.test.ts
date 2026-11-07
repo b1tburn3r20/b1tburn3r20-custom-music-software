@@ -139,8 +139,8 @@ describe("orbitRadius", () => {
       expect(orbitRadius(1080, 1920, reachX, reachY, 1.5)).toBeCloseTo(previous(1080, 1920, reachX, reachY) * 1.5)
     }
   })
-  it("makes a desktop screen's rings the same size as a portrait screen with the same short side", () => {
-    for (const { reachX, reachY } of angles) expect(orbitRadius(1920, 1080, reachX, reachY)).toBeCloseTo(orbitRadius(1080, 1920, reachX, reachY))
+  it("makes a desktop screen's rings a bit smaller than a portrait screen with the same short side", () => {
+    for (const { reachX, reachY } of angles) expect(orbitRadius(1920, 1080, reachX, reachY)).toBeCloseTo(orbitRadius(1080, 1920, reachX, reachY) * 0.85)
   })
   it("is noticeably smaller on a desktop screen than it was", () => {
     const { reachX, reachY } = angles[0]
