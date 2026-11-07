@@ -9,7 +9,7 @@ const LIBRARY_VERSION = 6;
 const USER_VERSION = 1;
 
 const DEFAULT_SETTINGS = Object.freeze({
-  theme: "dark",
+  theme: "red-dark",
   volume: 50,
   repeat: "all", // 'off' | 'all' | 'one'
   shuffle: false,
@@ -17,8 +17,8 @@ const DEFAULT_SETTINGS = Object.freeze({
   expandOnPlay: false,
   zenMode: true,
   zenTimeout: 3000,
-  playerBackground: "artwork", // 'artwork' | 'visualizer' (full-screen player)
-  visualizer: "cycle", // a scene id, or 'cycle' for a different one each song
+  playerBackground: "visualizer", // 'artwork' | 'visualizer' (full-screen player)
+  visualizer: "orbit", // a scene id, or 'cycle' for a different one each song
   visualizerOffsetMs: 0, // extra visual delay on top of the reported output latency (Bluetooth etc.)
   youtubeAuth: { mode: "none", browser: "firefox", profile: "" },
   ytDlpSkippedVersion: null, // a yt-dlp release the user chose not to be asked about again

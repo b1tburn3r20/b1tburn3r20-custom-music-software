@@ -79,6 +79,66 @@ test("tag options scroll in one list, and the box you type in stays put", async 
   await close(app)
 })
 
+test("the title bar is the theme's, with no menu, and the visualizer survives resizing", async () => {
+  const { app, page, data, dir } = await launch({ music: ["Song One"] })
+  await skipOnboarding(page)
+  await close(app)
+  const file = path.join(data, "user.json")
+  const saved = JSON.parse(fs.readFileSync(file, "utf-8"))
+  saved.settings.visualizer = "tunnel"
+  saved.settings.playerBackground = "visualizer"
+  fs.writeFileSync(file, JSON.stringify(saved))
+
+
+  const again = await launch({ dir })
+  const onWindows = process.platform === "win32"
+  expect(await again.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isMenuBarVisible())).toBe(false)
+  const bar = again.page.locator("[data-region=title-bar]")
+  if (onWindows) {
+    await expect(bar).toHaveCSS("height", "32px")
+    // Record what the native buttons are told, then change theme.
+    await again.app.evaluate(({ BrowserWindow }) => {
+      const win = BrowserWindow.getAllWindows()[0] as unknown as { setTitleBarOverlay: (o: unknown) => void }
+      const real = win.setTitleBarOverlay.bind(win)
+      const seen: unknown[] = ((globalThis as unknown as { seen: unknown[] }).seen = [])
+      win.setTitleBarOverlay = (o) => {
+        seen.push(o)
+        real(o)
+      }
+    })
+    await again.page.evaluate(() => window.api.user.updateSettings({ theme: "red-light" }))
+    await expect.poll(() => again.app.evaluate(() => (globalThis as unknown as { seen: { color: string; symbolColor: string }[] }).seen.at(-1))).toMatchObject({ color: expect.stringMatching(/^#[ef]/), symbolColor: expect.stringMatching(/^#[0-3]/) })
+    await again.page.evaluate(() => window.api.user.updateSettings({ theme: "red-dark" }))
+    await expect.poll(() => again.app.evaluate(() => (globalThis as unknown as { seen: { color: string; symbolColor: string }[] }).seen.at(-1))).toMatchObject({ color: expect.stringMatching(/^#[01]/), symbolColor: expect.stringMatching(/^#[ef]/) })
+  }
+
+  await again.page.getByText("Song One").first().click()
+  await again.page.keyboard.press("f")
+  const canvas = again.page.locator("canvas").first()
+  await expect(canvas).toBeVisible()
+  await again.page.waitForTimeout(1500) // let Tunnel's picture build up
+  const painted = () => canvas.evaluate((el: HTMLCanvasElement) => {
+    const { data } = el.getContext("2d")!.getImageData(0, 0, el.width, el.height)
+    let lit = 0
+    for (let i = 0; i < data.length; i += 4) if (data[i] + data[i + 1] + data[i + 2] > 0) lit++
+    return { lit: lit / (data.length / 4), matches: el.width === el.clientWidth && el.height === el.clientHeight }
+  })
+  for (const [w, h] of [[1000, 700], [1300, 600], [800, 800], [1280, 720]]) {
+    await again.app.evaluate(({ BrowserWindow }, size) => BrowserWindow.getAllWindows()[0].setSize(size[0], size[1]), [w, h])
+    await again.page.waitForTimeout(100)
+    const state = await painted()
+    expect(state.matches).toBe(true)
+    expect(state.lit).toBeGreaterThan(0.9) // never a blank frame
+  }
+  if (onWindows) {
+    const below = await canvas.boundingBox()
+    expect(below?.y).toBe(32)
+  }
+  await shot(again.page, "40-visualizer-after-resize")
+  expect(again.problems).toEqual([])
+  await close(again.app)
+})
+
 test("an existing user with music isn't sent through setup", async () => {
   // Written by an earlier version, which had no onboarding setting.
   const seeded = await launch({ music: ["Old Song"] })
@@ -410,7 +470,7 @@ test("themes come from files, and each has depth", async () => {
       return { theme: document.documentElement.dataset.theme, isDark: document.documentElement.classList.contains("dark"), base: probe("bg-background"), dark: probe("bg-background-dark"), light: probe("bg-background-light") }
     })
   const dark = await colors()
-  expect(dark).toMatchObject({ theme: "dark", isDark: true })
+  expect(dark).toMatchObject({ theme: "red-dark", isDark: true })
   expect(new Set([dark.base, dark.dark, dark.light]).size).toBe(3)
   await shot(page, "34-theme-dark")
 
@@ -424,7 +484,7 @@ test("themes come from files, and each has depth", async () => {
 
   // A theme saved under an id that no longer exists falls back, rather than losing all color.
   await page.evaluate(() => window.api.user.updateSettings({ theme: "was-deleted" }))
-  await expect.poll(async () => (await colors()).theme).toBe("dark")
+  await expect.poll(async () => (await colors()).theme).toBe("red-dark")
 
   await page.getByRole("button", { name: "Settings" }).click()
   await page.getByRole("tab", { name: "Appearance" }).click()

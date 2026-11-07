@@ -8,7 +8,8 @@ const STORAGE_KEY = "b1t:theme" // mirrors for a flash-free first paint (see pub
 const MODE_KEY = "b1t:theme-mode"
 
 const listeners = new Set<() => void>()
-export const themeOf = (id: string | undefined) => THEMES.find((t) => t.id === id) ?? THEMES[0]
+const DEFAULT_THEME = "red-dark"
+export const themeOf = (id: string | undefined) => THEMES.find((t) => t.id === id) ?? THEMES.find((t) => t.id === DEFAULT_THEME) ?? THEMES[0]
 
 /** data-theme picks the colors. The `dark` class is shadcn's convention for dark: styles. */
 export function applyTheme(id: string) {

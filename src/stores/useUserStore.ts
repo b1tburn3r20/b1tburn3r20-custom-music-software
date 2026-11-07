@@ -8,7 +8,7 @@ type UserState = UserSnapshot & {
 }
 
 const DEFAULT_SETTINGS: Settings = {
-  theme: "dark",
+  theme: "red-dark",
   volume: 50,
   repeat: "all",
   shuffle: false,
@@ -16,8 +16,8 @@ const DEFAULT_SETTINGS: Settings = {
   expandOnPlay: false,
   zenMode: true,
   zenTimeout: 3000,
-  playerBackground: "artwork",
-  visualizer: "cycle",
+  playerBackground: "visualizer",
+  visualizer: "orbit",
   visualizerOffsetMs: 0,
   youtubeAuth: { mode: "none", browser: "firefox", profile: "" },
   ytDlpSkippedVersion: null,
