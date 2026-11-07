@@ -21,7 +21,7 @@ function OptionCard({ icon: Icon, title, gives, needs, action }: { icon: typeof 
   )
 }
 
-export function SearchOption() {
+export function SearchOption({ onSaved }: { onSaved?: () => void }) {
   const [open, setOpen] = useState(false)
   return (
     <OptionCard
@@ -34,7 +34,7 @@ export function SearchOption() {
           <Button variant="secondary" onClick={() => setOpen(true)}>
             <KeyRound /> Add API key
           </Button>
-          <ApiKeyDialog open={open} onClose={() => setOpen(false)} />
+          <ApiKeyDialog open={open} onClose={() => setOpen(false)} onSaved={onSaved} />
         </>
       }
     />
@@ -75,13 +75,13 @@ export function CookieSection({ onImported }: { onImported?: () => void }) {
 }
 
 /** The other ways in, tucked away so the main way stays simple. */
-export function OtherOptions({ browser = true }: { browser?: boolean }) {
+export function OtherOptions({ browser = true, search = true }: { browser?: boolean; search?: boolean }) {
   return (
     <details className="rounded-xl border border-border p-3">
       <summary className="cursor-pointer text-sm font-medium">Other options</summary>
       <div className="mt-3 flex flex-col gap-4">
         <div className="flex flex-wrap gap-4">
-          <SearchOption />
+          {search && <SearchOption />}
           <GoogleOption />
         </div>
         {browser && (

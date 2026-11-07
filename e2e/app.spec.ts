@@ -3,24 +3,19 @@ import fs from "fs"
 import path from "path"
 import { buildTaggedMp3, CLIENT_ID, close, launch, MUSIC_VIDEO, shot, skipOnboarding, startFakeAi, startFakeGoogle, VALID_KEY } from "./helpers"
 
-const onboarding = (page: import("@playwright/test").Page) => page.getByRole("dialog", { name: "Welcome" })
+const onboarding = (page: import("@playwright/test").Page) => page.getByRole("dialog", { name: "Setup" })
 
 test.describe("a brand new user", () => {
-  test("walks through first-run setup and can skip YouTube", async () => {
+  test("gets one quick setup screen, with no intro, and can skip it", async () => {
     const { app, page, music, problems } = await launch()
-    await expect(onboarding(page)).toBeVisible()
-    // No splash screen: the first thing you see is already useful.
-    await expect(page.getByRole("heading", { name: "Welcome to b1tburn3r20" })).toBeVisible()
-    await expect(page.getByRole("button", { name: "Get started" })).toHaveCount(0)
-    await expect(page.getByText(`Your music lives in Music`)).toBeVisible()
+    await expect(page.getByRole("heading", { name: "Quick setup" })).toBeVisible()
+    await expect(page.getByText("Welcome")).toHaveCount(0)
+    await expect(onboarding(page).getByRole("button", { name: "Choose cookies.txt" })).toBeVisible()
+    await expect(onboarding(page).getByRole("button", { name: "Add API key" })).toBeVisible()
     await expect(onboarding(page).getByText(music)).toBeVisible()
-    await shot(page, "02-folder")
+    await shot(page, "02-quick-setup")
 
-    await page.getByRole("button", { name: "Next" }).click()
-    await expect(page.getByRole("heading", { name: "Add YouTube, if you'd like" })).toBeVisible()
-    await shot(page, "03-youtube-optional")
-
-    await page.getByRole("button", { name: "Skip, I'll just use my own music" }).click()
+    await page.getByRole("button", { name: "Skip setup" }).click()
     await expect(onboarding(page)).toBeHidden()
     await expect(page.getByRole("heading", { name: "Let's get some music in here" })).toBeVisible()
     await shot(page, "04-home-empty")
@@ -28,15 +23,14 @@ test.describe("a brand new user", () => {
     await close(app)
   })
 
-  test("resumes setup where they left off, and isn't asked again once done", async () => {
+  test("sees setup again if it was left open, and isn't asked again once done", async () => {
     const first = await launch()
-    await first.page.getByRole("button", { name: "Next" }).click()
-    await expect(first.page.getByRole("heading", { name: "Add YouTube, if you'd like" })).toBeVisible()
+    await expect(first.page.getByRole("heading", { name: "Quick setup" })).toBeVisible()
     await close(first.app)
 
     const second = await launch({ dir: first.dir })
-    await expect(second.page.getByRole("heading", { name: "Add YouTube, if you'd like" })).toBeVisible()
-    await second.page.getByRole("button", { name: "Skip, I'll just use my own music" }).click()
+    await expect(second.page.getByRole("heading", { name: "Quick setup" })).toBeVisible()
+    await second.page.getByRole("button", { name: "Skip setup" }).click()
     await close(second.app)
 
     const third = await launch({ dir: first.dir })
@@ -44,6 +38,19 @@ test.describe("a brand new user", () => {
     await expect(onboarding(third.page)).toBeHidden()
     await close(third.app)
   })
+})
+
+test("adding an API key during setup finishes it", async () => {
+  const google = await startFakeGoogle()
+  const { app, page, problems } = await launch({ google })
+  await onboarding(page).getByRole("button", { name: "Add API key" }).click()
+  await page.getByLabel("Paste the key here").fill(VALID_KEY)
+  await page.getByRole("button", { name: "Save key" }).click()
+  await expect(onboarding(page)).toBeHidden()
+  expect(await page.evaluate(() => window.api.youtube.access())).toMatchObject({ data: { hasApiKey: true } })
+  expect(problems).toEqual([])
+  await close(app)
+  google.close()
 })
 
 test("an existing user with music isn't sent through setup", async () => {
@@ -537,9 +544,7 @@ test.describe("cookies.txt, the main way in", () => {
     await answerFilePicker(app, file)
     await fakeYoutube(app)
 
-    await page.getByRole("button", { name: "Next" }).click()
     await expect(page.getByRole("button", { name: "Choose cookies.txt" })).toBeVisible()
-    await expect(page.getByRole("button", { name: "Add API key" })).toBeHidden()
     await shot(page, "21-cookies-onboarding")
     await page.getByRole("button", { name: "Choose cookies.txt" }).click()
 
@@ -707,7 +712,6 @@ test.describe("YouTube access has two separate layers", () => {
   test("Google only: your data loads, search stays locked, and you pick what to download", async () => {
     const google = await startFakeGoogle()
     const { app, page, data } = await launch({ google })
-    await page.getByRole("button", { name: "Next" }).click()
     await page.getByText("Other options").click()
     await page.getByRole("button", { name: "Connect Google" }).click()
     await shot(page, "11-google-walkthrough")

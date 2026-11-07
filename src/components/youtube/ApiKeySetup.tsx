@@ -95,10 +95,15 @@ export function ApiKeyForm({ onDone }: { onDone?: () => void }) {
   )
 }
 
-export function ApiKeyDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function ApiKeyDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => void; onSaved?: () => void }) {
   return (
     <Modal open={open} onClose={onClose} title="Add a YouTube API key" description="This unlocks searching YouTube. It takes a few minutes, once.">
-      <ApiKeyForm onDone={onClose} />
+      <ApiKeyForm
+        onDone={() => {
+          onClose()
+          onSaved?.()
+        }}
+      />
     </Modal>
   )
 }

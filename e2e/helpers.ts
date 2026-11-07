@@ -156,5 +156,5 @@ export async function close(app: ElectronApplication) {
 
 export async function skipOnboarding(page: Page) {
   await page.getByRole("button", { name: "Skip setup" }).click()
-  await page.getByRole("dialog", { name: "Welcome" }).waitFor({ state: "detached" })
+  await page.getByRole("dialog", { name: "Setup" }).waitFor({ state: "detached" })
 }
