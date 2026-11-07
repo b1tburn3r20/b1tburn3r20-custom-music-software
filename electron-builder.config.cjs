@@ -11,7 +11,8 @@ module.exports = {
   npmRebuild: false,
   files: ["dist/**/*", "electron/**/*", "handlers/**/*", "shared/**/*", "package.json", "!**/*.test.*", "!**/*.d.mts"],
   directories: { output: "release" },
-  linux: { target: ["dir"], category: "AudioVideo" },
+  // Otherwise the program is named after package.json, and the installer and smoke test can't find it.
+  linux: { target: ["dir"], category: "AudioVideo", executableName: "b1tburn3r20" },
   // Editing the .exe makes electron-builder fetch winCodeSign, whose archive contains symlinks
   // that a normal Windows user can't create. So the .exe keeps Electron's icon; the window
   // and the Start Menu shortcut set their own instead.

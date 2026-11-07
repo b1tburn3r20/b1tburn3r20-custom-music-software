@@ -5,6 +5,24 @@ import { buildTaggedMp3, CLIENT_ID, close, launch, MUSIC_VIDEO, shot, skipOnboar
 
 const onboarding = (page: import("@playwright/test").Page) => page.getByRole("dialog", { name: "Setup" })
 
+/**
+ * The secret is nowhere in the data folder. With no keyring, which a Linux machine with no
+ * desktop doesn't have, the app keeps secrets in memory instead of writing the encrypted file.
+ */
+function expectNotStored(data: string, secret: string, encryptedFiles: string[]) {
+  const files = fs.readdirSync(data, { recursive: true, encoding: "utf-8" }).map((f) => path.join(data, f)).filter((f) => fs.lstatSync(f).isFile())
+  for (const file of files) {
+    let contents = ""
+    try {
+      contents = fs.readFileSync(file, "latin1")
+    } catch {
+      continue // Chromium holds a few of its own files open while the app runs
+    }
+    expect(contents.includes(secret), file).toBe(false)
+  }
+  if (process.platform !== "linux") for (const name of encryptedFiles) expect(fs.existsSync(path.join(data, "credentials", name)), name).toBe(true)
+}
+
 test.describe("a brand new user", () => {
   test("gets one quick setup screen, with no intro, and can skip it", async () => {
     const { app, page, music, problems } = await launch()
@@ -242,8 +260,11 @@ test("F11 fills the whole monitor, and F11 again goes back", async () => {
 
   await pressF11()
   await expect.poll(async () => (await state()).fullscreen).toBe(true)
-  await expect.poll(async () => { const s = await state(); return [s.width, s.height] }).toEqual([before.display.width, before.display.height])
-  await expect.poll(() => page.evaluate(() => [window.innerWidth, window.innerHeight])).toEqual([before.display.width, before.display.height])
+  // A virtual display with no window manager comes up a pixel short.
+  const short = process.platform === "linux" ? 2 : 0
+  const fills = (w: number, h: number) => before.display.width - w <= short && before.display.height - h <= short
+  await expect.poll(async () => { const s = await state(); return fills(s.width, s.height) }).toBe(true)
+  await expect.poll(async () => { const [w, h] = await page.evaluate(() => [window.innerWidth, window.innerHeight]); return fills(w, h) }).toBe(true)
   await shot(page, "18-fullscreen")
 
   await pressF11()
@@ -564,8 +585,7 @@ test.describe("AI tagging", () => {
     expect(sent.body).not.toContain(path.dirname(data))
 
     expect(JSON.stringify(await page.evaluate(() => window.api.ai.status()))).not.toContain(KEY)
-    expect(fs.readFileSync(path.join(data, "credentials", "youtube-anthropicKey.enc"), "utf-8")).not.toContain(KEY)
-    expect(fs.readFileSync(path.join(data, "user.json"), "utf-8")).not.toContain(KEY)
+    expectNotStored(data, KEY, ["youtube-anthropicKey.enc"])
     await close(app)
     ai.close()
   })
@@ -813,13 +833,12 @@ test.describe("YouTube access has two separate layers", () => {
     // Not readable from the page, and not stored in plaintext.
     const access = JSON.stringify(await page.evaluate(() => window.api.youtube.access()))
     expect(access).not.toContain(VALID_KEY)
-    const stored = fs.readFileSync(path.join(data, "credentials", "youtube-apiKey.enc"), "utf-8")
-    expect(stored).not.toContain(VALID_KEY)
-    expect(fs.readFileSync(path.join(data, "user.json"), "utf-8")).not.toContain(VALID_KEY)
+    expectNotStored(data, VALID_KEY, ["youtube-apiKey.enc"])
     await close(app)
 
     const again = await launch({ dir: path.dirname(data), google })
-    expect(await again.page.evaluate(() => window.api.youtube.access())).toMatchObject({ data: { hasApiKey: true } })
+    // With no keyring it was only held in memory, on purpose, so it can't survive a restart.
+    if (process.platform !== "linux") expect(await again.page.evaluate(() => window.api.youtube.access())).toMatchObject({ data: { hasApiKey: true } })
     await close(again.app)
     google.close()
   })
@@ -871,11 +890,7 @@ test.describe("YouTube access has two separate layers", () => {
     await expect(page.getByRole("button", { name: "Add API key" })).toBeVisible() // search still needs its own key
     await page.getByRole("tab", { name: "Your playlists" }).click()
 
-    for (const file of ["youtube-oauthClient.enc", "youtube-oauthToken.enc"]) {
-      const stored = fs.readFileSync(path.join(data, "credentials", file), "utf-8")
-      expect(stored).not.toContain("fake-refresh")
-      expect(stored).not.toContain("fake-secret")
-    }
+    for (const secret of ["fake-refresh", "fake-secret"]) expectNotStored(data, secret, ["youtube-oauthClient.enc", "youtube-oauthToken.enc"])
 
     // Disconnect: revoked at Google, gone from disk, and locked again.
     await page.evaluate(() => window.api.youtube.disconnect())

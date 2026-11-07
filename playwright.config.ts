@@ -6,6 +6,7 @@ export default defineConfig({
   timeout: 90000,
   expect: { timeout: 15000 },
   workers: 1, // each test is a whole app with its own window
-  reporter: "list",
+  // GitHub only shows a run's logs to signed-in users, but its annotations are public.
+  reporter: process.env.CI ? [["list"], ["github"]] : "list",
   outputDir: "test-results/playwright",
 })

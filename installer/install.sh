@@ -148,6 +148,7 @@ libcups.so.2 libcups2 cups-libs libcups libcups2
 libgtk-3.so.0 libgtk-3-0 gtk3 gtk3 libgtk-3-0
 libgbm.so.1 libgbm1 mesa-libgbm mesa libgbm1
 libasound.so.2 libasound2 alsa-lib alsa-lib libasound2
+libatomic.so.1 libatomic1 libatomic gcc-libs libatomic1
 libxkbcommon.so.0 libxkbcommon0 libxkbcommon libxkbcommon libxkbcommon0
 libXcomposite.so.1 libxcomposite1 libXcomposite libxcomposite libXcomposite1
 libXdamage.so.1 libxdamage1 libXdamage libxdamage libXdamage1
