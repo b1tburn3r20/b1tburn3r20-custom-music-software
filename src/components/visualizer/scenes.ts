@@ -244,6 +244,25 @@ export function coverRect(fromW: number, fromH: number, toW: number, toH: number
 }
 /** The rings grow with speed, up to 1.5x at full speed. */
 export const orbitScale = (speed: number) => 1 + 0.5 * Math.min(1, speed / ORBIT_TOP_SPEED)
+const ORBIT_AXIS_SPEED = 0.13 // radians per second: the axis traces its circle about every 50 seconds
+const ORBIT_PEAK_AXIS_BOOST = 10 // and 10x as fast while the white hole is out
+/** How fast Orbit's axis swings, for peak chaos 0..1. */
+export const orbitAxisSpeed = (orb: number) => ORBIT_AXIS_SPEED * (1 + (ORBIT_PEAK_AXIS_BOOST - 1) * orb)
+/**
+ * The white hole's radius, as a share of the screen's shorter side. It grows in as it appears
+ * (orb 0..1) and shrinks as the song gets more intense (energy 0..1), down to under half at full.
+ */
+export const orbitHoleSize = (orb: number, energy: number) => 0.011 * Math.sqrt(orb) * (1 - 0.55 * energy)
+/** How spread out the rings are at peak chaos 0..1: at a full peak they pull in to 40% of their usual width and thickness. */
+export const orbitRingSpread = (orb: number) => 1 - 0.6 * orb
+/**
+ * How far the white hole is out, 0..1, eased toward peak chaos: it swells in over about an
+ * eighth of a second and shrinks away over about half a second, so the pulsar comes and goes smoothly.
+ */
+export function chaseHole(hole: number, orb: number, dt: number) {
+  const rate = orb > hole ? 18 : 5
+  return hole + (orb - hole) * (1 - Math.exp(-rate * dt))
+}
 /** Peak chaos and the white hole snap on and off within a few frames: the illusion only works if it's fast. */
 export function chaseOrb(orb: number, target: number, dt: number) {
   const rate = target > orb ? 40 : 22
@@ -331,6 +350,18 @@ function orbit(): Scene {
   const BEAT_SWELL = 0.04 // how much a full beat widens the rings
   const PEAK_EXTRA_WILD = 2.2
   const PEAK_SHAKE = 0.035
+  // At a peak it becomes a pulsar: the white hole pulls dots out of the rings, they spiral in,
+  // and it fires them out of both poles along the axis. Each one finishes its trip, so when the
+  // peak ends the beams run dry rather than vanishing.
+  const MATTER = 1600 // the most dots on their way through at once
+  const MATTER_RATE = 2200 // dots pulled in per second while the white hole is fully out
+  const INFALL_SECONDS = 0.225 // how long a dot takes to spiral in, on average
+  const INFALL_SPIN = 7 // extra radians a dot whirls around as it falls in
+  const JET_LENGTH = 1.5 // how far the beams reach, where 1 is the rings' outer edge
+  const JET_FLOW = 3 // how many times a second a dot runs the beam's length, on average
+  const JET_CONE = 0.45 // how wide the cones are at their far end
+  const JET_STREAK = 0.07 // each dot is drawn as a streak this share of the beam long, so its speed reads
+  const JET_FADES = [1, 0.55, 0.22] // brightest near the pole, fading out along the beam
   const STREAK_SECONDS = 0.03 // each dot is drawn as the path it just covered, so direction and speed read
   const CAMERA = 7 // enough perspective to feel deep, without making the ellipse lopsided
   // Far to near: drawn back to front, in batches because thousands of separate color changes are slow.
@@ -339,6 +370,7 @@ function orbit(): Scene {
 
   const spread = () => Math.random() + Math.random() - 1 // -1..1, bunched toward the middle
   const radius = new Float32Array(DOTS)
+  const middle = new Float32Array(DOTS) // the middle of the dot's ring, which it pulls toward at a peak
   const start = new Float32Array(DOTS)
   const height = new Float32Array(DOTS)
   const pace = new Float32Array(DOTS) // each dot's own speed, so the rings shear and clump
@@ -346,13 +378,16 @@ function orbit(): Scene {
   const eccPhase = new Float32Array(DOTS)
   const incline = new Float32Array(DOTS) // how far the dot's own orbit tips out of its ring
   const inclinePhase = new Float32Array(DOTS)
+  const bandOf = new Uint8Array(DOTS)
   const bandEnd: number[] = []
   let filled = 0
   BANDS.forEach((band, b) => {
     const end = b === BANDS.length - 1 ? DOTS : filled + Math.round(band.share * DOTS)
     for (; filled < end; filled++) {
+      bandOf[filled] = b
       const stray = Math.random() < STRAY_SHARE
       radius[filled] = band.from + Math.random() * (band.to - band.from)
+      middle[filled] = (band.from + band.to) / 2
       start[filled] = Math.random() * Math.PI * 2
       height[filled] = spread() * band.thick
       pace[filled] = 0.85 + Math.random() * 0.3
@@ -369,9 +404,25 @@ function orbit(): Scene {
   const tailY = new Float32Array(DOTS)
   const layer = new Uint8Array(DOTS)
 
+  const captured = new Uint8Array(DOTS) // ring dots the white hole has taken, hidden until they've been fired out
+  // The matter on its way through: falling in (stage 0), then flying out a beam (stage 1).
+  const mDot = new Int16Array(MATTER).fill(-1) // the ring dot it was, or -1 when the slot is free
+  const mStage = new Uint8Array(MATTER)
+  const mProgress = new Float32Array(MATTER) // 0..1 through the stage
+  const mRate = new Float32Array(MATTER) // progress per second
+  const mRadius = new Float32Array(MATTER) // where it was in the rings when taken
+  const mAngle = new Float32Array(MATTER)
+  const mHeight = new Float32Array(MATTER)
+  const mSide = new Int8Array(MATTER) // which pole it leaves from
+  const mDirection = new Float32Array(MATTER) // its straight line through the cone
+  const mWidth = new Float32Array(MATTER)
+
   let w = 0
   let h = 0
   const drive = createDrive()
+  let axis = 0
+  let hole = 0
+  let owed = 0
   return {
     resize(nw, nh) {
       w = nw
@@ -379,11 +430,13 @@ function orbit(): Scene {
     },
     draw(ctx, f, p) {
       const colors = coverColors(p)
-      const { speed, pulse, moving, travel, orb, energy } = drive(f) // the harder it's going, the wilder the orbits
+      const { dt, speed, pulse, moving, travel, orb, energy } = drive(f) // the harder it's going, the wilder the orbits
+      hole = chaseHole(hole, orb, dt)
 
       // The axis traces a slow circle, about every 50 seconds: the rings tilt more and less and
-      // swing from steeply diagonal to nearly level, but never flip over. Independent of the music.
-      const axis = f.time * 0.13
+      // swing from steeply diagonal to nearly level, but never flip over. It swings 10x as fast
+      // while the white hole is out, and adding up the angle keeps that change from jumping.
+      axis += orbitAxisSpeed(hole) * dt
       const tilt = 0.46 + Math.cos(axis) * 0.26
       const roll = -0.42 + Math.sin(axis) * 0.5
       const cosT = Math.cos(tilt)
@@ -399,22 +452,25 @@ function orbit(): Scene {
       const pixel = Math.max(1.2, Math.min(w, h) / 500)
       // Capped at full speed's length: longer ones cost far more to draw, and peak chaos doesn't need them.
       const streak = Math.max(0.004, Math.min(moving, ORBIT_TOP_SPEED) * ANGULAR_SPEED * STREAK_SECONDS)
+      // At a peak the rings pull in tight, but still go wild and shudder.
+      const tight = orbitRingSpread(hole)
       const wild = 1 + energy * 0.9 + orb * PEAK_EXTRA_WILD
       const shake = orb * PEAK_SHAKE
-      const lens = orb * outer * 0.17 // how far the white hole bends the dots around it
+      const lens = hole * outer * 0.04 // how far the white hole bends the dots around it: a little, so it doesn't clear a big hole
       let from = 0
       bandEnd.forEach((end, b) => {
         // Each ring's plane sways on its own, so the rings drift through each other.
         const lean = BANDS[b].lean * Math.sin(f.time * 0.13 + b * 1.7) * wild
         for (let i = from; i < end; i++) {
-          const a = start[i] + (travel * ANGULAR_SPEED * pace[i]) / radius[i] // inner rings go faster, as in a real orbit
+          const base = middle[i] + (radius[i] - middle[i]) * tight
+          const a = start[i] + (travel * ANGULAR_SPEED * pace[i]) / base // inner rings go faster, as in a real orbit
           for (let tip = 0; tip < 2; tip++) {
-            const angle = tip ? a : a - streak / radius[i]
+            const angle = tip ? a : a - streak / base
             // At a peak, every dot also shudders in and out on its own rhythm.
-            const r = radius[i] * (1 + ecc[i] * wild * Math.cos(angle + eccPhase[i]) + shake * Math.sin(f.time * 31 + eccPhase[i] * 7))
+            const r = base * (1 + ecc[i] * wild * Math.cos(angle + eccPhase[i]) + shake * Math.sin(f.time * 31 + eccPhase[i] * 7))
             const x = Math.cos(angle) * r
             const flat = Math.sin(angle) * r
-            const ht = height[i] + flat * lean + r * incline[i] * wild * Math.sin(angle + inclinePhase[i])
+            const ht = height[i] * tight + flat * lean + r * incline[i] * wild * Math.sin(angle + inclinePhase[i])
             // Viewed from above: the near side of the rings is the bottom of the ellipse.
             const y = ht * cosT + flat * sinT
             const depth = flat * cosT - ht * sinT
@@ -442,6 +498,94 @@ function orbit(): Scene {
         from = end
       })
 
+      // Where a point in the rings' own space lands on screen, and how near it is.
+      let px = 0
+      let py = 0
+      let pl = 0
+      const project = (x: number, flat: number, ht: number) => {
+        const y = ht * cosT + flat * sinT
+        const depth = flat * cosT - ht * sinT
+        const scale = (outer * CAMERA) / (CAMERA - depth)
+        px = cx + (x * cosR - y * sinR) * scale
+        py = cy + (x * sinR + y * cosR) * scale
+        pl = Math.max(0, Math.min(LAYER_ALPHA.length - 1, Math.floor(((depth + 1) / 2) * LAYER_ALPHA.length)))
+      }
+
+      // The white hole pulls dots out of the rings, as fast as it's out, until it has all but gone.
+      owed = hole > 0.05 ? Math.min(MATTER * 0.2, owed + MATTER_RATE * hole * dt) : 0
+      let slot = 0
+      for (; owed >= 1; owed--) {
+        while (slot < MATTER && mDot[slot] >= 0) slot++
+        if (slot === MATTER) break
+        let d = Math.floor(Math.random() * DOTS)
+        for (let tries = 0; captured[d] && tries < 8; tries++) d = Math.floor(Math.random() * DOTS)
+        if (captured[d]) continue
+        captured[d] = 1
+        const base = middle[d] + (radius[d] - middle[d]) * tight
+        mDot[slot] = d
+        mStage[slot] = 0
+        mProgress[slot] = 0
+        mRate[slot] = 1 / (INFALL_SECONDS * (0.7 + Math.random() * 0.6))
+        mRadius[slot] = base
+        mAngle[slot] = start[d] + (travel * ANGULAR_SPEED * pace[d]) / base // right where it was in its ring
+        mHeight[slot] = height[d] * tight
+        mSide[slot] = Math.random() < 0.5 ? 1 : -1
+        mDirection[slot] = Math.random() * Math.PI * 2
+        mWidth[slot] = Math.sqrt(Math.random()) // fills the cone, not just its core
+      }
+
+      // Each dot spirals in, whirling faster as it nears the white hole, then leaves it fast and flies
+      // dead straight on its own line through the cone, so the beams never waver.
+      const matter = LAYER_ALPHA.map(() => JET_FADES.map(() => BANDS.map(() => new Path2D())))
+      let anyMatter = false
+      for (let m = 0; m < MATTER; m++) {
+        const d = mDot[m]
+        if (d < 0) continue
+        mProgress[m] += mRate[m] * dt
+        if (mProgress[m] >= 1) {
+          if (mStage[m] === 0) {
+            mStage[m] = 1
+            mProgress[m] = 0
+            mRate[m] = JET_FLOW * (0.7 + Math.random() * 0.6) // some race, some lag
+          } else {
+            mDot[m] = -1 // made it out: the ring gets its dot back
+            captured[d] = 0
+            continue
+          }
+        }
+        anyMatter = true
+        const u = mProgress[m]
+        let fade = 0
+        let hx = 0
+        let hy = 0
+        if (mStage[m] === 0) {
+          const at = (v: number) => {
+            const r = mRadius[m] * Math.pow(1 - v, 1.4)
+            const angle = mAngle[m] + (v + v * v * v) * INFALL_SPIN * 0.5
+            project(Math.cos(angle) * r, Math.sin(angle) * r, mHeight[m] * (1 - v))
+          }
+          at(u)
+          hx = px
+          hy = py
+          at(Math.max(0, u - 0.06))
+        } else {
+          fade = Math.min(JET_FADES.length - 1, Math.floor(u * JET_FADES.length))
+          const at = (v: number) => {
+            const spread = mWidth[m] * JET_CONE * v
+            project(Math.cos(mDirection[m]) * spread, Math.sin(mDirection[m]) * spread, mSide[m] * (0.02 + v * JET_LENGTH))
+          }
+          at(u)
+          hx = px
+          hy = py
+          const near = pl
+          at(Math.max(0, u - JET_STREAK))
+          pl = near
+        }
+        const path = matter[pl][fade][bandOf[d]] // keeps its ring's look all the way through
+        path.moveTo(px, py)
+        path.lineTo(hx, hy)
+      }
+
       const thinOut = orb > 0.5
       ctx.globalCompositeOperation = "source-over"
       ctx.globalAlpha = 1
@@ -457,7 +601,7 @@ function orbit(): Scene {
           ctx.strokeStyle = paint(colors[b % colors.length], 1, (b % 3) * 7 + energy * 6)
           ctx.beginPath()
           for (let i = from; i < end; i++) {
-            if (layer[i] !== l) continue
+            if (layer[i] !== l || captured[i]) continue
             if (thinOut && i % 4 === 0) continue // nobody can count dots in peak chaos, and it's the most costly moment to draw
             ctx.moveTo(tailX[i], tailY[i])
             ctx.lineTo(headX[i], headY[i])
@@ -465,8 +609,17 @@ function orbit(): Scene {
           ctx.stroke()
           from = end
         })
+        if (anyMatter) {
+          matter[l].forEach((byBand, fade) => {
+            ctx.globalAlpha = LAYER_ALPHA[l] * JET_FADES[fade]
+            byBand.forEach((path, b) => {
+              ctx.strokeStyle = paint(colors[b % colors.length], 1, (b % 3) * 7 + energy * 6)
+              ctx.stroke(path)
+            })
+          })
+        }
         // The white hole sits at the center of the rings: behind their near side, in front of the far side.
-        if (l === ORB_LAYER && orb > 0.01) drawOrb(ctx, cx, cy, Math.min(w, h) * 0.018 * Math.sqrt(orb), orb)
+        if (l === ORB_LAYER && hole > 0.01) drawOrb(ctx, cx, cy, Math.min(w, h) * orbitHoleSize(hole, energy), hole)
       }
       ctx.lineCap = "butt"
       ctx.globalAlpha = 1
@@ -764,8 +917,8 @@ function catseye(): Scene {
       const born = travel * 0.55 + f.time * 0.3
       const whole = Math.floor(born)
       const part = born - whole
-      const shake = orb * m * 0.012
-      const sway = Math.sin(f.time * 0.21) * 0.05 + orb * Math.sin(f.time * 13) * 0.05
+      // A slow sway only: peaks speed the rings up but never shake them.
+      const sway = Math.sin(f.time * 0.21) * 0.05
 
       ctx.globalCompositeOperation = "source-over"
       ctx.globalAlpha = 1
@@ -784,9 +937,8 @@ function catseye(): Scene {
         ctx.fillStyle = lit ? paint(color, 1, energy * 8 + pulse * 10) : hsl(color.h, Math.min(60, color.s), 5)
         ctx.beginPath()
         for (let k = 0; k < POINTS; k++) {
-          const wobble = shake ? 1 + (shake / size) * Math.sin(k * 3 + f.time * 19 + i) : 1
-          const x = cos[k] * Math.pow(Math.abs(cos[k]), shape.pointY) * shape.rx * size * wobble
-          const y = sin[k] * Math.pow(Math.abs(sin[k]), shape.pointX) * shape.ry * size * wobble
+          const x = cos[k] * Math.pow(Math.abs(cos[k]), shape.pointY) * shape.rx * size
+          const y = sin[k] * Math.pow(Math.abs(sin[k]), shape.pointX) * shape.ry * size
           if (k === 0) ctx.moveTo(x, y)
           else ctx.lineTo(x, y)
         }
@@ -823,6 +975,7 @@ function catseye(): Scene {
 // ---------------------------------------------------------------------------
 // Embers: sparks spew up from below into a midnight blue sky, on the same drive as Orbit:
 // a slow drift of sparks until the song is near its fullest, then a racing, scattering storm.
+// Peaks make the same stream from below denser, faster, wider and hotter.
 // Never uses the cover's colors.
 
 /** How many sparks per second a moment asks for. */
@@ -852,20 +1005,12 @@ function embers(): Scene {
     age[i] = 0
     lifetime[i] = 1.4 + Math.random() * 2.6
     seed[i] = Math.random() * 100
-    // At a peak some burst from the middle in every direction.
-    if (Math.random() < orb * 0.45) {
-      const angle = Math.random() * Math.PI * 2
-      const burst = Math.min(w, h) * (0.25 + Math.random() * 0.6)
-      x[i] = w / 2
-      y[i] = h * 0.55
-      vx[i] = Math.cos(angle) * burst
-      vy[i] = Math.sin(angle) * burst
-      return
-    }
-    x[i] = w / 2 + spread() * w * (0.2 + 0.32 * energy)
-    y[i] = h + 4
-    vx[i] = spread() * w * (0.04 + 0.1 * energy)
-    vy[i] = -h * (0.12 + Math.random() * 0.26) * (1 + energy * 1.1)
+    // A peak widens the fire and throws the sparks higher and harder.
+    x[i] = w / 2 + spread() * w * (0.2 + 0.32 * energy + 0.18 * orb)
+    // Well below the bottom edge, past the reach of the widest glow, so you never see a spark appear.
+    y[i] = h + Math.max(40, Math.min(w, h) * 0.06) * (1 + Math.random())
+    vx[i] = spread() * w * (0.04 + 0.1 * energy + 0.08 * orb)
+    vy[i] = -h * (0.12 + Math.random() * 0.26) * (1 + energy * 1.1 + orb * 0.9)
   }
   return {
     resize(nw, nh) {
@@ -894,7 +1039,8 @@ function embers(): Scene {
 
       const pace = 0.5 + Math.min(moving, ORBIT_TOP_SPEED * 1.5) * 0.5
       const wild = 1 + energy * 2 + orb * 4
-      const pixel = Math.max(1.2, Math.min(w, h) / 500)
+      // At a peak the sparks burn bigger and glow more.
+      const pixel = Math.max(1.2, Math.min(w, h) / 500) * (1 + orb * 0.4)
       const streak = 0.004 + Math.min(moving, ORBIT_TOP_SPEED) * 0.005
       const paths = COOLING.map(() => new Path2D())
       for (let i = 0; i < MAX; i++) {
@@ -918,10 +1064,10 @@ function embers(): Scene {
       paths.forEach((path, b) => {
         ctx.strokeStyle = COOLING[b]
         // Soft halos first, widest and faintest, then the spark itself.
-        ctx.globalAlpha = 0.035
+        ctx.globalAlpha = 0.035 * (1 + orb)
         ctx.lineWidth = WIDTHS[b] * pixel * 8
         ctx.stroke(path)
-        ctx.globalAlpha = 0.07
+        ctx.globalAlpha = 0.07 * (1 + orb)
         ctx.lineWidth = WIDTHS[b] * pixel * 4
         ctx.stroke(path)
         ctx.globalAlpha = 0.95 - b * 0.2

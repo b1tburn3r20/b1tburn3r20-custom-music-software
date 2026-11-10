@@ -1,12 +1,15 @@
-import { useState } from "react"
-import { Loader2, SearchCheck, Sparkles } from "lucide-react"
+import { useMemo, useState } from "react"
+import { HeartOff, Loader2, SearchCheck, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/base/Layout"
 import ChangeRootDir from "@/components/Folders/ChangeRootDir"
 import { useLibraryStore } from "@/stores/useLibraryStore"
+import { useUserStore } from "@/stores/useUserStore"
+import { clearLikes } from "@/lib/actions"
 import { call, errorMessage } from "@/lib/api"
 import type { OrphanReport } from "@/types/api"
 import { toast } from "sonner"
+import { formatListening } from "@/lib/time"
 
 const mb = (b: number) => `${(b / 1024 / 1024).toFixed(1)} MB`
 
@@ -82,19 +85,73 @@ function CleanupCard() {
   )
 }
 
+/** Removing every like can't be undone, so it asks first. */
+function ResetLikesCard() {
+  const count = useUserStore((s) => s.likes.length)
+  const [confirming, setConfirming] = useState(false)
+  const [busy, setBusy] = useState(false)
+
+  const reset = async () => {
+    setBusy(true)
+    try {
+      await clearLikes()
+    } finally {
+      setBusy(false)
+      setConfirming(false)
+    }
+  }
+
+  return (
+    <Card className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium">Reset likes</p>
+          <p className="text-xs text-muted-foreground">Empties Liked Songs. The songs themselves stay in your library.</p>
+        </div>
+        {!confirming && (
+          <Button size="sm" variant="secondary" onClick={() => setConfirming(true)} disabled={!count}>
+            <HeartOff /> Reset likes
+          </Button>
+        )}
+      </div>
+      {confirming && (
+        <div className="flex flex-wrap items-center gap-3 rounded-md border border-destructive/40 bg-destructive/10 p-3">
+          <p className="min-w-0 flex-1 text-sm">
+            Remove all {count} {count === 1 ? "like" : "likes"}? This can't be undone.
+          </p>
+          <Button size="sm" variant="ghost" onClick={() => setConfirming(false)} disabled={busy}>
+            Cancel
+          </Button>
+          <Button size="sm" variant="destructive" onClick={reset} disabled={busy}>
+            {busy && <Loader2 className="animate-spin" />} Remove all likes
+          </Button>
+        </div>
+      )}
+    </Card>
+  )
+}
+
 export default function LibrarySettings() {
-  const count = useLibraryStore((s) => s.songs.length)
+  const songs = useLibraryStore((s) => s.songs)
+  const playtime = useMemo(() => songs.reduce((a, s) => a + (s.metadata.duration || 0), 0), [songs])
   return (
     <div className="flex flex-col gap-4">
-      <Card>
-        <p className="text-sm text-muted-foreground">Songs in library</p>
-        <p className="text-2xl font-bold">{count}</p>
+      <Card className="flex flex-wrap gap-x-10 gap-y-3">
+        <div>
+          <p className="text-sm text-muted-foreground">Songs in library</p>
+          <p className="text-2xl font-bold">{songs.length}</p>
+        </div>
+        <div>
+          <p className="text-sm text-muted-foreground">Total playtime</p>
+          <p className="text-2xl font-bold">{formatListening(playtime * 1000)}</p>
+        </div>
       </Card>
       <Card className="flex flex-col gap-2">
         <p className="text-sm font-medium">Music folder</p>
         <ChangeRootDir />
       </Card>
       <CleanupCard />
+      <ResetLikesCard />
       <Card className="flex flex-wrap items-center gap-3">
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium">Error logs</p>

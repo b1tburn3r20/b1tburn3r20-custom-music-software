@@ -118,6 +118,7 @@ function registerLibraryIpc({ library, user, plays, positions, userData }) {
   // ----- user data -----
   handle("user:get", () => user.snapshot());
   handle("user:set-liked", (songId, liked) => user.setLiked(songId, liked));
+  handle("user:clear-likes", () => user.clearLikes());
   handle("user:playlist-create", (input) => user.createPlaylist(input));
   handle("user:playlist-update", (id, patch) => user.updatePlaylist(id, patch));
   handle("user:playlist-delete", (id) => user.deletePlaylist(id));

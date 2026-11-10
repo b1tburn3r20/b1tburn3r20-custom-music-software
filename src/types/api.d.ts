@@ -133,6 +133,8 @@ export type RawApi = {
   user: {
     get(): Promise<IpcResult<UserSnapshot>>
     setLiked(songId: string, liked: boolean): Promise<IpcResult<boolean>>
+    /** Removes every like; resolves to how many were removed. */
+    clearLikes(): Promise<IpcResult<number>>
     createPlaylist(input: { name: string; description?: string; songIds?: string[] }): Promise<IpcResult<Playlist>>
     updatePlaylist(id: string, patch: { name?: string; description?: string }): Promise<IpcResult<Playlist>>
     deletePlaylist(id: string): Promise<IpcResult<boolean>>

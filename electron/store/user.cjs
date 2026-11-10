@@ -251,6 +251,15 @@ function createUserStore({ userData, library, emit = () => { } }) {
     return liked;
   }
 
+  /** Removes every like. Returns how many were removed. */
+  function clearLikes() {
+    const n = user.likes.length;
+    if (!n) return 0;
+    user.likes = [];
+    commit();
+    return n;
+  }
+
   function recordRecentlyPlayed(songId) {
     if (!library.hasSong(songId)) return;
     user.recentlyPlayed = [{ songId, playedAt: Date.now() }, ...user.recentlyPlayed.filter((r) => r.songId !== songId)].slice(0, LIMITS.recentlyPlayed);
@@ -431,6 +440,7 @@ function createUserStore({ userData, library, emit = () => { } }) {
     removeSongFromPlaylist,
     reorderPlaylist,
     setLiked,
+    clearLikes,
     recordRecentlyPlayed,
     recordRecentPlaylist,
     addRecentlyDownloaded,

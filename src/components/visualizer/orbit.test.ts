@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { chaseOrb, chaseSpeed, coverRect, createBeatPulse, createFullnessMeter, emberRate, eyeRingShape, lensed, orbitRadius, orbitScale, orbitSpeed } from "./scenes"
+import { chaseHole, chaseOrb, chaseSpeed, coverRect, createBeatPulse, createFullnessMeter, emberRate, eyeRingShape, lensed, orbitAxisSpeed, orbitHoleSize, orbitRadius, orbitRingSpread, orbitScale, orbitSpeed } from "./scenes"
 
 const FRAME = 1 / 60
 type Meter = ReturnType<typeof createFullnessMeter>
@@ -120,6 +120,47 @@ describe("orbitSpeed", () => {
   it("saves most of its speed for the very top", () => {
     expect(orbitSpeed(0.5, null)).toBeLessThan(top * 0.3)
     expect(orbitSpeed(0.9, null)).toBeGreaterThan(top * 0.7)
+  })
+})
+
+describe("orbitAxisSpeed", () => {
+  it("swings the axis 10x as fast while the white hole is out", () => {
+    expect(orbitAxisSpeed(1)).toBeCloseTo(orbitAxisSpeed(0) * 10)
+    expect(orbitAxisSpeed(0.5)).toBeGreaterThan(orbitAxisSpeed(0))
+    expect(orbitAxisSpeed(0.5)).toBeLessThan(orbitAxisSpeed(1))
+  })
+})
+
+describe("orbitHoleSize", () => {
+  it("is gone until the white hole is out", () => {
+    expect(orbitHoleSize(0, 0.5)).toBe(0)
+  })
+  it("gets smaller the more intense the song is", () => {
+    expect(orbitHoleSize(1, 1)).toBeLessThan(orbitHoleSize(1, 0.5))
+    expect(orbitHoleSize(1, 0.5)).toBeLessThan(orbitHoleSize(1, 0))
+    expect(orbitHoleSize(1, 1)).toBeGreaterThan(0)
+  })
+})
+
+describe("orbitRingSpread", () => {
+  it("pulls the rings in tight at a peak", () => {
+    expect(orbitRingSpread(0)).toBe(1)
+    expect(orbitRingSpread(1)).toBeCloseTo(0.4)
+  })
+})
+
+describe("chaseHole", () => {
+  const run = (from: number, to: number, seconds: number) => {
+    let hole = from
+    for (let t = 0; t < seconds; t += 1 / 60) hole = chaseHole(hole, to, 1 / 60)
+    return hole
+  }
+  it("swells in quickly when a peak starts", () => {
+    expect(run(0, 1, 0.15)).toBeGreaterThan(0.9)
+  })
+  it("eases away more slowly than it came, instead of snapping off", () => {
+    expect(run(1, 0, 0.05)).toBeGreaterThan(0.7)
+    expect(run(1, 0, 0.75)).toBeLessThan(0.05)
   })
 })
 

@@ -25,7 +25,7 @@ function DownloadRowView({ row: r, list }: { row: DownloadRow; list: readonly So
         {r.label === "Earlier" && <p className="mb-2 text-sm text-muted-foreground">No download date recorded.</p>}
       </div>
     )
-  return <SongRow song={r.song} variant="row" startRadio list={list} queueContext={CONTEXT} badge={r.at ? new Date(r.at).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) : undefined} />
+  return <SongRow song={r.song} variant="row" list={list} queueContext={CONTEXT} badge={r.at ? new Date(r.at).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) : undefined} />
 }
 
 /**

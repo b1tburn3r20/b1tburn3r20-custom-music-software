@@ -24,6 +24,7 @@ contextBridge.exposeInMainWorld("api", {
   user: {
     get: () => invoke("user:get"),
     setLiked: (songId, liked) => invoke("user:set-liked", songId, liked),
+    clearLikes: () => invoke("user:clear-likes"),
     createPlaylist: (input) => invoke("user:playlist-create", input),
     updatePlaylist: (id, patch) => invoke("user:playlist-update", id, patch),
     deletePlaylist: (id) => invoke("user:playlist-delete", id),

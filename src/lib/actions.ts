@@ -25,6 +25,10 @@ export const isLiked = (songId: string) => useUserStore.getState().likedIds.has(
 export function setLiked(songId: string, liked: boolean) {
   return attempt(liked ? "Couldn't like song" : "Couldn't remove like", () => call(window.api.user.setLiked(songId, liked)))
 }
+export async function clearLikes() {
+  const n = await attempt("Couldn't reset likes", () => call(window.api.user.clearLikes()))
+  if (n !== undefined) toast.success(n ? `Removed ${n} ${n === 1 ? "like" : "likes"}` : "No likes to remove")
+}
 export const toggleLike = (songId: string) => setLiked(songId, !isLiked(songId))
 
 // ---------- recents ----------
